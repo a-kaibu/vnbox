@@ -88,6 +88,7 @@ a{color:var(--accent)}
     {{end}}
     <section><h2>パッケージ</h2><dl>
       <dt>名前</dt><dd>{{.Name}}</dd>
+      {{if .DRM}}<dt>DRM</dt><dd>{{.DRM}}</dd>{{end}}
       <dt>場所</dt><dd>{{if .Local}}ローカル{{end}}{{if and .Local .Remote}} + {{end}}{{if .Remote}}S3{{end}}</dd>
       {{if .Save}}<dt>セーブ</dt><dd>{{.Save}}</dd>{{end}}
     </dl></section>

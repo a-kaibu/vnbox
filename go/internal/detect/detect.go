@@ -73,7 +73,12 @@ var binSigs = []binSig{
 	bs("SFX:RAR", "Rar!\x1a\x07"), bs("SFX:WinRAR", "WinRAR SFX"), bs("SFX:CAB", "MSCF\x00\x00\x00\x00"),
 	bs("SFX:LZH", "-lh5-"), bs("SFX:ZIP", "PK\x03\x04"),
 	bs("DRM:SoftDenchi", "SoftDenchi"), bs("DRM:DMM", "DMMGamePlayer"), bs("DRM:Alpha-ROM", "ARCHIVE_ROM"),
-	bs("DRM:StarForce", "StarForce"), bs("DRM:SecuROM", "SecuROM"),
+	bs("DRM:StarForce", "StarForce"), bs("DRM:SecuROM", "SecuROM"), bs("DRM:PlayDRM", "PlayDRM"),
+	bs("DRM:DMM", "dmmgameplayer://"), bs("DRM:SoftDenchi", "soft-denchi"),
+	// protectors: PE section names in the header
+	bs("Protect:Themida", ".themida"), bs("Protect:WinLicense", ".winlice"), bs("Protect:VMProtect", ".vmp0\x00"),
+	bs("Protect:Enigma", ".enigma1"), bs("Protect:SafeDisc", "stxt774"), bs("Protect:StarForce", ".sforce"),
+	bs("Protect:SecuROM", ".securom"),
 	bs("Runtime:DirectShow", "quartz.dll"), bs("Runtime:VC71", "MSVCR71.dll"),
 	bs("Runtime:VC80", "MSVCR80.dll"), bs("Runtime:VC90", "MSVCR90.dll"), bs("Runtime:VC100", "MSVCR100.dll"),
 	bs("Runtime:MFC42", "MFC42.DLL"), bs("Runtime:VB6", "MSVBVM60.DLL"), bs("Runtime:D3DX9", "d3dx9_"),
@@ -175,7 +180,7 @@ func Detect(root string) Result { return DetectSkip(root, "") }
 func DetectSkip(root, skip string) Result {
 	res := Result{Path: root, Scores: map[string]int{}}
 	fileScores := map[string]int{}
-	var exes []string
+	var exes, dlls []string
 	st, err := os.Stat(root)
 	if err != nil {
 		res.Engine = "unknown"
@@ -210,6 +215,9 @@ func DetectSkip(root, skip string) Result {
 			if !d.IsDir() && strings.HasSuffix(n, ".exe") {
 				exes = append(exes, p)
 			}
+			if !d.IsDir() && strings.HasSuffix(n, ".dll") && len(dlls) < 40 {
+				dlls = append(dlls, p)
+			}
 			return nil
 		})
 	}
@@ -233,6 +241,17 @@ func DetectSkip(root, skip string) Result {
 			rel, _ = filepath.Rel(root, e)
 		}
 		res.Exes = append(res.Exes, Exe{Path: rel, SizeMB: float64(size(e)*10>>20) / 10, Arch: PEArch(e), Hits: hits})
+	}
+	// DRM runtimes and protectors often live in DLLs next to the game
+	for _, d := range dlls {
+		if size(d) > 32<<20 {
+			continue
+		}
+		for _, h := range ScanBinary(d) {
+			if strings.HasPrefix(h, "DRM:") || strings.HasPrefix(h, "Protect:") {
+				res.Scores[h]++
+			}
+		}
 	}
 	best, bestScore := "unknown", 0
 	for k, v := range res.Scores {

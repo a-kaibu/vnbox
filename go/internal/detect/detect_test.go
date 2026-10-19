@@ -44,3 +44,25 @@ func TestDetectAndMainExe(t *testing.T) {
 		t.Errorf("main exe %q", got)
 	}
 }
+
+func TestDetectProtection(t *testing.T) {
+	dir := t.TempDir()
+	b := make([]byte, 4096)
+	copy(b, "MZ")
+	copy(b[0x200:], ".text\x00\x00\x00")
+	copy(b[0x228:], ".themida")
+	os.WriteFile(filepath.Join(dir, "game.exe"), b, 0o644)
+	os.WriteFile(filepath.Join(dir, "auth.dll"), []byte("MZ ... PlayDRM ..."), 0o644)
+	r := Detect(dir)
+	has := func(tag string) bool {
+		for _, t := range r.Tags {
+			if t == tag {
+				return true
+			}
+		}
+		return false
+	}
+	if !has("Protect:Themida") || !has("DRM:PlayDRM") {
+		t.Errorf("tags %v", r.Tags)
+	}
+}

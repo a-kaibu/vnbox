@@ -37,6 +37,7 @@ type Game struct {
 	Name    string `json:"name"`
 	Title   string `json:"title"`
 	Engine  string `json:"engine,omitempty"`
+	DRM     string `json:"drm,omitempty"`
 	Local   bool   `json:"local"`
 	Remote  bool   `json:"remote"`
 	Save    string `json:"save,omitempty"` // time of the latest save in the store
@@ -84,7 +85,7 @@ func (s *Server) games(ctx context.Context) []Game {
 			g := get(e.Name())
 			g.Local = true
 			if l, err := p.Launch(); err == nil {
-				g.Title, g.Engine = l.Title, l.Engine
+				g.Title, g.Engine, g.DRM = l.Title, l.Engine, l.DRM
 			}
 			if st, err := os.Stat(p.Thumb()); err == nil {
 				g.Thumb = "thumb/" + g.Name + "?v=" + strconv.FormatInt(st.ModTime().Unix(), 36)
@@ -176,7 +177,7 @@ func (s *Server) remoteMeta(ctx context.Context, games []*Game) {
 		go func(g *Game) {
 			defer wg.Done()
 			if l, err := pkg.ParseLaunch(bytes.NewReader(side(g.Name, "ini"))); err == nil {
-				g.Title, g.Engine = l.Title, l.Engine
+				g.Title, g.Engine, g.DRM = l.Title, l.Engine, l.DRM
 			}
 			if b := side(g.Name, "json"); b != nil {
 				var in meta.Info

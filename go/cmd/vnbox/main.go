@@ -171,15 +171,28 @@ func cmdAdd(ctx context.Context, args []string) error {
 	l, _ := p.Launch()
 	// gallery metadata: the title given and the engine of the installed game folder
 	l.Title = *title
-	if gdir := filepath.Join(p.Dir, "files", filepath.Dir(filepath.FromSlash(l.Target))); l.Engine == "" {
-		if e := detect.Detect(gdir).Engine; e != "" && e != "unknown" {
-			l.Engine = e
+	gdir := filepath.Join(p.Dir, "files", filepath.Dir(filepath.FromSlash(l.Target)))
+	det := detect.Detect(gdir)
+	if e := det.Engine; l.Engine == "" && e != "" && e != "unknown" {
+		l.Engine = e
+	}
+	var drm []string
+	for _, t := range det.Tags {
+		if strings.HasPrefix(t, "DRM:") || strings.HasPrefix(t, "Protect:") {
+			drm = append(drm, t)
 		}
+	}
+	if len(drm) > 0 {
+		l.DRM = strings.Join(drm, ",")
+		fmt.Fprintf(os.Stderr, "warning: DRM / protection found: %s (purchased copies may need online activation)\n", l.DRM)
 	}
 	if err := pkg.WriteLaunch(p.Dir, l); err != nil {
 		return err
 	}
 	fmt.Printf("package: %s\ntarget:  %s\nengine:  %s\n", p.Dir, l.Target, l.Engine)
+	if l.DRM != "" {
+		fmt.Printf("drm:     %s\n", l.DRM)
+	}
 	st, err := openStore(ctx)
 	if err != nil {
 		return err

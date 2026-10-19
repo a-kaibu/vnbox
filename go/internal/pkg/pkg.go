@@ -40,6 +40,7 @@ type Launch struct {
 	Flavor     string // optional: "classic" to force the distribution Wine
 	Title      string // display name for the gallery (defaults to the package name)
 	Engine     string // detected engine, shown in the gallery
+	DRM        string // DRM / protector found in the files (DRM:*, Protect:* tags of detect), comma separated
 }
 
 // ThumbFile is the gallery thumbnail inside a package directory.
@@ -104,6 +105,8 @@ func ParseLaunch(r io.Reader) (Launch, error) {
 			l.Title = v
 		case "engine":
 			l.Engine = v
+		case "drm":
+			l.DRM = v
 		}
 	}
 	return l, sc.Err()
@@ -123,6 +126,9 @@ func WriteLaunch(dir string, l Launch) error {
 	}
 	if l.Engine != "" {
 		s += "engine=" + l.Engine + "\n"
+	}
+	if l.DRM != "" {
+		s += "drm=" + l.DRM + "\n"
 	}
 	return os.WriteFile(filepath.Join(dir, "launch.ini"), []byte(s), 0o644)
 }
