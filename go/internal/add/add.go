@@ -139,6 +139,7 @@ func Add(ctx context.Context, name, src string, o Options) (*pkg.Package, error)
 		if r.Files == 0 && o.Flavor == wine.Vnbox && !o.noRetry {
 			fmt.Fprintf(o.Log, "[%s] installer produced nothing; retrying on classic Wine (Win7)\n", name)
 			os.RemoveAll(dst)
+			os.RemoveAll(work) // the retry unpacks again: do not keep two copies on disk
 			o2 := o
 			o2.Flavor, o2.noRetry = wine.Classic, true
 			if p2, err := Add(ctx, name, src, o2); err == nil {
