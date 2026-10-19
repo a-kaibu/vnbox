@@ -555,11 +555,14 @@ func cmdRegdiff(args []string) error {
 // dotnetVerb reads <exe>.runtimeconfig.json and returns "vnbox-dotnet:<major>:<arch>[:desktop]", or "".
 // unity6 reports whether the UnityPlayer.dll next to exe is from Unity 6 (version 6000.x).
 func unity6(exe string) bool {
-	b, err := os.ReadFile(filepath.Join(filepath.Dir(exe), "UnityPlayer.dll"))
-	if err != nil {
-		return false
+	ents, _ := os.ReadDir(filepath.Dir(exe))
+	for _, e := range ents {
+		if strings.EqualFold(e.Name(), "UnityPlayer.dll") { // some installers write UNITYPLAYER.DLL
+			b, err := os.ReadFile(filepath.Join(filepath.Dir(exe), e.Name()))
+			return err == nil && unityVersionRe.Match(b)
+		}
 	}
-	return unityVersionRe.Match(b)
+	return false
 }
 
 var unityVersionRe = regexp.MustCompile(`6000\.\d+\.\d+[abfp]\d+`)

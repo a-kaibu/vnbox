@@ -153,16 +153,24 @@ func find(dir string) string {
 	if found != "" {
 		return found
 	}
+	var cands []string
 	filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
-		if err != nil || found != "" || d.IsDir() {
-			return nil
-		}
-		if isInstallerName(d.Name()) {
-			found = p
+		if err == nil && !d.IsDir() && isInstallerName(d.Name()) {
+			cands = append(cands, p)
 		}
 		return nil
 	})
-	return found
+	// an installer that runs silently (Inno / NSIS) beats a launcher with an installer-like name
+	// that only starts it (Eushully: InstallLauncher.exe next to an Inno setup.exe)
+	for _, c := range cands {
+		if k := Classify(c); k == Inno || k == NSIS {
+			return c
+		}
+	}
+	if len(cands) > 0 {
+		return cands[0]
+	}
+	return ""
 }
 
 // Classify returns the installer kind of path.
