@@ -43,6 +43,13 @@ type Launch struct {
 	DRM        string // DRM / protector found in the files (DRM:*, Protect:* tags of detect), comma separated
 }
 
+// IsHTML reports whether the target is a web page (an HTML5 game): it runs in a native
+// browser on the game's X display instead of in Wine.
+func (l Launch) IsHTML() bool {
+	t := strings.ToLower(l.Target)
+	return strings.HasSuffix(t, ".html") || strings.HasSuffix(t, ".htm")
+}
+
 // ThumbFile is the gallery thumbnail inside a package directory.
 const ThumbFile = "thumb.jpg"
 

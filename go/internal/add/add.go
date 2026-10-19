@@ -68,6 +68,11 @@ func Add(ctx context.Context, name, src string, o Options) (*pkg.Package, error)
 	} else if err := extract.Extract(src, filepath.Join(work, "x")); err == nil && hasExe(filepath.Join(work, "x")) {
 		dir = filepath.Join(work, "x")
 	} else if err == nil && !strings.EqualFold(filepath.Ext(src), ".exe") {
+		// an HTML5 game (index.html, no Windows program): runs in the browser, not in Wine
+		if page := htmlEntry(filepath.Join(work, "x")); page != "" {
+			fmt.Fprintf(o.Log, "[%s] HTML5 game: %s\n", name, page)
+			return addHTML5(filepath.Join(work, "x"), page, dst, name)
+		}
 		return nil, ErrNoExecutable
 	} else if isWinRARSFX(src) {
 		fmt.Fprintf(o.Log, "[%s] WinRAR SFX: extracting with Wine\n", name)
@@ -216,6 +221,47 @@ func checkTarget(p *pkg.Package) (*pkg.Package, error) {
 		return p, fmt.Errorf("could not determine the executable; edit %s/launch.ini", p.Dir)
 	}
 	return p, nil
+}
+
+// htmlEntry returns the index.html of an HTML5 game under dir (at most 2 levels deep), or "".
+func htmlEntry(dir string) string {
+	var found string
+	filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err != nil || found != "" {
+			return nil
+		}
+		rel, _ := filepath.Rel(dir, p)
+		if d.IsDir() && strings.Count(rel, string(filepath.Separator)) >= 2 {
+			return filepath.SkipDir
+		}
+		if !d.IsDir() && strings.EqualFold(d.Name(), "index.html") {
+			found = rel
+		}
+		return nil
+	})
+	return found
+}
+
+// addHTML5 packages an HTML5 game under C:\Games\<name>; launch.ini points at the page and the
+// session opens it in the browser (pkg.Launch.IsHTML).
+func addHTML5(dir, page, dst, name string) (*pkg.Package, error) {
+	gdir := filepath.Join(dst, "files", "Games", name)
+	if err := os.MkdirAll(filepath.Dir(gdir), 0o755); err != nil {
+		return nil, err
+	}
+	if err := os.Rename(dir, gdir); err != nil {
+		if out, err := exec.Command("cp", "-a", dir+"/.", gdir+"/").CombinedOutput(); err != nil {
+			os.RemoveAll(dst)
+			return nil, fmt.Errorf("copy: %v: %s", err, out)
+		}
+	}
+	l := pkg.Launch{Target: filepath.ToSlash(filepath.Join("Games", name, page)), Engine: "HTML5"}
+	if err := pkg.WriteLaunch(dst, l); err != nil {
+		return nil, err
+	}
+	os.WriteFile(filepath.Join(dst, "system.reg.frag"), nil, 0o644)
+	os.WriteFile(filepath.Join(dst, "user.reg.frag"), nil, 0o644)
+	return pkg.Open(dst)
 }
 
 func hasExe(dir string) bool {

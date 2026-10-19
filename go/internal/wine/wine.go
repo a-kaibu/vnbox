@@ -290,3 +290,36 @@ func ClonePrefix(src, dst string) error {
 	os.RemoveAll(users)
 	return exec.Command("cp", "-a", filepath.Join(src, "drive_c", "users"), users).Run()
 }
+
+// Browser returns the native Chromium used for HTML5 games ($VNBOX_BROWSER, Playwright's
+// Chromium, or chromium / google-chrome on PATH), or "".
+func Browser() string {
+	if b := os.Getenv("VNBOX_BROWSER"); b != "" {
+		return b
+	}
+	cands, _ := filepath.Glob("/opt/pw-browsers/chromium*/chrome-linux/chrome")
+	for _, n := range []string{"chromium", "chromium-browser", "google-chrome"} {
+		if p, err := exec.LookPath(n); err == nil {
+			cands = append(cands, p)
+		}
+	}
+	for _, c := range cands {
+		if st, err := os.Stat(c); err == nil && !st.IsDir() {
+			return c
+		}
+	}
+	return ""
+}
+
+// BrowserCommand opens an HTML5 game page as a window of its own on the game's display. The
+// browser profile (localStorage saves) lives inside the prefix so it is saved with the game.
+func BrowserCommand(ctx context.Context, e Env, page string) *exec.Cmd {
+	profile := filepath.Join(e.Prefix, "drive_c", "users", "Public", "vnbox-browser")
+	os.MkdirAll(profile, 0o755)
+	c := exec.CommandContext(ctx, Browser(), "--no-sandbox", "--test-type", "--no-first-run",
+		"--user-data-dir="+profile, "--app=file://"+page, "--window-position=0,0", "--window-size=1280,720",
+		"--autoplay-policy=no-user-gesture-required", "--disable-features=Translate", "--lang=ja")
+	c.Dir = filepath.Dir(page)
+	c.Env = e.Vars()
+	return c
+}

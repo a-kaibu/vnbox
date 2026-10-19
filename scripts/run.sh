@@ -28,7 +28,16 @@ export WINEDEBUG=${RUN_DEBUG:-err+all,fixme-all}
 game_alive(){ local p pat; pat=$(basename "$EXE" | sed 's/[][\.*^$()+?{}|]/\\&/g')
   for p in $(pgrep -if -- "$pat"); do tr '\0' '\n' </proc/$p/environ 2>/dev/null | grep -qxF "WINEPREFIX=$WINEPREFIX" && return 0; done; return 1; }
 cd "$GDIR"
-wine "$EXE" ${ARGS:-} >"$OUT/wine.log" 2>&1 &
+case "${EXE,,}" in
+  *.html|*.htm)  # HTML5 のゲームは Wine でなく、同じディスプレイのネイティブ Chromium で開く (プロファイル = セーブは prefix 内)
+    B=${VNBOX_BROWSER:-$(ls /opt/pw-browsers/chromium*/chrome-linux/chrome 2>/dev/null | head -1)}
+    mkdir -p "$WINEPREFIX/drive_c/users/Public/vnbox-browser"
+    "$B" --no-sandbox --test-type --no-first-run --user-data-dir="$WINEPREFIX/drive_c/users/Public/vnbox-browser" \
+      --app="file://$GDIR/$EXE" --window-position=0,0 --window-size=1280,720 --autoplay-policy=no-user-gesture-required \
+      --disable-features=Translate --lang=ja >"$OUT/wine.log" 2>&1 &
+    NO_MANAGED_FALLBACK=1;;
+  *) wine "$EXE" ${ARGS:-} >"$OUT/wine.log" 2>&1 &;;
+esac
 PID=$!
 sleep "$WAIT"
 # フルスクリーン化を WM 任せにするゲームは、WM が無いと X ウィンドウが 1x1 のまま残る。
@@ -98,7 +107,7 @@ if [ -f "$VNBOX/runtime/tools/winsize.exe" ] && [ "$ALIVE" = yes ]; then
   echo "client=${cw:-?}x${ch:-?} x11=${WIDTH:-?}x${HEIGHT:-?}" > "$OUT/sizes.txt"
   if [ -n "${cw:-}" ] && [ -n "${WIDTH:-}" ] && { [ $((cw - WIDTH)) -gt 16 ] || [ $((ch - HEIGHT)) -gt 16 ]; }; then MISMATCH=yes; fi
 fi
-wineserver -k 2>/dev/null; wait $PID 2>/dev/null
+wineserver -k 2>/dev/null; kill $PID 2>/dev/null; wait $PID 2>/dev/null
 for p in $(pgrep -x Xvfb); do tr '\0' ' ' </proc/$p/cmdline | grep -q "^Xvfb $DISPLAY " && kill $p; done
 {
   echo "name=$NAME exe=$EXE alive_after=$ALIVE size_mismatch=$MISMATCH $(cat "$OUT/sizes.txt" 2>/dev/null)"

@@ -112,6 +112,9 @@ func (s *Session) start(ctx context.Context) (chan error, error) {
 		args = append(args, splitArgs(s.launch.Args)...)
 	}
 	c := s.env.Command(ctx, dir, args...)
+	if s.launch.IsHTML() {
+		c = wine.BrowserCommand(ctx, s.env, filepath.Join(dir, exe))
+	}
 	lf, _ := os.Create(filepath.Join(wine.Root(), "results", "play-"+s.Name+".log"))
 	c.Stdout, c.Stderr = lf, lf
 	if err := c.Start(); err != nil {
