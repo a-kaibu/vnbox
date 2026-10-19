@@ -580,8 +580,14 @@ func bishopGame(exe string) string {
 	if !strings.EqualFold(filepath.Base(exe), "startup.exe") {
 		return ""
 	}
-	b, err := os.ReadFile(filepath.Join(filepath.Dir(exe), "startup.ini"))
-	if err != nil {
+	var b []byte
+	ents, _ := os.ReadDir(filepath.Dir(exe))
+	for _, e := range ents {
+		if strings.EqualFold(e.Name(), "startup.ini") { // StartUp.ini in some titles
+			b, _ = os.ReadFile(filepath.Join(filepath.Dir(exe), e.Name()))
+		}
+	}
+	if b == nil {
 		return ""
 	}
 	sect := ""
@@ -599,8 +605,10 @@ func bishopGame(exe string) string {
 		k = strings.ToLower(strings.TrimSpace(k))
 		v = strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(v), ".\\"), "./")
 		if (k == "boot" || k == "demo") && v != "" && !strings.ContainsAny(v, "\\/") {
-			if _, err := os.Stat(filepath.Join(filepath.Dir(exe), v)); err == nil {
-				found = append(found, v)
+			for _, e := range ents {
+				if strings.EqualFold(e.Name(), v) {
+					found = append(found, e.Name())
+				}
 			}
 		}
 	}
