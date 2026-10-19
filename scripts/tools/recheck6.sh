@@ -29,11 +29,16 @@ one(){ # タブ区切りの空欄を詰めないよう cut で取り出す ("rea
   fi
   local PK=$V/packages/$id; rm -rf "$PK"
   local targs=(); [ -n "$title" ] && targs=(-title "$title")
-  timeout 3600 bin/vnbox add $id "$F" -no-upload "${targs[@]}" > results/batch/r6_$id.add.log 2>&1
+  timeout 3600 bin/vnbox add $id "$F" -no-upload "${targs[@]}" ${ADD_ARGS:-} > results/batch/r6_$id.add.log 2>&1
   rm -rf $D
   local T=$(sed -n 's/^target=//p' "$PK/launch.ini" 2>/dev/null) E=$(sed -n 's/^engine=//p' "$PK/launch.ini" 2>/dev/null)
   if [ -z "$T" ]; then
     echo -e "$id\t-\tNG:package($(grep -v '^ ' results/batch/r6_$id.add.log | tail -1 | cut -c1-70))\t\t\t$src\t$drm" >> $OUT; rm -rf "$PK"; return
+  fi
+  # 追加の対処 (EXTRA_VERBS="vnbox-dxvk" 等) を launch.ini の winetricks= に足す
+  if [ -n "${EXTRA_VERBS:-}" ]; then
+    if grep -q '^winetricks=' "$PK/launch.ini"; then sed -i "s/^winetricks=.*/& $EXTRA_VERBS/" "$PK/launch.ini"
+    else sed -i "/^\[launch\]/a winetricks=$EXTRA_VERBS" "$PK/launch.ini"; fi
   fi
   local marks=$(drm_scan "$PK/files")
   local v=NG best="" st
@@ -52,7 +57,7 @@ one(){ # タブ区切りの空欄を詰めないよう cut で取り出す ("rea
   echo -e "$id\t$best\t$v\t$T\t$E\t$src\t$drm\t$marks" | tee -a $OUT
   rm -rf "$PK" "$V/downloads/r6pre/$id"
 }
-export -f one drm_scan; export V OUT PROBE
+export -f one drm_scan; export V OUT PROBE EXTRA_VERBS ADD_ARGS
 mkdir -p results/batch downloads/b6
 cut -f1-6 "$LIST" | tr '\n' '\0' | xargs -0 -P "$JOBS" -I{} bash -c 'one "$1"' _ {}
 echo RECHECK6_DONE

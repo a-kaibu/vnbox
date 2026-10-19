@@ -255,6 +255,8 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 | `wine-build/vnbox-wined3d-read-scanline.patch` | wined3d: `D3DCAPS9.Caps` が 0 だった。実機のドライバは必ず `D3DCAPS_READ_SCANLINE` を返す (GetRasterStatus は wined3d がエミュレートしている) | Hello,good-bye (Lump of Sugar 2010, BGI): 「ディスプレイアダプタが必要不可欠な機能をサポートしていません」→ インストーラもゲームも動作 |
 | `wine-build/vnbox-kernelbase-safe-disk-free.patch` | kernelbase: 空き容量を 32bit で掛け算する (または 64bit 値を切り捨てる) 古いインストーラが、空きが 4GB の倍数を少し超えると「容量不足」になる。実際の空き以下で、下位 32bit が 2GB-1MB になる値を `GetDiskFreeSpace(Ex)` が返す (64bit で正しく扱うアプリは最大 4GB 少なく見えるだけ) | よろず屋 (ShiinaRio 系インストーラ)、百千の定にかわたれし剋 (InstallShield の前段) |
 | `wine-build/vnbox-wmreader-allocator-retry.patch` | winegstreamer: WM Reader が、アプリ側アロケータが未コミット (VFW_E_NOT_COMMITTED) のとき即座にストリーム終端扱いにしていた。少し待って再試行する | (同上の調査で見つけた不具合。単独で直ったタイトルは未確認) |
+| `wine-build/vnbox-quartz-videowindow-unlocked.patch` | quartz: フィルタグラフの `IVideoWindow` 各メソッドが、グラフのロックを持ったままレンダラのウィンドウを表示・非表示・移動していた。動画スレッドが `put_Visible` で UI スレッドへメッセージを送り、UI スレッドが `NotifyOwnerMessage` で同じロックを待つとデッドロックする。ロックはレンダラを探す間だけにした | スズノネセブン！ (Clochette 2008, CatSystem2): OP 動画のあと黒画面のまま → タイトルへ |
+| `wine-build/vnbox-win32u-own-frame-visible.patch` | win32u: タイトルバーを自分で描くウィンドウ (WM_NCCALCSIZE でクライアント領域を枠いっぱいに広げる Chromium / NW.js / Electron) でも、Wine は WM が枠を描く前提で上端のタイトルバー分を X ウィンドウから外していた (vnbox の WM は枠を描かない)。クライアント領域が想定の枠にかかるときはウィンドウ全体を見せる | RPG ツクール MZ (NW.js) 製の体験版多数: 上 30px が欠けて X 側 1280x720 / Wine 側 1280x750 → 全体が見える |
 
 後から足したパッチ (kernelbase / ntdll / qasf / winegstreamer / wined3d) は、該当 DLL だけを再ビルドして `/opt/wine-vnbox` に差し替えた (元のファイルは `wine-build/orig-dlls/`)。Wine を作り直すときは `wine-build/` のパッチを全部当てて `--enable-archs=i386,x86_64` でビルドする。
 
