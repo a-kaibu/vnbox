@@ -38,7 +38,13 @@ func Extract(src, dst string) error {
 			err = run(dst, "7z", "x", "-y", "-mcp=932", src)
 		}
 	case strings.HasSuffix(low, ".lzh"), strings.HasSuffix(low, ".lha"):
-		err = run(dst, "lha", "-xqf", src)
+		// 7z keeps the Shift_JIS bytes of the names as they are. lha (lhasa) lowercases
+		// all-uppercase MS-DOS names, which also changes the ASCII trail bytes of Shift_JIS
+		// characters (逃亡者４.CAB → 逃穆者Ｔ.cab in another folder)
+		if err = run(dst, "7z", "x", "-y", src); err != nil {
+			clear(dst)
+			err = run(dst, "lha", "-xqf", src)
+		}
 	case strings.HasSuffix(low, ".7z"), strings.HasSuffix(low, ".rar"), strings.HasSuffix(low, ".cab"):
 		err = run(dst, "7z", "x", "-y", src)
 	case strings.HasSuffix(low, ".exe"):
