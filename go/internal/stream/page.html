@@ -5,7 +5,11 @@
 <title>vnbox</title><style>
 html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none;overscroll-behavior:none;
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
-#v{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;object-fit:contain;display:block}
+#v,#vv{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;object-fit:contain;display:block;pointer-events:none;background:#000}
+#v[hidden],#vv[hidden]{display:none}
+#pad{position:fixed;inset:0;z-index:1}
+#stat{color:#ddd;font:12px system-ui;text-align:center;grid-column:1/-1;padding:4px;border-radius:8px;background:rgba(30,30,36,.8)}
+#stat:empty{display:none}
 #fab{position:fixed;right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));z-index:3;
   width:44px;height:44px;border-radius:50%;border:0;background:rgba(30,30,36,.55);color:#fff;font:20px/44px system-ui;opacity:.75}
 #bar{position:fixed;right:max(10px,env(safe-area-inset-right));bottom:calc(max(10px,env(safe-area-inset-bottom)) + 52px);z-index:3;
@@ -29,7 +33,7 @@ html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none
 #kbd input{font:16px system-ui;padding:8px;border-radius:8px;border:0;width:min(60vw,320px)}
 #kbd button{font:600 15px system-ui;padding:8px 12px;border-radius:8px;border:0;background:#e2557a;color:#fff}
 </style></head><body>
-<img id="v" src="video" alt=""><audio id="a" preload="none"></audio>
+<video id="vv" autoplay playsinline muted></video><img id="v" alt="" hidden><audio id="a" preload="none"></audio><div id="pad"></div>
 <div id="hint" class="hide"></div>
 <button id="fab" aria-label="メニュー">☰</button>
 <div id="bar">
@@ -42,27 +46,64 @@ html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none
   <button id="type">⌨ 文字入力</button>
   <button id="full">⛶ 全画面</button>
   <a href="../../">← ライブラリ</a>
+  <div id="stat"></div>
 </div>
 <div id="kbd"><input id="kt" maxlength="64" enterkeyhint="send" autocomplete="off"><button id="ks">送る</button></div>
 <script>
-const v=document.getElementById('v'),bar=document.getElementById('bar'),hint=document.getElementById('hint');
+const vv=document.getElementById('vv'),img=document.getElementById('v'),pad=document.getElementById('pad'),bar=document.getElementById('bar'),hint=document.getElementById('hint'),stat=document.getElementById('stat');
+let mode='',dc=null,pc=null;
+// 表示中の映像 (WebRTC の video か、MJPEG の img)
+function media(){return mode==='mjpeg'?[img,img.naturalWidth,img.naturalHeight]:[vv,vv.videoWidth,vv.videoHeight];}
 // 画面上の位置 → ゲーム画面の座標 (レターボックス部分は null)
-function rel(cx,cy){const r=v.getBoundingClientRect(),W=v.naturalWidth,H=v.naturalHeight;if(!W)return null;
+function rel(cx,cy){const [el,W,H]=media(),r=el.getBoundingClientRect();if(!W)return null;
  const s=Math.min(r.width/W,r.height/H),ox=(r.width-W*s)/2,oy=(r.height-H*s)/2;
  const x=Math.round((cx-r.left-ox)/s),y=Math.round((cy-r.top-oy)/s);return x<0||y<0||x>=W||y>=H?null:[x,y];}
-function send(o){fetch('input',{method:'POST',body:JSON.stringify(o),keepalive:true});}
+// 入力は WebRTC のデータチャネル優先 (HTTP より遅延が小さい)
+function send(o){const j=JSON.stringify(o);if(dc&&dc.readyState==='open')dc.send(j);else fetch('input',{method:'POST',body:j,keepalive:true});}
 function ripple(x,y,right){const d=document.createElement('div');d.className='ripple'+(right?' r':'');d.style.left=x+'px';d.style.top=y+'px';
  document.body.appendChild(d);setTimeout(()=>d.remove(),400);}
 function click(cx,cy,b){const p=rel(cx,cy);if(!p)return;ripple(cx,cy,b===3);send({t:'click',x:p[0],y:p[1],b});}
 function wheel(cx,cy,b){const p=rel(cx,cy);send(p?{t:'click',x:p[0],y:p[1],b}:{t:'click',x:0,y:0,b,nomove:1});}
-// モバイルブラウザは操作起点でないと音を出せないので、最初の操作で音声ストリームを開始
-let audioOn=false;function startAudio(){if(audioOn)return;audioOn=true;const a=document.getElementById('a');a.src='audio';a.play().catch(()=>{audioOn=false;});}
+
+// ---- 映像: WebRTC (H.264、無ければ VP8) → 失敗したら MJPEG ----
+async function startRTC(){
+ const cfg=await (await fetch('rtc-config')).json();
+ pc=new RTCPeerConnection({iceServers:cfg.iceServers||[]});
+ const caps=(RTCRtpReceiver.getCapabilities&&RTCRtpReceiver.getCapabilities('video')||{codecs:[]}).codecs;
+ const h264=caps.filter(c=>/h264/i.test(c.mimeType));
+ const vt=pc.addTransceiver('video',{direction:'recvonly'});pc.addTransceiver('audio',{direction:'recvonly'});
+ if(h264.length&&vt.setCodecPreferences)try{vt.setCodecPreferences([...h264,...caps.filter(c=>!/h264/i.test(c.mimeType))]);}catch(e){}
+ dc=pc.createDataChannel('input');
+ const ms=new MediaStream();vv.srcObject=ms;pc.ontrack=e=>ms.addTrack(e.track);
+ await pc.setLocalDescription(await pc.createOffer());
+ await new Promise(r=>{if(pc.iceGatheringState==='complete')return r();pc.addEventListener('icegatheringstatechange',()=>pc.iceGatheringState==='complete'&&r());setTimeout(r,2500);});
+ const codec=h264.length?'h264':'vp8';
+ const res=await fetch('rtc?codec='+codec,{method:'POST',body:JSON.stringify(pc.localDescription)});
+ if(!res.ok)throw new Error('offer '+res.status);
+ await pc.setRemoteDescription(await res.json());
+ await new Promise((ok,ng)=>{const t=setTimeout(()=>ng(new Error('timeout')),12000);
+  pc.addEventListener('connectionstatechange',()=>{if(pc.connectionState==='connected'){clearTimeout(t);ok();}else if(pc.connectionState==='failed'){clearTimeout(t);ng(new Error('failed'));}});});
+ mode='webrtc '+(codec==='h264'?'H.264':'VP8');
+ pc.addEventListener('connectionstatechange',()=>{if(pc.connectionState==='failed')location.reload();});
+}
+function startMJPEG(){if(pc)try{pc.close()}catch(e){};pc=null;dc=null;mode='mjpeg';vv.hidden=true;img.hidden=false;img.src='video';}
+startRTC().catch(e=>{console.warn('WebRTC unavailable, using MJPEG:',e);startMJPEG();});
+// 実際に受け取っている帯域をメニューに出す
+let lastBytes=0,lastT=0;
+setInterval(async()=>{if(!pc){stat.textContent=mode?'MJPEG (WebRTC 不可時の代替)':'';return;}
+ let b=0;(await pc.getStats()).forEach(r=>{if(r.type==='inbound-rtp')b+=r.bytesReceived||0;});
+ const t=performance.now();if(lastT)stat.textContent=mode+' · '+Math.round((b-lastBytes)*8/(t-lastT))+' kbps';lastBytes=b;lastT=t;},2000);
+
+// モバイルブラウザは操作起点でないと音を出せない: 最初の操作で音を出す (WebRTC は video の消音解除、MJPEG は音声ストリーム)
+let audioOn=false;function startAudio(){if(audioOn)return;audioOn=true;
+ if(mode!=='mjpeg'){vv.muted=false;vv.play().catch(()=>{audioOn=false;});return;}
+ const a=document.getElementById('a');a.src='audio';a.play().catch(()=>{audioOn=false;});}
 document.addEventListener('pointerdown',startAudio,{capture:true});
 
 // ---- マウス ----
-v.addEventListener('pointerup',e=>{if(e.pointerType!=='touch')click(e.clientX,e.clientY,e.button==2?3:1);});
-v.addEventListener('contextmenu',e=>e.preventDefault());
-v.addEventListener('wheel',e=>{wheel(e.clientX,e.clientY,e.deltaY<0?4:5);},{passive:true});
+pad.addEventListener('pointerup',e=>{if(e.pointerType!=='touch')click(e.clientX,e.clientY,e.button==2?3:1);});
+pad.addEventListener('contextmenu',e=>e.preventDefault());
+pad.addEventListener('wheel',e=>{wheel(e.clientX,e.clientY,e.deltaY<0?4:5);},{passive:true});
 document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
  if(e.key==='Control'){if(!e.repeat)send({t:'keydown',k:'ctrl'});}else send({t:'key',k:e.key});e.preventDefault();});
 document.addEventListener('keyup',e=>{if(e.key==='Control')send({t:'keyup',k:'ctrl'});});
@@ -71,25 +112,25 @@ document.addEventListener('keyup',e=>{if(e.key==='Control')send({t:'keyup',k:'ct
 // タップ = クリック / 長押し・2本指タップ = 右クリック (メニュー・ウィンドウ消し)
 // 下へスワイプ = ホイール上 (バックログ) / 上へスワイプ = ホイール下 (読み進め)。一定距離ごとに 1 段
 const touches=new Map();let gesture=null;
-v.addEventListener('touchstart',e=>{e.preventDefault();
+pad.addEventListener('touchstart',e=>{e.preventDefault();
  for(const t of e.changedTouches)touches.set(t.identifier,{x:t.clientX,y:t.clientY});
  if(touches.size===1){const t=e.changedTouches[0];
    gesture={x:t.clientX,y:t.clientY,lastY:t.clientY,moved:false,two:false,long:false,
      timer:setTimeout(()=>{if(gesture&&!gesture.moved){gesture.long=true;click(gesture.x,gesture.y,3);navigator.vibrate&&navigator.vibrate(15);}},550)};}
  else if(gesture){gesture.two=true;clearTimeout(gesture.timer);}
 },{passive:false});
-v.addEventListener('touchmove',e=>{e.preventDefault();if(!gesture||gesture.two)return;const t=e.changedTouches[0];
+pad.addEventListener('touchmove',e=>{e.preventDefault();if(!gesture||gesture.two)return;const t=e.changedTouches[0];
  if(Math.hypot(t.clientX-gesture.x,t.clientY-gesture.y)>14){gesture.moved=true;clearTimeout(gesture.timer);}
  const step=48,dy=t.clientY-gesture.lastY;
  if(Math.abs(dy)>=step){wheel(gesture.x,gesture.y,dy>0?4:5);gesture.lastY+=Math.sign(dy)*step;}
 },{passive:false});
-v.addEventListener('touchend',e=>{e.preventDefault();
+pad.addEventListener('touchend',e=>{e.preventDefault();
  for(const t of e.changedTouches)touches.delete(t.identifier);
  if(!gesture||touches.size)return;clearTimeout(gesture.timer);
  if(gesture.two)click(gesture.x,gesture.y,3);
  else if(!gesture.moved&&!gesture.long)click(gesture.x,gesture.y,1);
  gesture=null;},{passive:false});
-v.addEventListener('touchcancel',()=>{touches.clear();if(gesture)clearTimeout(gesture.timer);gesture=null;});
+pad.addEventListener('touchcancel',()=>{touches.clear();if(gesture)clearTimeout(gesture.timer);gesture=null;});
 
 // ---- メニュー ----
 const fab=document.getElementById('fab');
@@ -97,7 +138,7 @@ fab.onclick=e=>{e.stopPropagation();bar.classList.toggle('open');};
 bar.querySelectorAll('button[data-k],button[data-b],button[data-w]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();
  if(b.dataset.k)send({t:'key',k:b.dataset.k});
  else if(b.dataset.b)send({t:'click',x:0,y:0,b:+b.dataset.b,nomove:1});
- else{const r=v.getBoundingClientRect();wheel(r.left+r.width/2,r.top+r.height/2,+b.dataset.w);}});
+ else{const r=media()[0].getBoundingClientRect();wheel(r.left+r.width/2,r.top+r.height/2,+b.dataset.w);}});
 const skip=document.getElementById('skip');let skipping=false;
 function setSkip(on){skipping=on;skip.setAttribute('aria-pressed',on);send({t:on?'keydown':'keyup',k:'ctrl'});}
 skip.onclick=ev=>{ev.stopPropagation();setSkip(!skipping);};

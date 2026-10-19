@@ -29,9 +29,9 @@ Linux サーバ上で Windows 向けノベルゲームを Wine で動かし、An
    │
    ▼
  Wine (自前ビルド /opt/wine-vnbox, 新 WoW64)。1 ゲームごとに:
-   Xvfb :N (WM なし) ──x11grab──▶ ffmpeg MJPEG ──────┐
-   PulseAudio null シンク ──monitor──▶ ffmpeg Opus/WebM ─┤ stream.py (HTTP :port) ◀──▶ ブラウザ (Android 等)
-   xdotool ◀── POST /input (タップ・キー) ─────────────┘
+   Xvfb :N (WM なし) ──x11grab──▶ ffmpeg H.264 ──────┐   WebRTC (映像・音声・入力のデータチャネル)
+   PulseAudio null シンク ──monitor──▶ ffmpeg Opus ────┤ vnbox serve (HTTP :port) ◀──▶ ブラウザ (Android 等)
+   xdotool ◀── データチャネル / POST /input (タップ・キー) ┘
 ```
 
 - **ベース prefix** (`prefixes/base-vnbox`): 64bit / Win10 / コードページ 932 / 日本語フォント置換 / ＭＳ ゴシック等の実体フォント / icu.dll / 仮想デスクトップ無し。`scripts/mkbase.sh` で作る。各ゲームの prefix はこれのハードリンク複製なので、1 本あたりの追加ディスクはゲーム本体とセーブ分だけ。
@@ -58,16 +58,45 @@ scripts/play.sh --package packages/mygame 8080    # 配信開始 → ブラウ�
 
 ## ストリーミングの方式
 
+Go 版 (`vnbox serve` / `vnbox play`) は **WebRTC (H.264 + Opus)** で配信し、繋がらないときだけ MJPEG に切り替える。
+
 | 経路 | 方式 | 実装 |
 |---|---|---|
-| 映像 | ゲームウィンドウの矩形だけを `ffmpeg -f x11grab` で取り込み、MJPEG (既定 15fps, `-q:v 5`) を `multipart/x-mixed-replace` で `<img>` に流す | `stream.py` `/video` |
-| 音声 | ゲーム専用の PulseAudio null シンクの monitor を Opus 96kbps / WebM にして `<audio>` に流す (モバイルは最初のタップで開始) | `stream.py` `/audio` |
-| 入力 | タップ/クリック/ホイール/キーを `POST /input` で受け、表示倍率を逆算した座標で `xdotool` がそのウィンドウへ送る。画面下に Enter / Esc / Skip(Ctrl) / 右クリックのボタン | `stream.py` `/input` |
-| 画面 | スマホ縦横どちらでもレターボックス表示 | `stream.py` のページ |
+| 映像 | ゲームウィンドウの矩形だけを `ffmpeg -f x11grab` で取り込み、libx264 (constrained baseline, zerolatency, 30fps, CRF 23, 上限 3Mbps) で H.264 にして WebRTC で送る。H.264 を復号できないブラウザには VP8。エンコーダはゲームごとに 1 つで、見ている人全員に配る (誰も見ていなければ 20 秒後に止める) | `go/internal/stream/rtc.go` |
+| キーフレーム | 定期は 10 秒ごと。新しい視聴者が来たときと、視聴者がパケット欠落を知らせたとき (PLI / FIR) にエンコーダを起動し直して即座にキーフレームを出す (3 秒に 1 回まで) | 同上 |
+| 音声 | ゲーム専用の PulseAudio null シンクの monitor を Opus 96kbps (20ms) にして WebRTC で送る。モバイルは最初のタップで消音を解除 | 同上 |
+| 入力 | WebRTC のデータチャネルで JSON を受け、表示倍率を逆算した座標で `xdotool` がそのウィンドウへ送る (データチャネルが無いときは `POST /input`)。タッチ操作は下記 | `stream.go` / `page.html` |
+| シグナリング | ページが offer を `POST rtc?codec=h264|vp8` に送り、ICE 収集を済ませた answer を返す 1 往復 (ポータルの認証の内側) | `rtc.go` |
+| 代替 | WebRTC が 12 秒以内に繋がらなければ MJPEG (`multipart/x-mixed-replace`) + Opus/WebM に切り替える | `stream.go` `/video` `/audio` |
 
-- 1x1 のまま表示されないゲーム (フルスクリーンを WM 任せにするもの) は `play.sh` が検出して `Managed=N` で起動し直す。
-- **注意 (PoC の制約)**: `stream.py` は `0.0.0.0` で待ち受け、**認証が無い**。インターネットに出す場合は必ずリバースプロキシ (Caddy/nginx + 認証、Cloudflare Access、Tailscale など) の内側に置くこと。
-- MJPEG は実装が単純な代わりに帯域が多い。本番は同じ構成のまま映像を H.264 + WebRTC (GStreamer webrtcbin / Selkies) に置き換えると帯域と遅延が下がる。
+帯域の実測 (1280x720、同じ画面を同じ時間受信):
+
+| 画面 | MJPEG (15fps, q5) | WebRTC H.264 (30fps) |
+|---|---|---|
+| Hello,good-bye タイトル (背景が動く) | 34 Mbps | 0.25 Mbps |
+| Hello,good-bye 本編 (全面にフィルム調のノイズ演出) | 12 Mbps | 約 3 Mbps (上限に張り付く) |
+| あいれぼ タイトル (ほぼ静止) | 14 Mbps | 0.08 Mbps |
+
+H.264 は前の画面との差分だけを送るので、止まっている時間が長いノベルゲームでは MJPEG の 1/50〜1/150 になる。全面が動く演出のある場面だけ上限 (`-bitrate`) まで使う。
+
+**ネットワーク設定** (`vnbox serve` / `play` の引数):
+
+- 同じ LAN / Tailscale などの VPN 内: 設定不要 (ホスト候補で直接繋がる)。
+- ルータでポートを開ける: `-rtc-port 8443 -public-ip <グローバル IP>`。映像・音声を 1 つの UDP ポートにまとめ、同じ番号の TCP でも受ける (UDP が通らない回線向け)。HTTP (`-addr`) と合わせて 2 ポートを転送すればよい。
+- 開けられない (CGNAT 等): `-ice stun:stun.l.google.com:19302,turn:user:pass@turn.example.com:3478` で STUN/TURN を使う (環境変数 `VNBOX_ICE` / `VNBOX_PUBLIC_IP` でも可)。
+- 動作確認用に `bin/rtcprobe` (`go/cmd/rtcprobe`): ブラウザ無しで WebRTC 接続し、受け取った H.264 / Opus をファイルに保存して kbps を表示する。
+
+**タッチ操作** (スマホ・タブレット):
+
+| 操作 | 動作 |
+|---|---|
+| タップ | その位置をクリック (読み進め・選択) |
+| 長押し / 2 本指タップ | 右クリック (メニュー、ウィンドウ消し) |
+| 下へスワイプ / 上へスワイプ | ホイール上 (バックログ) / ホイール下 |
+| ☰ メニュー | 決定 (Enter)、右クリック、バックログ、スキップ (Ctrl 押しっぱなしの切り替え。2 分で自動解除)、Space、Esc、文字入力 (名前入力用)、全画面 (横向き固定)、受信中の方式と帯域の表示 |
+
+- 1x1 のまま表示されないゲーム (フルスクリーンを WM 任せにするもの) は `Managed=N` で起動し直す。
+- シェル版の試作 (`stream.py`) は MJPEG のみで認証も無い。使うなら必ずリバースプロキシ等の内側に置くこと。
 
 ## ゲームデータとセーブの保存 (S3)
 
@@ -124,7 +153,7 @@ bin/vnbox detect <フォルダ> / extract <アーカイブ> <出力先> / regdif
 | `internal/add` | 配布物 1 つ → パッケージ |
 | `internal/pkg` | パッケージの読み書き、実行用 prefix の準備 |
 | `internal/store` | S3 (AWS SDK v2): パッケージとセーブの保存・取得・履歴 |
-| `internal/stream` | 配信 (MJPEG / Opus-WebM / 入力) |
+| `internal/stream` | 配信: WebRTC (H.264 / VP8 + Opus、データチャネル入力、pion/webrtc) と代替の MJPEG / Opus-WebM、タッチ操作のページ |
 | `internal/session` | 1 本のゲームの起動〜終了 (1x1 ウィンドウ時の Managed=N 再起動、定期・終了時のセーブ) |
 | `internal/meta` | 批評空間 (SQL フォーム) / VNDB (Kana API) からのメタデータ取得、タイトルの照合 (「体験版」等を除いて正規化)、カバー画像の保存 |
 | `internal/portal` | ギャラリー・詳細画面、サムネイル (プレイ中はライブ)、トークン認証 (一度 `?token=` で開くと Cookie)、複数セッションの管理 |
@@ -572,7 +601,7 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 
 ## 次にやること
 
-- 映像を WebRTC 化 (H.264 + Opus) し、配信にログイン (認証) を付ける。タッチ操作 (スワイプ=バックログ等) の割り当て。
+- GPU のある環境ではハードウェアエンコード (VAAPI / NVENC) に切り替えて CPU を空ける。
 - 本物の S3 / R2 で `store.sh` を通しで確認。複数サーバで同じ人のセーブを同時に書かないよう、プレイ中はロック (S3 上のロックファイル) を置く。
 - 批評空間に届く環境 (国内の自宅サーバ等) で `vnbox meta -all` を実データで確認し、照合の外れ方を見る。
 - GPU のある自宅サーバで動画のフレームレートを再計測。

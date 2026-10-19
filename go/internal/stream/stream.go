@@ -36,6 +36,7 @@ type Game struct {
 
 	mu   sync.Mutex
 	held map[string]*time.Timer // keys held down by the player, released automatically
+	hubs map[string]*hub        // WebRTC encoders by codec
 }
 
 // maxHold releases a held key the browser never let go of (closed tab, lost connection).
@@ -51,6 +52,8 @@ func (g *Game) Handler() http.Handler {
 	mux.HandleFunc("GET /video", g.video)
 	mux.HandleFunc("GET /audio", g.audio)
 	mux.HandleFunc("POST /input", g.input)
+	mux.HandleFunc("POST /rtc", g.rtcOffer)
+	mux.HandleFunc("GET /rtc-config", g.rtcConfig)
 	return mux
 }
 
@@ -187,6 +190,11 @@ func (g *Game) input(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+	g.handle(ev)
+}
+
+// handle replays one input event (from POST /input or the WebRTC data channel).
+func (g *Game) handle(ev Input) {
 	win, ok := g.disp().Largest()
 	if !ok {
 		return

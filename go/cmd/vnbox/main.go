@@ -30,6 +30,7 @@ import (
 	"vnbox/internal/regdiff"
 	"vnbox/internal/session"
 	"vnbox/internal/store"
+	"vnbox/internal/stream"
 	"vnbox/internal/wine"
 )
 
@@ -249,12 +250,42 @@ func listen(ctx context.Context, addr string, h http.Handler, onStop func()) err
 	return nil
 }
 
+// rtcFlags adds the WebRTC network flags; the returned function applies them after parsing.
+func rtcFlags(c common) func() error {
+	port := c.fs.Int("rtc-port", 0, "WebRTC: 1 つの UDP+TCP ポートに映像・音声をまとめる (ポート開放/転送する場合。0 = 任意の UDP)")
+	pub := c.fs.String("public-ip", os.Getenv("VNBOX_PUBLIC_IP"), "WebRTC: 外から見えるアドレス (NAT 越し。カンマ区切り)")
+	ice := c.fs.String("ice", os.Getenv("VNBOX_ICE"), "WebRTC: STUN/TURN (例 stun:stun.l.google.com:19302,turn:user:pass@turn.example.com:3478)")
+	kbps := c.fs.Int("bitrate", 3000, "WebRTC: 映像の上限 kbit/s")
+	return func() error {
+		cfg := stream.RTCConfig{Port: *port, Bitrate: *kbps}
+		for _, s := range strings.Split(*pub, ",") {
+			if s = strings.TrimSpace(s); s != "" {
+				cfg.PublicIPs = append(cfg.PublicIPs, s)
+			}
+		}
+		for _, s := range strings.Split(*ice, ",") {
+			if s = strings.TrimSpace(s); s != "" {
+				srv, err := stream.ParseICE(s)
+				if err != nil {
+					return err
+				}
+				cfg.ICEServers = append(cfg.ICEServers, srv)
+			}
+		}
+		return stream.ConfigureRTC(cfg)
+	}
+}
+
 func cmdServe(ctx context.Context, args []string) error {
 	c := newFlags("serve")
 	addr := c.fs.String("addr", ":8080", "listen address")
 	tok := c.fs.String("token", "", "access token (or VNBOX_TOKEN)")
-	fps := c.fs.Int("fps", 15, "video frame rate")
+	fps := c.fs.Int("fps", 15, "video frame rate of the MJPEG fallback (WebRTC uses at least 30)")
+	rtc := rtcFlags(c)
 	c.parse(args)
+	if err := rtc(); err != nil {
+		return err
+	}
 	opt, err := sessionOptions(ctx, c, *fps)
 	if err != nil {
 		return err
@@ -272,10 +303,14 @@ func cmdPlay(ctx context.Context, args []string) error {
 	c := newFlags("play")
 	addr := c.fs.String("addr", ":8080", "listen address")
 	tok := c.fs.String("token", "", "access token (or VNBOX_TOKEN)")
-	fps := c.fs.Int("fps", 15, "video frame rate")
+	fps := c.fs.Int("fps", 15, "video frame rate of the MJPEG fallback (WebRTC uses at least 30)")
+	rtc := rtcFlags(c)
 	pos := c.parse(args)
 	if len(pos) < 1 {
 		return errors.New("usage: vnbox play <name>")
+	}
+	if err := rtc(); err != nil {
+		return err
 	}
 	opt, err := sessionOptions(ctx, c, *fps)
 	if err != nil {
