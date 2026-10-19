@@ -340,9 +340,9 @@ func dirSize(dir string) int64 {
 // first use. It reports whether a button was clicked.
 func PressButton(ctx context.Context, env wine.Env, log io.Writer) bool {
 	exe := filepath.Join(wine.Root(), "runtime", "tools", "clickbtn.exe")
-	if _, err := os.Stat(exe); err != nil {
+	src := filepath.Join(wine.Root(), "tools", "clickbtn", "clickbtn.c")
+	if xs, err := os.Stat(exe); err != nil || newer(src, xs.ModTime()) {
 		os.MkdirAll(filepath.Dir(exe), 0o755)
-		src := filepath.Join(wine.Root(), "tools", "clickbtn", "clickbtn.c")
 		if out, err := exec.Command("i686-w64-mingw32-gcc", "-O1", "-finput-charset=UTF-8", "-o", exe, src, "-luser32").CombinedOutput(); err != nil {
 			fmt.Fprintf(log, "  clickbtn: %v: %s\n", err, out)
 			return false
@@ -356,4 +356,9 @@ func PressButton(ctx context.Context, env wine.Env, log io.Writer) bool {
 	}
 	fmt.Fprintf(log, "  %s", out)
 	return true
+}
+
+func newer(path string, t time.Time) bool {
+	st, err := os.Stat(path)
+	return err == nil && st.ModTime().After(t)
 }
