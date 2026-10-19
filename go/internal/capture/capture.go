@@ -166,7 +166,7 @@ func (s *Session) End() (Result, error) {
 	}
 	sort.Strings(added)
 	for _, p := range added {
-		if err := copyFile(filepath.Join(driveC, p), filepath.Join(files, filepath.FromSlash(p))); err != nil {
+		if err := moveFile(filepath.Join(driveC, p), filepath.Join(files, filepath.FromSlash(p))); err != nil {
 			return Result{}, err
 		}
 	}
@@ -183,6 +183,19 @@ func (s *Session) End() (Result, error) {
 	}
 	os.RemoveAll(s.Prefix)
 	return Result{Package: dst, Files: len(added), Candidates: cands}, nil
+}
+
+// moveFile moves a captured file into the package: the capture prefix is deleted right after,
+// and a copy would need the installed size twice on disk. It copies across file systems.
+func moveFile(src, dst string) error {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	os.Remove(dst)
+	if err := os.Rename(src, dst); err == nil {
+		return nil
+	}
+	return copyFile(src, dst)
 }
 
 func copyFile(src, dst string) error {
