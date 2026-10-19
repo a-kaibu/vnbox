@@ -342,3 +342,6 @@ s2014_hooksoft_meltymoment	MeltyMoment 体験版 Ver1.00	BGI/Ethornell	タイト
 dl_RJ01604592	HEART OVERLOAD! 欲望でつながる戦術部隊	NW.js/Tyrano	タイトル (従来 Wine。描画領域 1280x750 に対し X 側 1280x720)
 dl_RJ01700416	魔法少女は触手に負けられない	-	タイトル (.NET 8 Desktop ランタイム + DXVK)
 dl_RJ01746276	新人アイドル、枕営業します。～星川あゆの物語～ 体験版	-	タイトル (Unreal Engine 5、最新 VC++ ランタイムを入れて llvmpipe で描画)
+s2020_sagaplanets_kakenuke	かけぬけ★青春スパーキング！ 体験版	KiriKiri	タイトル (WM なしでは右下が切れていた → openbox で全体表示)
+dl_VJ01000628	ヒラヒラヒヒル	Unity	タイトル以降 (言語選択→ロード画面) (製品版 DRM: PlayDRM)
+dl_RJ01720064	エッチになってく妹は俺のもの	WolfRPG	タイトル以降 (注意書き→ロード画面)
