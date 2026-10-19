@@ -1,7 +1,7 @@
 /* clickbtn.exe — インストーラやランチャーの「インストール」「次へ」「同意する」「OK」などのボタンを押す。
  * 既定のボタンが無く Enter が効かないダイアログ (BGI の独自メニュー等) を、vnbox add が先へ進めるのに使う。
  * いちばん手前の (Z 順で最初の) 表示中のトップレベルウィンドウのうち、押せるボタンを持つものについて、
- * 下の優先順でラベルが一致する有効なボタンに BM_CLICK を送る。押したら "clicked <ラベル>" を出して 0 で終わる。
+ * 下の優先順でラベルが一致する有効なボタンの中央をマウスでクリックする。押したら "clicked <ラベル>" を出して 0 で終わる。
  * ラベルの比較では "&" と "(&N)" のようなアクセラレータ、空白、">" "<" "." を無視する。
  * ボタンを自前で描くインストーラ (子ウィンドウが無い) は、ウィンドウクラスと大きさで決め打ちした位置をクリックする。
  * 1 回目はインストール、2 回目以降 (インストール後にメニューへ戻ったとき) は終了ボタン。
@@ -128,8 +128,16 @@ int main(int argc, char **argv)
         EnumWindows(layout_cb, (LPARAM)&done);
         return done ? 0 : 1;
     }
+    /* a real mouse click on the button: some wizards ignore BM_CLICK on pages that validate input
+     * (輪罠Ⅱ のインストール先). SendMessage(BM_CLICK) would also block while a modal dialog is open. */
+    RECT r;
+    GetWindowRect(f.button, &r);
     SetForegroundWindow(f.top);
-    PostMessageW(f.button, BM_CLICK, 0, 0); /* SendMessage would block while the click opens a modal dialog */
+    SetCursorPos((r.left + r.right) / 2, (r.top + r.bottom) / 2);
+    Sleep(200);
+    mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+    Sleep(80);
+    mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
     char buf[256];
     WideCharToMultiByte(CP_UTF8, 0, labels[f.best], -1, buf, sizeof(buf), NULL, NULL);
     printf("clicked %s\n", buf);

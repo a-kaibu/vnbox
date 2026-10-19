@@ -191,6 +191,13 @@ func (d Display) PressDialogs(max, idle int, onStep func(i int, w Window), press
 			moving = d.visible(dlg.ID) && d.ShotHash(dlg) != h1
 		}
 		if moving || !d.visible(dlg.ID) {
+			// a blinking text caret (an install folder field) also changes the picture: a page
+			// with a labelled 次へ / インストール button is a wizard page, not a progress bar.
+			// pressButton never presses キャンセル / 中止, so it is safe to try
+			if moving && pressButton != nil && blind < 12 && pressButton() {
+				blind++
+				time.Sleep(3 * time.Second)
+			}
 			continue
 		}
 		n++
