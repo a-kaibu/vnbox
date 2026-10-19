@@ -1,0 +1,82 @@
+#!/bin/bash
+# 使い方: run.sh <name> <game_dir> <exe(相対)> [待機秒]
+#   INPUT="click:180,387 sleep:3 key:Return shot:start ..."  で操作列を指定 (座標はゲームウィンドウ基準)
+#   既定の操作列は「中央クリック+Enter」×6
+set -uo pipefail
+source "$(dirname "$0")/env.sh"
+NAME=$1; GDIR=$2; EXE=$3; WAIT=${4:-20}
+OUT=$VNBOX/results/$NAME; rm -rf "$OUT"; mkdir -p "$OUT"
+export WINEPREFIX=${WINEPREFIX_OVERRIDE:-$VNBOX/prefixes/$NAME}
+# exe が 64bit ならベースも 64bit
+BASE=$VNBOX/prefixes/base; [ "$("$VNBOX/scripts/pearch.sh" "$GDIR/$EXE")" = x64 ] && { BASE=$VNBOX/prefixes/base64; export WINEARCH=win64; }
+# 自前ビルドは新 WoW64 (32bit アプリも 64bit prefix で動く) なので専用ベースを使う
+[[ "${WINE_FLAVOR:-}" == vnbox* ]] && { BASE=$VNBOX/prefixes/base-vnbox; export WINEARCH=win64; }
+[ -d "$WINEPREFIX" ] || clone_prefix "$BASE" "$WINEPREFIX"
+grep -q '#arch=win64' "$WINEPREFIX/system.reg" && export WINEARCH=win64
+# 1ゲーム = 1 X ディスプレイ (WM なし)。配信時もこのディスプレイ/ウィンドウだけを取り込む
+export DISPLAY=:$((100 + $(echo -n "$NAME" | cksum | cut -d' ' -f1) % 400))
+ensure_x; ensure_audio
+export WINEDEBUG=${RUN_DEBUG:-err+all,fixme-all}
+cd "$GDIR"
+wine "$EXE" ${ARGS:-} >"$OUT/wine.log" 2>&1 &
+PID=$!
+sleep "$WAIT"
+# フルスクリーン化を WM 任せにするゲームは、WM が無いと X ウィンドウが 1x1 のまま残る。
+# 検出したら Wine 自身にウィンドウ管理させる (X11 Driver Managed=N) 設定で起動し直す
+big=$(for w in $(xdotool search --onlyvisible --name . 2>/dev/null); do eval $(xdotool getwindowgeometry --shell $w 2>/dev/null); echo $((WIDTH*HEIGHT)); done | sort -n | tail -1)
+if [ "${big:-0}" -le 1 ] && [ -z "${NO_MANAGED_FALLBACK:-}" ]; then   # 起動が遅いだけのゲームもあるので 20 秒待って再確認
+  sleep 20; big=$(for w in $(xdotool search --onlyvisible --name . 2>/dev/null); do eval $(xdotool getwindowgeometry --shell $w 2>/dev/null); echo $((WIDTH*HEIGHT)); done | sort -n | tail -1)
+fi
+if [ "${big:-0}" -le 1 ] && pgrep -f "$(basename "$EXE")" >/dev/null && [ -z "${NO_MANAGED_FALLBACK:-}" ]; then
+  echo "managed_fallback=1" >> "$OUT/fallback.txt"
+  wineserver -k 2>/dev/null; sleep 1
+  wine reg add 'HKCU\Software\Wine\X11 Driver' /v Managed /d N /f >/dev/null 2>&1; wineserver -w
+  wine "$EXE" ${ARGS:-} >>"$OUT/wine.log" 2>&1 &
+  PID=$!; sleep "$WAIT"
+fi
+# ゲームウィンドウ (Wine デスクトップ以外で最大のもの) を探す
+gamewin(){ for w in $(xdotool search --onlyvisible --name . 2>/dev/null); do
+  n=$(xdotool getwindowname $w 2>/dev/null); [[ "$n" == *"デスクトップ"* || "$n" == *Desktop* || -z "$n" ]] && continue
+  eval $(xdotool getwindowgeometry --shell $w 2>/dev/null); echo "$((WIDTH*HEIGHT)) $w"; done | sort -rn | head -1 | cut -d' ' -f2; }
+W=$(gamewin)
+# スクショは画面全体からゲームウィンドウ矩形を切り出す (D3D/GL ウィンドウは -window 直撮りだと黒くなることがある)
+n=0; shot(){ n=$((n+1)); local W2 X Y WIDTH HEIGHT; W2=$(gamewin)
+  if [ -n "$W2" ]; then eval $(xdotool getwindowgeometry --shell $W2)
+    import -window root -display "$DISPLAY" -crop ${WIDTH}x${HEIGHT}+$X+$Y +repage "$OUT/$(printf %02d $n)_$1.png" 2>/dev/null
+  else import -window root -display "$DISPLAY" "$OUT/$(printf %02d $n)_$1.png" 2>/dev/null; fi; }
+shot boot
+SEQ=${INPUT:-"click:400,300 key:Return click:400,300 key:Return click:400,300 key:Return shot:a click:400,300 key:Return click:400,300 key:Return click:400,300 key:Return shot:b"}
+for op in $SEQ; do
+  case $op in
+    click:*) xy=${op#click:}; W=$(gamewin)
+             if [ -n "$W" ]; then xdotool mousemove --window "$W" ${xy%,*} ${xy#*,}; else xdotool mousemove ${xy%,*} ${xy#*,}; fi; sleep 0.4; xdotool mousedown 1; sleep 0.1; xdotool mouseup 1; sleep 1.2;;
+    key:*)   W=$(gamewin); [ -n "$W" ] && xdotool windowfocus "$W" 2>/dev/null; xdotool key ${op#key:} 2>/dev/null; sleep 1.2;;
+    sleep:*) sleep ${op#sleep:};;
+    pass:*)  # 起動設定などの小さいダイアログが最前面なら Enter → 効かなければ Space で抜ける (最大 N 回)
+             for _ in $(seq ${op#pass:}); do
+               W=$(gamewin); [ -z "$W" ] && { sleep 3; continue; }
+               eval $(xdotool getwindowgeometry --shell $W 2>/dev/null)
+               [ $((WIDTH*HEIGHT)) -ge 400000 ] && break
+               xdotool windowfocus $W 2>/dev/null; sleep 0.3; xdotool key Return 2>/dev/null; sleep 4
+               [ "$(gamewin)" = "$W" ] && { xdotool windowfocus $W 2>/dev/null; sleep 0.2; xdotool key space 2>/dev/null; sleep 4; }
+             done;;
+    shot:*)  shot ${op#shot:};;
+    rec:*)   # rec:<秒> ゲームウィンドウを 30fps で録画し、ユニークフレーム数を数える
+             W2=$(gamewin); eval $(xdotool getwindowgeometry --shell $W2)
+             ffmpeg -v error -y -f x11grab -framerate 30 -video_size ${WIDTH}x${HEIGHT} -i "$DISPLAY+$X,$Y" -t ${op#rec:} -c:v libx264 -preset ultrafast -crf 23 "$OUT/rec.mp4"
+             U=$(ffmpeg -i "$OUT/rec.mp4" -vf mpdecimate=hi=64*12:lo=64*5:frac=0.33 -f null - 2>&1 | grep -oE 'frame= *[0-9]+' | tail -1 | grep -oE '[0-9]+')
+             T=$(ffprobe -v error -count_frames -select_streams v -show_entries stream=nb_read_frames -of csv=p=0 "$OUT/rec.mp4")
+             echo "rec: unique_frames=$U / total=$T (${op#rec:}s)" | tee -a "$OUT/rec.txt";;
+  esac
+done
+ALIVE=no; pgrep -f "$(basename "$EXE")" >/dev/null && ALIVE=yes
+WINS=$(xdotool search --onlyvisible --name . getwindowname %@ 2>/dev/null | grep -v '^$' | sort -u | tr '\n' '|')
+wineserver -k 2>/dev/null; wait $PID 2>/dev/null
+for p in $(pgrep -x Xvfb); do tr '\0' ' ' </proc/$p/cmdline | grep -q "^Xvfb $DISPLAY " && kill $p; done
+{
+  echo "name=$NAME exe=$EXE alive_after=$ALIVE"
+  echo "windows=$WINS"
+  echo "--- top errors ---"
+  grep -E ':err:|Unhandled|not found|could not load|Could not' "$OUT/wine.log" | grep -v winebth \
+    | sed -E 's/^[0-9a-f]+://' | sort | uniq -c | sort -rn | head -12
+} | tee "$OUT/summary.txt"

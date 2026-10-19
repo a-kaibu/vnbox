@@ -1,0 +1,22 @@
+--- a/dlls/kernelbase/process.c
++++ b/dlls/kernelbase/process.c
+@@ -899,7 +899,18 @@
+ BOOL WINAPI /* DECLSPEC_HOTPATCH */ GetProcessMitigationPolicy( HANDLE process, PROCESS_MITIGATION_POLICY policy,
+                                                           void *buffer, SIZE_T length )
+ {
+-    FIXME( "(%p, %u, %p, %Iu): stub\n", process, policy, buffer, length );
++    FIXME( "(%p, %u, %p, %Iu): semi-stub\n", process, policy, buffer, length );
++
++    /* No mitigation policy is enforced, so report every policy as disabled.
++     * The stub used to return TRUE without touching the buffer, leaving the
++     * caller to read uninitialized stack memory as policy flags; ChakraCore
++     * then sees an inconsistent Control Flow Guard state and fail-fasts. */
++    if (!buffer)
++    {
++        SetLastError( ERROR_INVALID_PARAMETER );
++        return FALSE;
++    }
++    memset( buffer, 0, length );
+     return TRUE;
+ }
+ 

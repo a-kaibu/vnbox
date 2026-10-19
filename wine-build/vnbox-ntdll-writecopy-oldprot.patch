@@ -1,0 +1,45 @@
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -1367,6 +1367,30 @@
+ 
+ 
+ /***********************************************************************
++ *           is_private_copy
++ *
++ * Check whether a write-copy page has already been written to, i.e. the
++ * kernel replaced the file-backed page by a private anonymous copy.
++ */
++static BOOL is_private_copy( const void *addr )
++{
++#ifdef __linux__
++    static int pagemap_fd = -2;
++    UINT64 entry;
++
++    if (pagemap_fd == -2) pagemap_fd = open( "/proc/self/pagemap", O_RDONLY | O_CLOEXEC );
++    if (pagemap_fd < 0) return FALSE;
++    if (pread( pagemap_fd, &entry, sizeof(entry), ((UINT_PTR)addr / host_page_size) * sizeof(entry) ) != sizeof(entry))
++        return FALSE;
++    /* bit 63: page present, bit 61: file-backed or shared anonymous page */
++    return (entry >> 63) & 1 && !((entry >> 61) & 1);
++#else
++    return FALSE;
++#endif
++}
++
++
++/***********************************************************************
+  *           dump_view
+  */
+ static void dump_view( struct file_view *view )
+@@ -5517,6 +5541,11 @@
+         /* Make sure all the pages are committed */
+         if (get_committed_size( view, base, size, &vprot, VPROT_COMMITTED ) >= size && (vprot & VPROT_COMMITTED))
+         {
++            /* Windows turns a write-copy image page into a private read-write page
++             * on first write; we map such pages writable directly, so check the
++             * host page to report the protection Windows would. */
++            if ((view->protect & SEC_IMAGE) && (vprot & VPROT_WRITECOPY) && is_private_copy( base ))
++                vprot = (vprot & ~VPROT_WRITECOPY) | VPROT_WRITE;
+             old = get_win32_prot( vprot, view->protect );
+             status = set_protection( view, base, size, new_prot );
+         }

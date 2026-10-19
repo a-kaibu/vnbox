@@ -1,0 +1,26 @@
+# データ (ゲーム本体・Wine prefix・パッケージ・ダウンロード) は管理しない
+/games/
+/prefixes/
+/packages/
+/downloads/*
+!/downloads/suezou/
+/downloads/suezou/*
+!/downloads/suezou/*.tsv
+/runtime/
+/bin/
+# テスト結果のスクショ・ログ (台帳だけ管理する)
+/results/*
+!/results/verified.tsv
+!/results/excluded.tsv
+!/results/batch/
+/results/batch/*
+!/results/batch/summary*.tsv
+# Wine のビルド物と元ファイル (パッチだけ管理する)
+/wine-build/*
+!/wine-build/*.patch
+!/wine-build/third_party/
+# 秘密情報・生成物
+scripts/store.conf
+__pycache__/
+*.pyc
+vnbox-tools.tar.gz

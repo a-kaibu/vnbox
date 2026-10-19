@@ -1,0 +1,42 @@
+package install
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func mk(t *testing.T, root string, files map[string]string) {
+	for p, c := range files {
+		full := filepath.Join(root, p)
+		os.MkdirAll(filepath.Dir(full), 0o755)
+		os.WriteFile(full, []byte(c), 0o644)
+	}
+}
+
+func TestFind(t *testing.T) {
+	// ready-to-run game with a config tool named setup.exe: not an installer
+	a := t.TempDir()
+	mk(t, a, map[string]string{"g/data.xp3": "", "g/game.exe": "MZ", "g/setup.exe": "MZ"})
+	if got := Find(a); got != "" {
+		t.Errorf("game with setup.exe tool: %q", got)
+	}
+	// launcher menu on top, the real game only inside setup/: installer
+	b := t.TempDir()
+	mk(t, b, map[string]string{"g/launcher.exe": "MZ", "g/setup/INSTALL.exe": "MZ", "g/setup/cs2.exe": "MZ", "g/setup/scene.int": ""})
+	if got := Find(b); filepath.Base(got) != "INSTALL.exe" {
+		t.Errorf("installer in subfolder: %q", got)
+	}
+	// only an Inno Setup installer in a subfolder: installer
+	d := t.TempDir()
+	mk(t, d, map[string]string{"G web/setup.exe": "MZ", "G web/setup-1.bin": ""})
+	if got := Find(d); filepath.Base(got) != "setup.exe" {
+		t.Errorf("lone setup.exe: %q", got)
+	}
+	// MSI always wins
+	c := t.TempDir()
+	mk(t, c, map[string]string{"x/game.msi": "", "x/data.xp3": ""})
+	if got := Find(c); filepath.Base(got) != "game.msi" {
+		t.Errorf("msi: %q", got)
+	}
+}

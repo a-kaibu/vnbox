@@ -1,0 +1,54 @@
+--- a/dlls/winegstreamer/quartz_parser.c
++++ b/dlls/winegstreamer/quartz_parser.c
+@@ -1314,6 +1314,33 @@
+ 
+ /* Send a single GStreamer buffer (splitting it into multiple IMediaSamples if
+  * necessary). */
++/* The streaming thread holds flushing_cs while delivering. If it blocked
++ * indefinitely in GetBuffer() waiting for a sample that a paused downstream
++ * filter never returns (some applications' renderers keep samples across
++ * BeginFlush), a seek from the application thread would deadlock on
++ * flushing_cs. Poll instead, and give up as soon as a flush or stop is
++ * requested. */
++static HRESULT get_output_sample(struct parser_source *pin, struct parser *filter, IMediaSample **sample)
++{
++    HRESULT hr;
++    bool stop;
++
++    for (;;)
++    {
++        hr = IMemAllocator_GetBuffer(pin->pin.pAllocator, sample, NULL, NULL, AM_GBF_NOWAIT);
++        if (hr != VFW_E_TIMEOUT)
++            return hr;
++
++        EnterCriticalSection(&filter->streaming_cs);
++        stop = filter->flushing || !filter->streaming;
++        LeaveCriticalSection(&filter->streaming_cs);
++        if (stop)
++            return VFW_E_WRONG_STATE;
++
++        Sleep(2);
++    }
++}
++
+ static void send_buffer(struct parser_source *pin, struct parser *filter, const struct wg_parser_buffer *buffer)
+ {
+     HRESULT hr;
+@@ -1339,7 +1366,7 @@
+         {
+             uint32_t advance;
+ 
+-            if (FAILED(hr = IMemAllocator_GetBuffer(pin->pin.pAllocator, &sample, NULL, NULL, 0)))
++            if (FAILED(hr = get_output_sample(pin, filter, &sample)))
+             {
+                 ERR("Failed to get a sample, hr %#lx.\n", hr);
+                 break;
+@@ -1369,7 +1396,7 @@
+     }
+     else
+     {
+-        if (FAILED(hr = IMemAllocator_GetBuffer(pin->pin.pAllocator, &sample, NULL, NULL, 0)))
++        if (FAILED(hr = get_output_sample(pin, filter, &sample)))
+         {
+             ERR("Failed to get a sample, hr %#lx.\n", hr);
+         }

@@ -1,0 +1,15 @@
+REGEDIT4
+
+; 仮想デスクトップは使わない (アプリのウィンドウ単位で配信するため)
+; フルスクリーン要求で X の解像度を変えられないよう、XRandR モード変更を無効化
+[HKEY_CURRENT_USER\Software\Wine\X11 Driver]
+"UseXRandR"="N"
+"UseXVidMode"="N"
+
+; 日本の古いゲームは「デバッガ起動」ダイアログで止まるので無効化
+[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\AeDebug]
+"Auto"="0"
+"Debugger"=""
+
+[HKEY_CURRENT_USER\Software\Wine\WineDbg]
+"ShowCrashDialog"=dword:00000000

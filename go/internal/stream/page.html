@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>vnbox stream</title><style>
+html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none}
+#v{width:100vw;height:100vh;object-fit:contain;display:block}
+#bar{position:fixed;right:8px;bottom:8px;display:flex;gap:6px}
+#bar button{font:14px sans-serif;padding:8px 12px;opacity:.6}
+</style></head><body>
+<img id="v" src="video"><audio id="a" preload="none"></audio>
+<div id="bar"><button data-k="Return">Enter</button><button data-k="Escape">Esc</button>
+<button data-k="ctrl">Skip</button><button data-b="3">右</button></div>
+<script>
+const v=document.getElementById('v');
+function rel(e){const r=v.getBoundingClientRect(),W=v.naturalWidth,H=v.naturalHeight;
+ const s=Math.min(r.width/W,r.height/H),ox=(r.width-W*s)/2,oy=(r.height-H*s)/2;
+ return [Math.round((e.clientX-r.left-ox)/s),Math.round((e.clientY-r.top-oy)/s)];}
+function send(o){fetch('input',{method:'POST',body:JSON.stringify(o)});}
+// モバイルブラウザは操作起点でないと音を出せないので、最初のタップで音声ストリームを開始
+let audioOn=false;function startAudio(){if(audioOn)return;audioOn=true;const a=document.getElementById('a');a.src='audio';a.play().catch(()=>{audioOn=false;});}
+document.addEventListener('pointerdown',startAudio,{capture:true});
+v.addEventListener('pointerup',e=>{const [x,y]=rel(e);send({t:'click',x,y,b:e.button==2?3:1});});
+v.addEventListener('contextmenu',e=>e.preventDefault());
+v.addEventListener('wheel',e=>{send({t:'click',x:0,y:0,b:e.deltaY<0?4:5,nomove:1});});
+document.addEventListener('keydown',e=>{send({t:'key',k:e.key});e.preventDefault();});
+document.querySelectorAll('#bar button').forEach(b=>b.onclick=ev=>{ev.stopPropagation();
+ if(b.dataset.b)send({t:'click',x:0,y:0,b:+b.dataset.b,nomove:1});else send({t:'key',k:b.dataset.k});});
+</script></body></html>

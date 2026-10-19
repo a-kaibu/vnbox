@@ -1,0 +1,28 @@
+#!/bin/bash
+# パッケージからゲームを起動する: launch.sh <package_dir> [prefix_dir]
+# 初回はベース prefix を複製し、レジストリ断片とファイルを流し込む
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+PKG=$(realpath "$1"); NAME=$(basename "$PKG")
+export WINEPREFIX=${2:-$VNBOX/prefixes/run-$NAME}
+ini(){ sed -n "s/^$1=//p" "$PKG/launch.ini" | head -1; }
+if [ ! -f "$WINEPREFIX/.vnbox-applied" ]; then
+  rm -rf "$WINEPREFIX"; B=${BASE:-$VNBOX/prefixes/base}
+  [ -z "${BASE:-}" ] && [ "$("$VNBOX/scripts/pearch.sh" "$PKG/files/$(ini target)" 2>/dev/null)" = x64 ] && B=$VNBOX/prefixes/base64
+  [[ "${WINE_FLAVOR:-}" == vnbox* ]] && B=${BASE:-$VNBOX/prefixes/base-vnbox}
+  grep -q '#arch=win64' "$B/system.reg" && export WINEARCH=win64
+  clone_prefix "$B" "$WINEPREFIX"
+  for r in system user; do
+    [ -s "$PKG/$r.reg.frag" ] && python3 -I "$VNBOX/scripts/regdiff.py" apply "$PKG/$r.reg.frag" "$WINEPREFIX/$r.reg"
+  done
+  cp -a "$PKG/files/." "$WINEPREFIX/drive_c/"
+  R=$(ini renderer); [ -n "$R" ] && wine reg add 'HKCU\Software\Wine\Direct3D' /v renderer /d "$R" /f >/dev/null 2>&1
+  for v in $(ini winetricks); do winetricks -q "$v"; done
+  wineserver -w 2>/dev/null || true
+  # セーブ (store.sh) は「ここから後に変わったもの」なので、準備直後のレジストリを控えておく
+  mkdir -p "$WINEPREFIX/.vnbox-reg0"; cp "$WINEPREFIX/system.reg" "$WINEPREFIX/user.reg" "$WINEPREFIX/.vnbox-reg0/"
+  touch "$WINEPREFIX/.vnbox-applied"
+fi
+[ -n "${PREPARE_ONLY:-}" ] && { echo "$WINEPREFIX"; exit 0; }
+T=$(ini target); cd "$WINEPREFIX/drive_c/$(dirname "$T")"
+exec wine "$(basename "$T")" $(ini args)

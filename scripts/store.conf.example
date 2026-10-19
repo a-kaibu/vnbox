@@ -1,0 +1,7 @@
+# cp scripts/store.conf.example scripts/store.conf して編集する (store.sh / play.sh / add_game.sh が読む)
+VNBOX_S3=s3://my-bucket/vnbox
+# S3 互換ストレージのとき (AWS S3 なら空のまま)
+#S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+VNBOX_USER=default
+# 認証情報はここに書かず、AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY 環境変数か ~/.aws/credentials (AWS_PROFILE) で渡す
+#SAVE_INTERVAL=300
