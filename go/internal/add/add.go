@@ -29,7 +29,9 @@ type Options struct {
 	Flavor wine.Flavor
 	Exe    string   // launch target to force (relative to the game folder or to C:\ for installers)
 	Clicks [][2]int // clicks on the installer's first window before the dialog walker runs
-	Log    io.Writer
+
+	noRetry bool
+	Log     io.Writer
 }
 
 // Add creates packages/<name> from src and returns the package.
@@ -104,6 +106,19 @@ func Add(ctx context.Context, name, src string, o Options) (*pkg.Package, error)
 		p, err := pkg.Open(dst)
 		if err != nil {
 			return nil, err
+		}
+		// nothing installed on the patched Wine (Win10): old installers often refuse unknown
+		// Windows versions, so try once more on the classic Wine with its Win7 prefix
+		if r.Files == 0 && o.Flavor == wine.Vnbox && !o.noRetry {
+			fmt.Fprintf(o.Log, "[%s] installer produced nothing; retrying on classic Wine (Win7)\n", name)
+			os.RemoveAll(dst)
+			o2 := o
+			o2.Flavor, o2.noRetry = wine.Classic, true
+			if p2, err := Add(ctx, name, src, o2); err == nil {
+				return p2, nil
+			}
+			os.RemoveAll(dst)
+			return Add(ctx, name, src, Options{Flavor: wine.Vnbox, Exe: o.Exe, Clicks: o.Clicks, Log: o.Log, noRetry: true})
 		}
 		// nothing was installed: the "installer" was the game itself (or a launcher of it)
 		if l, _ := p.Launch(); l.Target == "" && r.Files == 0 && dir != "" {

@@ -266,3 +266,4 @@ b2008_bishop	b2008_bishop	-	タイトル (ランチャー startup.exe から起�
 b2016_silkys_sakura	b2016_silkys_sakura	-	タイトル (メニュー start.exe ではなくゲーム本体を起動)
 b2014_silkys_plus	b2014_silkys_plus	-	タイトル (メニュー start.exe ではなくゲーム本体を起動)
 b2017_onomatope_raspberry	b2017_onomatope_raspberry	ShiinaRio	タイトル (Go 版: ShiinaRio の SETUP.exe を自動インストール)
+b2010_waffle	b2010_waffle	-	タイトル (インストーラが Win10 非対応 → 従来 Wine (Win7) でインストール)

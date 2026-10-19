@@ -285,7 +285,11 @@ func cmdPrepare(ctx context.Context, args []string) error {
 		return err
 	}
 	prefix := session.Prefix(pos[0])
-	if err := p.Prepare(ctx, c.Flavor(), prefix); err != nil {
+	l, err := p.Launch()
+	if err != nil {
+		return err
+	}
+	if err := p.Prepare(ctx, l.WineFlavor(c.Flavor()), prefix); err != nil {
 		return err
 	}
 	fmt.Println(prefix)

@@ -57,13 +57,17 @@ func Find(dir string) string {
 	instDir := filepath.Dir(inst)
 	// BGI trials ship BGIForInstalling.exe / installer.arc: the game only starts once Setup.exe
 	// has written its install key, so Setup.exe is the real installer here
-	if needsInstall(instDir) {
+	if needsInstall(instDir) || hasPackedExe(dir) {
 		return inst
 	}
-	if main := detect.Detect(dir).MainExe(); main != "" {
-		m := filepath.Join(dir, main)
-		if m != inst && filepath.Dir(m) == instDir {
-			return ""
+	// the game exe next to setup.exe makes setup.exe a config tool, but only if game data is
+	// actually there (a launcher menu + setup.exe + nothing else still needs installing)
+	if r := detect.Detect(dir); r.FileEngine != "unknown" {
+		if main := r.MainExe(); main != "" {
+			m := filepath.Join(dir, main)
+			if m != inst && filepath.Dir(m) == instDir {
+				return ""
+			}
 		}
 	}
 	if detect.DetectSkip(dir, instDir).FileEngine != "unknown" {
@@ -85,6 +89,19 @@ func needsInstall(dir string) bool {
 		}
 	}
 	return have["rio.ini"] && have["setup.exe"]
+}
+
+// hasPackedExe: the game exe is shipped encoded (*.exe.emb) and only the installer decodes it.
+func hasPackedExe(dir string) bool {
+	found := false
+	filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && strings.HasSuffix(strings.ToLower(d.Name()), ".exe.emb") {
+			found = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return found
 }
 
 func find(dir string) string {
@@ -111,7 +128,7 @@ func find(dir string) string {
 			return nil
 		}
 		n := strings.ToLower(d.Name())
-		if n == "setup.exe" || (strings.HasPrefix(n, "install") && strings.HasSuffix(n, ".exe")) || strings.Contains(d.Name(), "インストール") && strings.HasSuffix(n, ".exe") {
+		if n == "setup.exe" || (strings.HasPrefix(n, "install") && strings.HasSuffix(n, ".exe")) || (strings.Contains(d.Name(), "インストール") || strings.Contains(d.Name(), "セットアップ")) && strings.HasSuffix(n, ".exe") {
 			found = p
 		}
 		return nil

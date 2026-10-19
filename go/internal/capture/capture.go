@@ -4,6 +4,7 @@
 package capture
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -59,6 +60,11 @@ func Begin(name string, fl wine.Flavor) (*Session, error) {
 	if err := wine.ClonePrefix(fl.BasePrefix(false), s.Prefix); err != nil {
 		return nil, err
 	}
+	// let Wine bring the prefix up to date first (a base made by another Wine version is
+	// upgraded on first start), otherwise the upgrade would show up as installed files
+	env := wine.Env{Flavor: fl, Prefix: s.Prefix}
+	env.Run(context.Background(), nil, "wineboot")
+	env.Wait()
 	snap := filepath.Join(s.Prefix, snapDir)
 	if err := os.MkdirAll(snap, 0o755); err != nil {
 		return nil, err
