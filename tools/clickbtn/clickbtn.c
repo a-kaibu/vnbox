@@ -128,7 +128,7 @@ int main(int argc, char **argv)
         return done ? 0 : 1;
     }
     SetForegroundWindow(f.top);
-    SendMessageW(f.button, BM_CLICK, 0, 0);
+    PostMessageW(f.button, BM_CLICK, 0, 0); /* SendMessage would block while the click opens a modal dialog */
     char buf[256];
     WideCharToMultiByte(CP_UTF8, 0, labels[f.best], -1, buf, sizeof(buf), NULL, NULL);
     printf("clicked %s\n", buf);

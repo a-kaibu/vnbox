@@ -356,8 +356,13 @@ func PressButton(ctx context.Context, env wine.Env, log io.Writer) bool {
 			return false
 		}
 	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	c := env.Command(ctx, "", exe)
 	c.Stderr = nil
+	// wine may leave a process (wineserver, explorer) holding the output pipe open:
+	// stop waiting for it shortly after clickbtn itself has exited
+	c.WaitDelay = 2 * time.Second
 	out, err := c.Output()
 	if err != nil {
 		return false
