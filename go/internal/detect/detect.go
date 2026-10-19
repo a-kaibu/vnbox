@@ -307,7 +307,7 @@ var launcher = regexp.MustCompile(`(?i)(^|/)startup\.exe$`)
 // largest exe that does not look like a tool.
 func (r Result) MainExe() string {
 	for _, e := range r.Exes {
-		if launcher.MatchString(filepathToSlash(e.Path)) {
+		if launcher.MatchString(filepathToSlash(e.Path)) && !r.autorunMenu(e.Path) {
 			return e.Path
 		}
 	}
@@ -320,6 +320,25 @@ func (r Result) MainExe() string {
 		return r.Exes[0].Path
 	}
 	return ""
+}
+
+// autorunMenu: a startup.exe next to autorun.inf or an installer is the CD-style menu that
+// runs the installer (花鐘カナデ＊グラム 体験版), not a launcher of the game.
+func (r Result) autorunMenu(exe string) bool {
+	dir := filepath.Dir(exe)
+	if _, err := os.Stat(filepath.Join(r.Path, dir, "autorun.inf")); err == nil {
+		return true
+	}
+	for _, e := range r.Exes {
+		if filepath.Dir(e.Path) != dir {
+			continue
+		}
+		n := strings.ToLower(filepath.Base(e.Path))
+		if n == "setup.exe" || (strings.HasPrefix(n, "install") && !strings.Contains(n, "uninst")) {
+			return true
+		}
+	}
+	return false
 }
 
 // HasTag reports whether any exe or file carries the tag prefix (e.g. "Installer:").
