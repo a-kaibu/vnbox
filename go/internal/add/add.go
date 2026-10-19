@@ -55,7 +55,7 @@ func Add(ctx context.Context, name, src string, o Options) (*pkg.Package, error)
 		return nil, err
 	}
 	defer os.RemoveAll(work)
-	display := wine.DisplayFor("add-" + name)
+	display := wine.FreeDisplay("add-" + name) // never share an X server with another add or game
 
 	// 1) unpack
 	var dir string
