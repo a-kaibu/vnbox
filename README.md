@@ -579,6 +579,22 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 </details>
 <!-- TITLES:END -->
 
+## DRM (DLsite / DMM) について
+
+<!-- DRM:BEGIN -->
+| 販売所 / 方式 | 製品版の仕組み | 体験版 | この環境での確認 |
+|---|---|---|---|
+| DLsite **PlayDRM** | オンライン認証 (アカウント、3〜5 台まで) | DRM なしで配布 | 体験版 157 本中から抽出して動作確認。製品版は購入が必要で未確認 |
+| DLsite **シリアル番号発行型** | シリアルでオンライン認証 (アカウントに紐付かない) | DRM なし | 同上 |
+| **ソフト電池** (DLsite / DMM) | 専用ランタイムで ID 認証、認証回数の上限あり | DRM なし (体験版は普通の exe) | 自前 Wine に fitudao 氏のソフト電池向け修正 (crypt32 / imagehlp / msi) を当て済み。製品版は未確認 |
+| **DMM GAME PLAYER** (FANZA) | 専用クライアント経由で起動、起動ごとにオンライン確認 | — | DMM / FANZA はこの環境 (海外) からはログイン画面にしか行けず、体験版もクライアントも取得できない |
+| exe プロテクタ (Enigma Protector 等) | 実行ファイルの暗号化・改ざん検知 | 体験版にも掛かっていることがある | 第6弾で検出し、Wine で起動することを確認 (下表の「痕跡」) |
+
+- DLsite の作品ページから製品版の DRM 種別を読み取る: `scripts/tools/dlsite_drm.py` (「PlayDRM型」「ソフト電池」「シリアル番号発行型」の表記)。体験版 (`trial.dlsite.com`) にはどの方式も入っていなかった (exe・DLL の文字列と readme を確認)。
+- `vnbox add` は配布物の exe / DLL から DRM・プロテクタの痕跡 (PlayDRM / ソフト電池 / DMM GAME PLAYER / StarForce / SecuROM / Themida / VMProtect / Enigma 等の文字列・PE セクション名) を探し、見つかれば `launch.ini` の `drm=` に記録してギャラリーに「DRM」と表示する。シグネチャは公開情報からの推測で、製品版での実地確認はまだ。
+- 製品版の DRM を実際に確かめるには、購入済みの配布物 (または DMM / DLsite のアカウント) が必要。用意できれば `vnbox add` → 起動 → 認証画面までをこの手順で確認できる。
+<!-- DRM:END -->
+
 ## 分かったこと (落ちる原因と対策)
 
 1. **仮想デスクトップは不要、むしろ害**: NScripter (DirectDraw) で描画がデスクトップ原点にずれた。ウィンドウ単位にしたら解消し、配信とも相性が良い。
