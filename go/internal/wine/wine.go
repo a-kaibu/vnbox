@@ -169,6 +169,21 @@ func DisplayFor(name string) string {
 	return fmt.Sprintf(":%d", 100+crc32.ChecksumIEEE([]byte(name))%400)
 }
 
+// FreeDisplay returns a display number for name that no other X server uses, starting
+// from DisplayFor(name) and probing upwards. Sessions must not share a display, or two
+// games would be captured and controlled together.
+func FreeDisplay(name string) string {
+	var n int
+	fmt.Sscanf(DisplayFor(name), ":%d", &n)
+	for i := 0; i < 400; i++ {
+		d := 100 + (n-100+i)%400
+		if _, err := os.Stat(fmt.Sprintf("/tmp/.X%d-lock", d)); err != nil {
+			return fmt.Sprintf(":%d", d)
+		}
+	}
+	return DisplayFor(name)
+}
+
 // SinkFor returns a stable PulseAudio sink name for a name.
 func SinkFor(name string) string {
 	return fmt.Sprintf("vn_%08x", crc32.ChecksumIEEE([]byte("sink:"+name)))

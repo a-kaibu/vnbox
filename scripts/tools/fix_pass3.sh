@@ -4,7 +4,7 @@
 #   結果: results/batch/summary_fix.tsv (name, 戦略, verdict)、スクショは results/fix_<name>_<戦略>/ と results/batch/fix_<name>.png
 cd "$(dirname "$0")/../.."; V=$PWD
 OUT=results/batch/summary_fix3.tsv
-PROBE="shot:t60 pass:6 sleep:15 shot:t1 click:640,400 sleep:6 key:Return sleep:10 shot:t2 click:640,400 sleep:6 key:Return sleep:8 shot:c"
+PROBE="shot:t60 pass:6 click:301,466 sleep:12 click:640,230 sleep:3 click:450,325 sleep:12 sleep:15 shot:t1 click:640,400 sleep:6 key:Return sleep:10 shot:t2 click:640,400 sleep:6 key:Return sleep:8 shot:c"
 url_of(){ python3 -I - "$1" <<'PY'
 import sys,glob
 n=sys.argv[1]
@@ -39,6 +39,7 @@ while read -r n; do
     [ $st = vulkan ] && WINE_FLAVOR=vnbox bash -c "source scripts/env.sh; WINEPREFIX=$P WINEARCH=win64 DISPLAY=:61 wine reg add 'HKCU\\Software\\Wine\\Direct3D' /v renderer /d vulkan /f >/dev/null 2>&1; WINEPREFIX=$P wineserver -w"
     WINE_FLAVOR=$FL WINEPREFIX_OVERRIDE=$P INPUT="$PROBE" timeout 900 scripts/run.sh $R "$P/drive_c/$(dirname "$T")" "$(basename "$T")" 60 >/dev/null 2>&1
     WINEPREFIX=$P wineserver -k 2>/dev/null; v=$(scripts/tools/verdict.sh $R); best=$st
+    d=$(cat results/$R/display.txt 2>/dev/null); [ -n "$d" ] && pkill -f "^Xvfb $d " 2>/dev/null
     rm -rf "$P"
     [ "$v" = OK ] && break
   done

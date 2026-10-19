@@ -14,7 +14,9 @@ BASE=$VNBOX/prefixes/base; [ "$("$VNBOX/scripts/pearch.sh" "$GDIR/$EXE")" = x64 
 [ -d "$WINEPREFIX" ] || clone_prefix "$BASE" "$WINEPREFIX"
 grep -q '#arch=win64' "$WINEPREFIX/system.reg" && export WINEARCH=win64
 # 1ゲーム = 1 X ディスプレイ (WM なし)。配信時もこのディスプレイ/ウィンドウだけを取り込む
-export DISPLAY=:$((100 + $(echo -n "$NAME" | cksum | cut -d' ' -f1) % 400))
+# 並列実行で別のゲームと同じディスプレイにならないよう、使われていない番号まで進める
+D=$((100 + $(echo -n "$NAME" | cksum | cut -d' ' -f1) % 400)); for _ in $(seq 400); do [ -e /tmp/.X$D-lock ] || break; D=$((100 + (D - 99) % 400)); done
+export DISPLAY=:$D; echo ":$D" > "$OUT/display.txt"
 ensure_x; ensure_audio
 export WINEDEBUG=${RUN_DEBUG:-err+all,fixme-all}
 cd "$GDIR"

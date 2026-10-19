@@ -172,6 +172,10 @@ func Run(ctx context.Context, s *capture.Session, path, display, shotDir string,
 	case GUI:
 		err = Drive(ctx, env, dir, exe, shotDir, log)
 	}
+	// the installer is done; whatever still runs (a launched game, a readme viewer, a
+	// dialog nobody answers) would keep wineserver alive forever
+	time.Sleep(3 * time.Second)
+	env.Kill()
 	env.Wait()
 	return kind, err
 }

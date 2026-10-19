@@ -76,7 +76,7 @@ func Start(ctx context.Context, name string, o Options) (*Session, error) {
 		return nil, err
 	}
 	fl := l.WineFlavor(o.Flavor)
-	s := &Session{Name: name, Prefix: Prefix(name), Display: wine.DisplayFor(name), Sink: wine.SinkFor(name), opt: o, launch: l}
+	s := &Session{Name: name, Prefix: Prefix(name), Display: wine.FreeDisplay(name), Sink: wine.SinkFor(name), opt: o, launch: l}
 	s.env = wine.Env{Flavor: fl, Prefix: s.Prefix, Display: s.Display, Sink: s.Sink}
 	if err := wine.EnsureX(s.Display); err != nil {
 		return nil, err
