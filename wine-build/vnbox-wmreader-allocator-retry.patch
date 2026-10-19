@@ -1,0 +1,20 @@
+--- a/dlls/winegstreamer/wm_reader.c
++++ b/dlls/winegstreamer/wm_reader.c
+@@ -1770,7 +1770,16 @@
+     if (stream->format.major_type == WG_MAJOR_TYPE_AUDIO)
+         capacity = min(capacity, 16384);
+ 
+-    if (FAILED(hr = wm_stream_allocate_sample(stream, capacity, sample)))
++    hr = wm_stream_allocate_sample(stream, capacity, sample);
++    /* An application allocator may not be committed yet when the first samples arrive
++     * (e.g. a DirectShow allocator committed when the graph starts). Give it time instead
++     * of reporting the end of the stream, which leaves such players waiting forever. */
++    for (unsigned int i = 0; hr == VFW_E_NOT_COMMITTED && i < 200; ++i)
++    {
++        Sleep(10);
++        hr = wm_stream_allocate_sample(stream, capacity, sample);
++    }
++    if (FAILED(hr))
+     {
+         ERR("Failed to allocate sample of %lu bytes, hr %#lx.\n", capacity, hr);
+         wg_parser_stream_release_buffer(stream->wg_stream);

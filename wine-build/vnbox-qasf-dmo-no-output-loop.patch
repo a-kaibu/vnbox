@@ -1,0 +1,15 @@
+--- a/dlls/qasf/dmowrapper.c
++++ b/dlls/qasf/dmowrapper.c
+@@ -329,6 +329,12 @@
+         }
+ 
+         release_output_samples(filter);
++
++        /* S_FALSE means no output was produced. Some decoders (e.g. the WMA decoder)
++         * still flag the buffer INCOMPLETE in that case; looping on it never ends and
++         * starves the stream (seen with KiriKiri WMV movies). */
++        if (process_hr == S_FALSE)
++            more_data = FALSE;
+     } while (more_data);
+ 
+     return hr;

@@ -39,6 +39,12 @@ func TestFind(t *testing.T) {
 	if got := Find(e); got != "" {
 		t.Errorf("game with bundled installer.exe: %q", got)
 	}
+	// installer with an arbitrary name, recognised by its signature
+	f := t.TempDir()
+	mk(t, f, map[string]string{"x/HimeTrial.exe": "MZ InstallShield"})
+	if got := Find(f); filepath.Base(got) != "HimeTrial.exe" {
+		t.Errorf("signature installer: %q", got)
+	}
 	// MSI always wins
 	c := t.TempDir()
 	mk(t, c, map[string]string{"x/game.msi": "", "x/data.xp3": ""})

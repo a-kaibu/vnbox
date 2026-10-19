@@ -94,6 +94,39 @@ scripts/store.sh list
 - AWS CLI は `/opt/s3tools` (venv) に入れてある。PATH に `aws` があればそちらを使う。設定のひな形は `scripts/store.conf.example`。
 - 確認したこと (S3 互換のテストサーバ moto で): パッケージの往復 (内容が完全一致)、セーブの保存 → 新しい prefix へ復元 → 追加保存 → 再復元 → 過去の版への巻き戻し、`play.sh` 経由での自動取得・自動保存 (NScripter の `gloval.sav` が保存された)。**本物の AWS S3 / R2 では未確認**。
 
+## Go 実装 (`go/`, コマンド `vnbox`)
+
+シェル/Python の試作 (`scripts/`) と同じことを 1 つのバイナリで行う。データの置き場所・パッケージ形式・S3 上の配置はシェル版と共通なので混在して使える。
+
+```bash
+cd go && go build -o ../bin/vnbox ./cmd/vnbox        # Go 1.24+
+bin/vnbox add mygame ~/Downloads/trial.zip          # パッケージ化 (VNBOX_S3 があれば S3 にも上げる。-no-upload で抑止)
+bin/vnbox serve -addr :8080 -token <秘密の文字列>     # ポータル: ブラウザで一覧 → 「遊ぶ」で起動・配信、「終了」でセーブを上げて停止
+bin/vnbox play mygame -addr :8080 -token <...>      # 1 本だけ起動して配信 (ゲームを閉じるか Ctrl-C で終了、終了時にセーブ)
+bin/vnbox store list | history <name> | push-package <name> | pull-package <name> | save-push <name> | save-pull <name> [時刻]
+bin/vnbox capture begin <name> / capture end <name> # 手動インストールの差分取り
+bin/vnbox detect <フォルダ> / extract <アーカイブ> <出力先> / regdiff diff|apply|show
+```
+
+| パッケージ | 役割 |
+|---|---|
+| `internal/wine` | Wine の選択 (vnbox / classic)、環境変数、Xvfb・PulseAudio、prefix のハードリンク複製 |
+| `internal/regdiff` | Wine の .reg を直接 diff / merge |
+| `internal/detect` | エンジン・インストーラ・依存の判定、起動 exe の推定、PE アーキテクチャ |
+| `internal/extract` | zip (CP932 名を UTF-8 へ、zip slip 防止) / lzh / 7z / rar / SFX の展開 |
+| `internal/install` | インストーラ判定 (MSI / Inno / NSIS / InstallShield / 名前不定のインストーラ)、無人インストール、ダイアログ自動操作、WinRAR SFX を Wine で展開 |
+| `internal/capture` | インストール前後の差分をパッケージ化 |
+| `internal/add` | 配布物 1 つ → パッケージ |
+| `internal/pkg` | パッケージの読み書き、実行用 prefix の準備 |
+| `internal/store` | S3 (AWS SDK v2): パッケージとセーブの保存・取得・履歴 |
+| `internal/stream` | 配信 (MJPEG / Opus-WebM / 入力) |
+| `internal/session` | 1 本のゲームの起動〜終了 (1x1 ウィンドウ時の Managed=N 再起動、定期・終了時のセーブ) |
+| `internal/portal` | ポータル画面、トークン認証 (一度 `?token=` で開くと Cookie)、複数セッションの管理 |
+
+- **認証**: `-token` (または `VNBOX_TOKEN`) を付けると、トークンを知らない人は一覧も配信も操作もできない。トークン無しで起動すると警告を出す。
+- **テスト**: `cd go && go test ./...` (S3 部分は S3 互換のテストサーバ moto を自動で起動して確認。無ければスキップ)。
+- 動作確認: zip 版・WinRAR 自己解凍版・Inno Setup 版・LiberalInstaller 版を `vnbox add` で追加して起動、`vnbox play` で S3 からの取得 → 起動 → 認証 → 映像 54 フレーム/4 秒・音声・入力 → 終了時のセーブ保存、`vnbox serve` でポータルからの起動・停止を確認。
+
 ## 構成
 
 ```
@@ -121,7 +154,8 @@ scripts/
 packages/<name>/         パッケージ
 prefixes/                ベース prefix と実行用 prefix
 results/verified.tsv     起動確認済みタイトルの台帳 (README の一覧はここから生成: scripts/tools/titles_md.py)
-wine-build/              自前 Wine のパッチ
+wine-build/              自前 Wine のパッチ (third_party/ は fitudao 氏のパッチ、LGPL-2.1)
+go/                      Go 実装 (上記)
 ```
 
 ## 動作確認結果 (Wine 11.0 / Ubuntu 24.04 / GPU なし・ソフトウェア描画 / 2026-10-18)
@@ -167,7 +201,10 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 | `wine-build/vnbox-kernelbase-mitigation-policy.patch` | kernelbase: `GetProcessMitigationPolicy` の stub が出力バッファを初期化せずに TRUE を返していた。Wine は緩和策を何も実装していないので「全ポリシー無効」(ゼロ埋め) を返す | ムジナ (2024, ChakraCore 同梱) |
 | `wine-build/vnbox-ntdll-writecopy-oldprot.patch` | ntdll: イメージの書き込み可能ページは Wine では常に WRITECOPY 扱いで、書き込み後も `VirtualProtect` の旧保護属性が `PAGE_WRITECOPY` のまま。Windows では書き込み後 `PAGE_READWRITE` になる。`/proc/self/pagemap` で私有コピー化済みかを見て、旧保護属性を Windows と同じ値で返す | ムジナ: ChakraCore が読み取り専用データの保護を戻すときに旧属性を厳密に検査して fail-fast していた |
 
-この 2 本は kernelbase.dll / ntdll (PE と ntdll.so) だけを再ビルドして `/opt/wine-vnbox` に差し替えた (元のファイルは `wine-build/orig-dlls/`)。
+| `wine-build/vnbox-qasf-dmo-no-output-loop.patch` | qasf: DMO ラッパーが、出力なし (S_FALSE) なのに INCOMPLETE を立てる WMA デコーダで無限ループし、動画が始まらない | よめがみ (Alcot, 吉里吉里 WMV オープニング): 黒画面のまま → タイトルへ |
+| `wine-build/vnbox-wmreader-allocator-retry.patch` | winegstreamer: WM Reader が、アプリ側アロケータが未コミット (VFW_E_NOT_COMMITTED) のとき即座にストリーム終端扱いにしていた。少し待って再試行する | (同上の調査で見つけた不具合。単独で直ったタイトルは未確認) |
+
+後から足したパッチ (kernelbase / ntdll / qasf / winegstreamer) は、該当 DLL だけを再ビルドして `/opt/wine-vnbox` に差し替えた (元のファイルは `wine-build/orig-dlls/`)。Wine を作り直すときは `wine-build/` のパッチを全部当てて `--enable-archs=i386,x86_64` でビルドする。
 
 ## 第2弾: suezou ミラーの体験版を年代別に一括テスト (2006〜2026)
 
@@ -205,7 +242,7 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 ## 起動確認済みタイトル一覧
 
 <!-- TITLES:BEGIN -->
-タイトル画面以降まで目視で確認: **211 本** (ロゴ・注意画面止まりの 15 本は下の折りたたみに別記)。
+タイトル画面以降まで目視で確認: **232 本** (ロゴ・注意画面止まりの 3 本は下の折りたたみに別記)。
 年 = 配布ミラーの掲載年度 (「-」は第1弾の手動テスト分)。エンジンの「-」は自動判定できなかったもの。
 
 | # | 年 | タイトル | エンジン | 確認できたところ | ID |
@@ -220,226 +257,235 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 | 8 | 2006 | 人妻搾乳飯店－体験版－ | - | タイトル | `b2006_marine` |
 | 9 | 2006 | ソウルレイザー☆ユナ 体験版 | - | タイトル | `b2006_mille_feuille` |
 | 10 | 2006 | 機械仕掛けのイブ　～Ｄｅａ　Ｅｘ　Ｍａｃｈｉｎａ～ | KiriKiri | タイトル | `b2006_ninetail` |
-| 11 | 2006 | ななついろ★ドロップス-体験版 | - | 本編 | `b2006_unisonshift` |
-| 12 | 2006 | いな☆こい！ ～お稲荷さまとモテモテのたたり～ 体験版 ver 1.00 | YU-RIS | タイトル | `b2006_whirlpool` |
-| 13 | 2007 | 必殺痴漢人　- TRIAL VERSION - | - | タイトル→メニュー | `b2007_anim` |
-| 14 | 2007 | 姫奴隷 | - | タイトル | `b2007_bishop` |
-| 15 | 2007 | かみぱに！体験版 | QLIE | タイトル | `b2007_clochette` |
-| 16 | 2007 | あかね色に染まる坂 | - | タイトル | `b2007_feng` |
-| 17 | 2007 | ハーレム×すくらっち体験版 | RealLive | タイトル | `b2007_hadashi` |
-| 18 | 2007 | でるた！（体験版） | Kaguya | タイトル | `b2007_kaguya` |
-| 19 | 2007 | 看護戦隊ナースレンジャー | - | タイトル | `b2007_lilim` |
-| 20 | 2007 | 風輪奸山　体験版 | - | タイトル | `b2007_lune` |
-| 21 | 2007 | しおふきマーメイド体験版 | - | ゲーム開始 (名前入力) | `b2007_marine` |
-| 22 | 2007 | リリカル♪りりっく体験版 | EntisGLS | コンフィグ画面 | `b2007_marmalade` |
-| 23 | 2007 | 『Bullet Butlers』Web体験版　ver1.1 | - | 本編 | `b2007_propeller` |
-| 24 | 2007 | 聖炎天使エレアノール 体験版 | RealLive | タイトル | `b2007_sagaplanets` |
-| 25 | 2007 | b2007_whirlpool | YU-RIS | タイトル (最終画面は暗転) | `b2007_whirlpool` |
-| 26 | 2008 | ＷＬＯ-世界恋愛機構- web用体験版 | KiriKiri | タイトル | `b2008_akabeesoft` |
-| 27 | 2008 | 息子の友達に犯されて  - TRIAL VERSION - | - | タイトル | `b2008_anim` |
-| 28 | 2008 | Hime のち Honey - 体験版 | KiriKiri | タイトル | `b2008_asa_project` |
-| 29 | 2008 | Venus Blood Chimera | KiriKiri | タイトル | `b2008_dualtail` |
-| 30 | 2008 | ヴェルディア幻奏曲体験版 | Escude | 本編 | `b2008_escude` |
-| 31 | 2008 | お姉さん×すくらっち体験版 | RealLive | タイトル | `b2008_hadashi` |
-| 32 | 2008 | FairlyLife WEB体験版02 H_Only Ver1.00 | - | コンフィグ画面 | `b2008_hook` |
-| 33 | 2008 | 夏神（体験版０２） | - | タイトル | `b2008_kaguya` |
-| 34 | 2008 | びんかんアスリート | - | タイトル | `b2008_marine` |
-| 35 | 2008 | 魔法少女沙枝 Vol.2 体験版 | KiriKiri | タイトル (MSI) | `b2008_mille_feuille` |
-| 36 | 2008 | 晴れハレはーれむ 体験版Ver1.00 | - | タイトル | `b2008_smee` |
-| 37 | 2009 | 愛娘という名の玩具　- TRIAL VERSION - | - | タイトル | `b2009_anim` |
-| 38 | 2009 | 美乳淫妹 遥「私にイヤらしいコスプレさせるなんて……この変態！」 | Softpal | タイトル | `b2009_crossover` |
-| 39 | 2009 | 夏ノ雨 -体験版- | EntisGLS | タイトル | `b2009_cube` |
-| 40 | 2009 | 魔法少女ラヴィリオン 体験版 | KiriKiri | タイトル | `b2009_dualtail` |
-| 41 | 2009 | さらさらささら（体験版） | - | タイトル | `b2009_kaguya` |
-| 42 | 2009 | あい☆きゃん | - | タイトル | `b2009_lilim` |
-| 43 | 2009 | キスと魔王と紅茶（体験版） | EntisGLS | タイトル | `b2009_marmalade` |
-| 44 | 2009 | シグナルハート 体験版 Ver.01 | QLIE | 本編 | `b2009_purplesoftware` |
-| 45 | 2010 | 置き場がない！ web体験版 | KiriKiri | タイトル | `b2010_akabeesoft` |
-| 46 | 2010 | 贄姫 - TRIAL VERSION - | - | タイトル | `b2010_anim` |
-| 47 | 2010 | 学園３～華麗なる悦辱～ 体験版 | - | タイトル | `b2010_bishop` |
-| 48 | 2010 | JINKI EXTEND Re:VISION -SECOND IMPACT- | NeXAS | タイトル | `b2010_giga` |
-| 49 | 2010 | Reunion～３日間だけのプチ同棲～　体験版 | KiriKiri | タイトル | `b2010_grand_cru` |
-| 50 | 2010 | キラリ☆南国小麦色　体験版 | - | タイトル | `b2010_kaguya` |
-| 51 | 2010 | 痴覚過敏 体験版 | EntisGLS | タイトル | `b2010_undermoon` |
-| 52 | 2010 | 涼風のメルト -Where wishes are drawn to each other- WEB体験版 | YU-RIS | タイトル | `b2010_whirlpool` |
-| 53 | 2011 | NTR彼女はいじめられっ娘 - TRIAL VERSION - | - | タイトル | `b2011_anim_team_mm` |
-| 54 | 2011 | 裏教師～背徳の淫悦授業～ 体験版 | - | タイトル | `b2011_bishop` |
-| 55 | 2011 | シオンの血族 | SiglusEngine | タイトル | `b2011_catwalk` |
-| 56 | 2011 | Starless 体験版 | - | タイトル (独自インストーラ) | `b2011_empress` |
-| 57 | 2011 | りとる†びっち ～Little Bitch Girls in Hog Farm～ 体験版 | Softpal | タイトル | `b2011_erectlip` |
-| 58 | 2011 | ホチキス - 体験版 | NeXAS | タイトル | `b2011_giga` |
-| 59 | 2011 | はっぴぃふぁくとりー　体験版 | KiriKiri | タイトル | `b2011_grand_cru` |
-| 60 | 2011 | 『種憑け村』序章体験版・導ノ儀 | ShiinaRio | タイトル | `b2011_guilty` |
-| 61 | 2011 | StrawberryNauts Ver1.00 | - | タイトル | `b2011_hook` |
-| 62 | 2011 | アルバイトの先輩の女のコに仕事を教わっていたら始まっちゃうＨな関係。　体験版 | - | タイトル | `b2011_kaguya` |
-| 63 | 2011 | ユユカナ 体験版 | KiriKiri | タイトル (従来 32bit Wine。新 WoW64 だと kernel32 認証エラー) | `b2011_nanawind` |
-| 64 | 2011 | 姫様限定！～PrincessLimited～web体験版ver1.0 | - | タイトル | `b2011_princess_sugar` |
-| 65 | 2011 | ラブラブル体験版 Ver1.00 | - | タイトル | `b2011_smee` |
-| 66 | 2012 | JOKER-死線の果ての道化師- | KiriKiri | タイトル | `b2012_akabeesoft3` |
-| 67 | 2012 | 中の人などいない！　体験版 | KiriKiri2 | タイトル (quartz パッチ) | `b2012_alcot` |
-| 68 | 2012 | 母娘乱館 体験版 | AliceSoft System4 | 本編テキスト | `b2012_alicesoft` |
-| 69 | 2012 | 学園ＮＴＲ -僕の知らない彼女の淫顔- 体験版 | - | タイトル | `b2012_atelier_gh` |
-| 70 | 2012 | 美脚隷嬢優奈「脚もお尻もこんなに穢すなんて……絶対に許さない！」体験版 | KiriKiri | タイトル | `b2012_cross_over` |
-| 71 | 2012 | 星空へ架かる橋ＡＡ 円佳SPアフター体験版 | - | タイトル | `b2012_feng` |
-| 72 | 2012 | つぼい君のスイッチ！体験版 | - | 本編 | `b2012_fudegaki_soft` |
-| 73 | 2012 | キスベル　体験版 | NeXAS | タイトル | `b2012_giga` |
-| 74 | 2012 | リヴォルバーガール☆ハンマーレディ　体験版 | KiriKiri | タイトル | `b2012_kai` |
-| 75 | 2012 | 恋妹SWEET☆DAYS 体験版 | KiriKiri | タイトル | `b2012_parasol` |
-| 76 | 2012 | 籠女の繭 体験版 | - | タイトル | `b2012_tinkerbell` |
-| 77 | 2012 | MonsterParkⅡ | - | タイトル | `b2012_trois` |
-| 78 | 2013 | ランス01体験版 | AliceSoft System4 | タイトル | `b2013_alicesoft` |
-| 79 | 2013 | 息子の友達に堕とされて　体験版 | YU-RIS | タイトル | `b2013_anim` |
-| 80 | 2013 | 花嫁狩凌 ～絶対快楽の白濁淫毒～ 体験版 | KiriKiri | タイトル | `b2013_cross_over` |
-| 81 | 2013 | VenusBlood-GAIA- WEB専用ADV体験版 | KiriKiri | タイトル | `b2013_dualtail` |
-| 82 | 2013 | お嬢様はご機嫌ナナメ 体験版 | AdvHD | タイトル (InstallShield) | `b2013_ensemble` |
-| 83 | 2013 | キスアト体験版 | NeXAS | タイトル | `b2013_giga` |
-| 84 | 2013 | PriministAr（体験版） Ver1.00 | - | タイトル | `b2013_hooksoft` |
-| 85 | 2013 | 妹のおかげでモテすぎてヤバい。 体験版 | KiriKiri | タイトル | `b2013_hulotte` |
-| 86 | 2013 | 肉牝Ｒ３０（体験版） | - | タイトル | `b2013_kaguya` |
-| 87 | 2013 | ナマイキデレーション体験版 WEB Ver. | KiriKiri | タイトル | `b2013_madosoft` |
-| 88 | 2013 | ぜったいマジラブ！あまイチャはぷにんぐ！体験版 Ver 1.0 | - | タイトル | `b2013_tinkerbell` |
-| 89 | 2014 | 体験版 甘えてくれる恋人とのエッチなひととき編 | CatSystem2 | タイトル | `b2014_azarashi_soft` |
-| 90 | 2014 | Re;Lord ～ヘルフォルトの魔女とぬいぐるみ～ - 体験版 Ver. | Escude | タイトル | `b2014_escude` |
-| 91 | 2014 | しゃぶらレンタル　体験版 | - | タイトル | `b2014_kaguya` |
-| 92 | 2014 | 奪われた学園～罠に落ちた優等生～　体験版 | KiriKiri | タイトル | `b2014_undermoon` |
-| 93 | 2014 | こすぷれえっち 体験版 | - | タイトル (MS 別名フォント) | `b2014_wendybell` |
-| 94 | 2014 | G.I.B. ガールズ・イン・ブラック  WEB体験版 | YU-RIS | タイトル | `b2014_whirlpool` |
-| 95 | 2015 | お兄ちゃん、教えて……～義妹とヒミツの保健実習～　体験版　Ver1.00 | KiriKiri | タイトル | `b2015_ammolite` |
-| 96 | 2015 | 愛娘は、マゾ性隷～娘だからって遠慮しないでね？～　体験版　Ver1.00 | KiriKiri | タイトル | `b2015_appetite` |
-| 97 | 2015 | ClosedGAME体験版 | Majiro | タイトル | `b2015_empress` |
-| 98 | 2015 | 巨乳大魔王のドスケベクエスト ～完全敗北した少年勇者クンＵＣ～　【体験版】 | Softpal | タイトル | `b2015_erectlip` |
-| 99 | 2015 | 淫らに喘ぐ七人の夜這いする孕女　体験版 | AdvHD | タイトル | `b2015_guilty` |
-| 100 | 2015 | ろーらいず!!! 体験版 | SiglusEngine | タイトル (TZ=Asia/Tokyo) | `b2015_hamham` |
-| 101 | 2015 | トラベリングスターズ 体験版02 Ver1.00 | BGI/Ethornell | タイトル (ログに例外あり) | `b2015_hooksoft` |
-| 102 | 2015 | ハラミタマ　体験版 | - | タイトル | `b2015_kaguya` |
-| 103 | 2015 | 極煌戦姫ミストルティア 体験版 | KiriKiri | タイトル | `b2015_mille_feuille` |
-| 104 | 2015 | おしおき生意気ギャル ～エロいオシオキをしたら自分からエッチを求めてきた～ 体験版 | KiriKiri | タイトル | `b2015_pachipachi_soft` |
-| 105 | 2016 | 満淫オーク電車～くっ！　任務じゃなければこんな場所…～　体験版　Ver1.00 | KiriKiri | タイトル | `b2016_apadash` |
-| 106 | 2016 | アナル＊ティーチャー～感度良肛！？　逆レッスン～　体験版　Ver1.00 | KiriKiri | タイトル | `b2016_appetite` |
-| 107 | 2016 | 間宮くんちの五つ子事情 体験版 | KiriKiri | タイトル | `b2016_cube` |
-| 108 | 2016 | お嬢様はイイナリみたいです！？ 体験版 | - | タイトル | `b2016_evoll` |
-| 109 | 2016 | リプキス　体験版 | NeXAS | タイトル | `b2016_giga` |
-| 110 | 2016 | はらかつ！ ～気になるあの子と子作りエッチ～ Trial Version: 1.0.0.0 [data ver:1.00] | - | 本編 | `b2016_inter_heart_glossy` |
-| 111 | 2017 | いつまでも俺は母に恋してる！  - 体験版２ - | - | タイトル | `b2017_anim` |
-| 112 | 2017 | 催眠アプリで寝取りハメ～これまでの恨み、ヤり返してやる！　体験版　Ver1.00 | KiriKiri | タイトル | `b2017_appetite` |
-| 113 | 2017 | はらかつ２　～子作りエッチでお悩み解決～ Trial Version: 1.0.0.0 [data ver:1.00] | - | 本編テキスト | `b2017_inter_heart_glossy` |
-| 114 | 2017 | 女装千年王国　体験版 | YU-RIS | タイトル | `b2017_no_strike` |
-| 115 | 2017 | ことのは・アムリラート | KiriKiri | タイトル (OP動画再生後) | `b2017_sukerasparo` |
-| 116 | 2017 | 透けちゃって！！～九死に一生を得て濃密セカンドライフ～ Trial Version: 1.0.0.0 [data ver:1.00] | - | 本編テキスト | `b2017_sweet_heart` |
-| 117 | 2017 | あなたに恋する恋愛ルセット　【体験版】 | Softpal | タイトル | `b2017_unisonshift` |
-| 118 | 2018 | わんこの嫁入り ～ようこそ！いぬのしっぽへ～ 体験版 version 1.00 | - | タイトル | `b2018_alumi_soft` |
-| 119 | 2018 | P.S.あなたを心から愛しています～最期まで気づけなかった妻の苦しみ～　体験版 | KiriKiri | タイトル | `b2018_appetite` |
-| 120 | 2018 | 彼女が異種族だった場合～クールな先輩ダークエルフとの甘やかし同棲日誌～体験版 | YU-RIS | タイトル | `b2018_casket` |
-| 121 | 2018 | 爆乳催眠女教師　【体験版】 | Softpal | タイトル | `b2018_erectlip` |
-| 122 | 2018 | 催眠学園１年生体験版 | - | タイトル | `b2018_fudegaki_soft` |
-| 123 | 2018 | 俺の上であがく六人の伽女　体験版２ | AdvWin32/WillPlus | タイトル | `b2018_guilty` |
-| 124 | 2018 | ノットフィクション！ Trial Version: 1.0.0.0 [data ver:1.00] | - | タイトル | `b2018_hachimitsu_soft` |
-| 125 | 2018 | LoveHolic　体験版 | - | タイトル | `b2018_kaguya` |
-| 126 | 2018 | 僕と彼女のご奉仕同棲　体験版 | AdvWin32/WillPlus | タイトル | `b2018_tokohana` |
-| 127 | 2019 | いつまでも息子のままじゃいられない！５ - 体験版 - | - | タイトル | `b2019_anim` |
-| 128 | 2019 | 女体化パニック！３～お、俺は男だ！　でも、悔しいけど気持ちいいっ……のか！？　体験版 | KiriKiri | タイトル | `b2019_appetite` |
-| 129 | 2019 | アイドル裏営業～汚されたステージ衣装～体験版 | - | タイトル | `b2019_channel_ubai` |
-| 130 | 2019 | VenusBlood FRONTIER International SLG Trial 日本語版 | KiriKiri | タイトル | `b2019_dualtail` |
-| 131 | 2019 | アイキス 豪華体験版 | NeXAS | タイトル | `b2019_giga` |
-| 132 | 2019 | どっちのｉが好きですか？　Ｈシーン体験版　Ver1.00 | BGI | タイトル | `b2019_hooksoft` |
-| 133 | 2019 | お姉さん先生　体験版 | - | タイトル | `b2019_kaguya` |
-| 134 | 2019 | WhiteBlue　web体験版ver2.0 | - | タイトル | `b2019_lilim_darkness` |
-| 135 | 2019 | モウソウスピーカー～Ｈな妄想が聴こえてくるよ～　体験版 | KiriKiri | タイトル | `b2019_sator` |
-| 136 | 2019 | おにギュＨ＿ＨＣＢ体験版 | KiriKiri | タイトル | `b2019_tinkle_position` |
-| 137 | 2020 | 墓多 DYING ZOMBIES -体験版- | KiriKiri | タイトル | `b2020_akabeesoft3` |
-| 138 | 2020 | 優来（ゆら）があいつに抱かれる理由（わけ） 体験版 | KiriKiri | タイトル | `b2020_at_sakura` |
-| 139 | 2020 | アナベル・メイドガーデン体験版 | QLIE | タイトル (ログに例外あり) | `b2020_barista_lab` |
-| 140 | 2020 | はじカノ -君がいる部屋- 体験版 | - | タイトル | `b2020_caramel_box_strawberry` |
-| 141 | 2020 | 悪堕ち 魔導処女～絶対支配の触手調教～　体験版 | KiriKiri | タイトル | `b2020_chaos_r` |
-| 142 | 2020 | 爆乳淫辱霊媒師　【体験版】 | Softpal | タイトル | `b2020_erectlip` |
-| 143 | 2020 | アイシング-love coating- 体験版 Version: 1.0.0.1 [data ver:1.00] | Unity | タイトル | `b2020_hachimitsu_soft` |
-| 144 | 2020 | リトルシックガール　～桃蜜は妹の香り～　体験版 | KiriKiri | タイトル | `b2020_lass_pixy` |
-| 145 | 2020 | shin-neko ～再会した妹との新たな関係～　【体験版】 | Softpal | タイトル | `b2020_milimili` |
-| 146 | 2020 | ティーリオ傭兵団の初仕事 体験版 v1.2.0 | - | 本編 (SRPG) | `b2020_rikuzendo` |
-| 147 | 2021 | 愛する彼女は画面の中、他の男の上で腰をふる 体験版 | KiriKiri | タイトル | `b2021_at_sakura` |
-| 148 | 2021 | 神聖昂燐ダクリュオン～正しい天使の育てかた～　体験版 | KiriKiri | タイトル | `b2021_chaos_r` |
-| 149 | 2021 | アイドル姉妹をエッチにプロデュース！ 体験版 | KiriKiri | タイトル | `b2021_kelp` |
-| 150 | 2021 | 魔法少女消耗戦線DEADΩAEGIS_体験版 | - | タイトル | `b2021_metalogiq` |
-| 151 | 2021 | ちんかもツインズ２！　～夏だ！海だ！ふたごの妹おっぱい対決だ！～　【体験版】 | Softpal | タイトル | `b2021_milimili` |
-| 152 | 2021 | プリンセス☆シスターズ！～四姉妹は全員あなたの許嫁～　web体験版ver1.0 | - | タイトル | `b2021_princess_sugar` |
-| 153 | 2021 | 人妻LovelyMoment | - | タイトル | `b2021_stick` |
-| 154 | 2021 | 淫妖蟲 穢 ～凌蝕桃源退魔録～体験版 Version01 | - | タイトル | `b2021_tinkerbell` |
-| 155 | 2021 | けもの道☆ガーリッシュスクエア　体験版 | YU-RIS | タイトル | `b2021_whirlpool` |
-| 156 | 2022 | 黒ギャル子ちゃんとしっぽり温泉旅行 ～Hしまくり三泊四日の旅～　【体験版】 | Softpal | タイトル | `b2022_amuse_craft_erotica` |
-| 157 | 2022 | 愛妻Ｘ交姦妊活スワッピング - 体験版 - | - | タイトル | `b2022_anim` |
-| 158 | 2022 | 愛する恋人を大嫌いな旧友に寝取られた件 体験版 | KiriKiri | タイトル | `b2022_at_sakura` |
-| 159 | 2022 | BstTrial | Unity | タイトル | `b2022_ba_ku` |
-| 160 | 2022 | あやかし遊郭～花魁道中～体験版 | YU-RIS | タイトル | `b2022_casket` |
-| 161 | 2022 | 進軍ゴブリン軍団～人類総苗床化作戦～ 体験版 | KiriKiri | タイトル | `b2022_chaos_r` |
-| 162 | 2022 | 華は短し、踊れよ乙女 - 体験版 | AdvWin32/WillPlus | タイトル | `b2022_ensemble` |
-| 163 | 2022 | 南国プリズン体験版 | - | タイトル | `b2022_evoll` |
-| 164 | 2022 | リンパにATATA! ～メス牡蠣ミルクどぴゅらっしゅ♡～ | KiriKiri | タイトル | `b2022_hending` |
-| 165 | 2022 | 羞恥隷嬢学園 | - | タイトル | `b2022_lunaprism` |
-| 166 | 2022 | 触災の島～Island of the Dead～体験版　Ver1.00 | KiriKiri | タイトル | `b2022_syoku` |
-| 167 | 2023 | 最強の人妻ヒロインが寝取られるまで～お願い！夫にはバラさないで…～　体験版　Ver1.00 | KiriKiri | タイトル | `b2023_apadash` |
-| 168 | 2023 | 洗脳航路～エイリアンの苗床に導かれるエリート女軍人たち～　体験版　Ver1.00 | KiriKiri | タイトル | `b2023_appetite` |
-| 169 | 2023 | 堕とされた義姉 体験版 | KiriKiri | タイトル | `b2023_at_sakura` |
-| 170 | 2023 | 神聖昂燐エストランジェ体験版 | KiriKiri | タイトル | `b2023_chaos_r` |
-| 171 | 2023 | 爆乳遊廓 ～癒され太夫孕ませの夜鶴～　【体験版】 | Softpal | タイトル | `b2023_erectlip` |
-| 172 | 2023 | 夜勤病棟 リメイク 体験版 | - | タイトル | `b2023_fg_remake` |
-| 173 | 2023 | 瑠璃桜 | KiriKiri | タイトル | `b2023_lump_of_sugar_all` |
-| 174 | 2023 | 非道狩～ヒトカリ～ 体験版 | Softpal | タイトル | `b2023_turumiku_another` |
-| 175 | 2023 | モラトリアム 体験版 | - | タイトル | `b2023_wendybell` |
-| 176 | 2024 | 性調教済だった愛する彼女 体験版 | KiriKiri | タイトル | `b2024_at_sakura` |
-| 177 | 2024 | ちょっとナマイキなトイレの花子さん ～えっちぃ学園のおばけとエロエロ搾精性活～ 【体験版】 | Softpal | 本編テキスト | `b2024_milimili` |
-| 178 | 2024 | 狙われた優等生　身代わりの代償　体験版 | EntisGLS | タイトル | `b2024_syrup_mm` |
-| 179 | 2024 | ムジナ 体験版Ver02 | - | タイトル (kernelbase + ntdll パッチ) | `b2024_tinkerbell` |
-| 180 | 2025 | 学生会長・紫藤喜那の淫鬱 体験版 | KiriKiri | タイトル | `b2025_at_sakura` |
-| 181 | 2025 | のーぶるバトラー TRIAL EDITION | AdvWin32/WillPlus | タイトル | `b2025_ensemble_sweet` |
-| 182 | 2025 | 爆乳淫乱ビーチ　体験版 | Softpal | タイトル | `b2025_erectlip` |
-| 183 | 2025 | Vanilla Android　シコ猿DT大学生の俺と美少女アンドロイドがいろんなプレイでハメパコミッション　体験版 | KiriKiri | タイトル | `b2025_monoceros_plus` |
-| 184 | 2025 | 小日向柚月と初夜したいっ！　【体験版】 | Softpal | タイトル | `b2025_unisonshift` |
-| 185 | 2026 | ママラブ！２～俺の彼女は俺のママ☆世話焼き巨乳凛桜ママ～ - 体験版 - | - | タイトル | `b2026_anim` |
-| 186 | 2026 | ディメンション凸ラバース!! 【体験版】 | Softpal | タイトル | `b2026_crystalia` |
-| 187 | 2026 | どいなかガールズゆーとぴあ Trial Version: 1.0.0.0 [data ver:1.00] | - | タイトル | `b2026_dessert_soft` |
-| 188 | 2026 | OfficeLove -クールな上司と秘密のイキ抜き- Trial Edition | AdvWin32/WillPlus | タイトル | `b2026_tokohana` |
-| 189 | 2026 | 友恵の探偵物語～のぞき魔な私の天職～体験版 | - | タイトル | `b2026_wendybell` |
-| 190 | - | 有閑夫人倶楽部 体験版 | AdvHD | 本編テキスト (icu シム) | `r1_advhd` |
-| 191 | - | 遥かなるニライカナイ 体験版 | Artemis | 本編 + 音声 | `r1_artemis` |
-| 192 | - | クダンノフォークロア 体験版 | BGI | 本編テキスト (独自Setup) | `r1_bgi_kudan` |
-| 193 | - | 果つることなき未来ヨリ 体験版 | CatSystem2 | 本編テキスト | `r1_cs2_hatsumira` |
-| 194 | - | 彼岸花の咲く夜に お試し版 | NScripter | 本編 (CreateInstall) | `r1_higanbana` |
-| 195 | - | KAG3 紹介デモ | KiriKiri2 | 本編テキスト | `r1_kag3` |
-| 196 | - | 先輩、好きです……押忍！ 体験版 | KiriKiri | 本編テキスト | `r1_krkr_apt306` |
-| 197 | - | あいれぼ 体験版 | Majiro | 本編テキスト (独自インストーラ) | `r1_majiro` |
-| 198 | - | Wind RP 体験版 | Musica | 本編テキスト | `r1_musica` |
-| 199 | - | ナルキッソス SIDE 2nd | NScripter | 本編テキスト | `r1_naru2` |
-| 200 | - | 天翼のアスクレイン 体験版 | QLIE | 本編テキスト | `r1_qlie` |
-| 201 | - | 5 -ファイブ- 体験版 | RealLive | 本編テキスト (SFX) | `r1_reallive_five` |
-| 202 | - | The Question | Ren'Py | 本編テキスト | `r1_renpy` |
-| 203 | - | でか乳巫女と巨乳シスター 体験版 | SakanaGL | タイトル (Managed=N) | `r1_sakana` |
-| 204 | - | うみねこのなく頃に咲 体験版 | PONScripter | 本編テキスト | `r1_saku` |
-| 205 | - | プリマドール 体験版 | SiglusEngine | 本編テキスト | `r1_siglus_primadoll` |
-| 206 | - | トイレの花子さん 体験版 | Softpal | 本編テキスト | `r1_softpal_hanako` |
-| 207 | - | 転性魔王さま 体験版 | Softpal | 本編テキスト | `r1_softpal_tenmao` |
-| 208 | - | トライアンソロジー 体験版 | NScripter | 本編 | `r1_trt` |
-| 209 | - | 転生した世界で… 体験版 | TyranoScript | 本編テキスト | `r1_tyrano` |
-| 210 | - | 旭光のマリアージュ 体験版 | Unity | 本編テキスト (vnbox Wine) | `r1_unity` |
-| 211 | - | YU-RIS サンプル | YU-RIS | 演出/動画 | `r1_yuris` |
+| 11 | 2006 | b2006_pulltop | - | タイトル (Go 版: クリック操作で LiberalInstaller を通過) | `b2006_pulltop` |
+| 12 | 2006 | ななついろ★ドロップス-体験版 | - | 本編 | `b2006_unisonshift` |
+| 13 | 2006 | いな☆こい！ ～お稲荷さまとモテモテのたたり～ 体験版 ver 1.00 | YU-RIS | タイトル | `b2006_whirlpool` |
+| 14 | 2007 | b2007_akabeesoft | - | タイトル (Go 版: Inno Setup を無人インストール) | `b2007_akabeesoft` |
+| 15 | 2007 | 必殺痴漢人　- TRIAL VERSION - | - | タイトル→メニュー | `b2007_anim` |
+| 16 | 2007 | 姫奴隷 | - | タイトル | `b2007_bishop` |
+| 17 | 2007 | かみぱに！体験版 | QLIE | タイトル | `b2007_clochette` |
+| 18 | 2007 | あかね色に染まる坂 | - | タイトル | `b2007_feng` |
+| 19 | 2007 | ハーレム×すくらっち体験版 | RealLive | タイトル | `b2007_hadashi` |
+| 20 | 2007 | でるた！（体験版） | Kaguya | タイトル | `b2007_kaguya` |
+| 21 | 2007 | 看護戦隊ナースレンジャー | - | タイトル | `b2007_lilim` |
+| 22 | 2007 | 風輪奸山　体験版 | - | タイトル | `b2007_lune` |
+| 23 | 2007 | しおふきマーメイド体験版 | - | ゲーム開始 (名前入力) | `b2007_marine` |
+| 24 | 2007 | リリカル♪りりっく体験版 | EntisGLS | コンフィグ画面 | `b2007_marmalade` |
+| 25 | 2007 | 『Bullet Butlers』Web体験版　ver1.1 | - | 本編 | `b2007_propeller` |
+| 26 | 2007 | 聖炎天使エレアノール 体験版 | RealLive | タイトル | `b2007_sagaplanets` |
+| 27 | 2007 | b2007_whirlpool | YU-RIS | タイトル (最終画面は暗転) | `b2007_whirlpool` |
+| 28 | 2008 | ＷＬＯ-世界恋愛機構- web用体験版 | KiriKiri | タイトル | `b2008_akabeesoft` |
+| 29 | 2008 | 息子の友達に犯されて  - TRIAL VERSION - | - | タイトル | `b2008_anim` |
+| 30 | 2008 | Hime のち Honey - 体験版 | KiriKiri | タイトル | `b2008_asa_project` |
+| 31 | 2008 | Venus Blood Chimera | KiriKiri | タイトル | `b2008_dualtail` |
+| 32 | 2008 | ヴェルディア幻奏曲体験版 | Escude | 本編 | `b2008_escude` |
+| 33 | 2008 | お姉さん×すくらっち体験版 | RealLive | タイトル | `b2008_hadashi` |
+| 34 | 2008 | FairlyLife WEB体験版02 H_Only Ver1.00 | - | コンフィグ画面 | `b2008_hook` |
+| 35 | 2008 | いたずら極―リアル―　体験版 | FVP | タイトル (再試行・Go 版でパッケージ化) | `b2008_interheart` |
+| 36 | 2008 | 夏神（体験版０２） | - | タイトル | `b2008_kaguya` |
+| 37 | 2008 | びんかんアスリート | - | タイトル | `b2008_marine` |
+| 38 | 2008 | 魔法少女沙枝 Vol.2 体験版 | KiriKiri | タイトル (MSI) | `b2008_mille_feuille` |
+| 39 | 2008 | 晴れハレはーれむ 体験版Ver1.00 | - | タイトル | `b2008_smee` |
+| 40 | 2009 | 愛娘という名の玩具　- TRIAL VERSION - | - | タイトル | `b2009_anim` |
+| 41 | 2009 | 美乳淫妹 遥「私にイヤらしいコスプレさせるなんて……この変態！」 | Softpal | タイトル | `b2009_crossover` |
+| 42 | 2009 | 夏ノ雨 -体験版- | EntisGLS | タイトル | `b2009_cube` |
+| 43 | 2009 | 魔法少女ラヴィリオン 体験版 | KiriKiri | タイトル | `b2009_dualtail` |
+| 44 | 2009 | さらさらささら（体験版） | - | タイトル | `b2009_kaguya` |
+| 45 | 2009 | あい☆きゃん | - | タイトル | `b2009_lilim` |
+| 46 | 2009 | キスと魔王と紅茶（体験版） | EntisGLS | タイトル | `b2009_marmalade` |
+| 47 | 2009 | シグナルハート 体験版 Ver.01 | QLIE | 本編 | `b2009_purplesoftware` |
+| 48 | 2009 | らぶでれーしょん！ Ver1.00 | FVP | タイトル (起動時の Save フォルダ作成確認を OK) | `b2009_smee` |
+| 49 | 2010 | 置き場がない！ web体験版 | KiriKiri | タイトル | `b2010_akabeesoft` |
+| 50 | 2010 | 贄姫 - TRIAL VERSION - | - | タイトル | `b2010_anim` |
+| 51 | 2010 | 学園３～華麗なる悦辱～ 体験版 | - | タイトル | `b2010_bishop` |
+| 52 | 2010 | JINKI EXTEND Re:VISION -SECOND IMPACT- | NeXAS | タイトル | `b2010_giga` |
+| 53 | 2010 | Reunion～３日間だけのプチ同棲～　体験版 | KiriKiri | タイトル | `b2010_grand_cru` |
+| 54 | 2010 | キラリ☆南国小麦色　体験版 | - | タイトル | `b2010_kaguya` |
+| 55 | 2010 | b2010_marine | Softpal | タイトル (起動設定ファイル警告を OK で通過) | `b2010_marine` |
+| 56 | 2010 | 痴覚過敏 体験版 | EntisGLS | タイトル | `b2010_undermoon` |
+| 57 | 2010 | 涼風のメルト -Where wishes are drawn to each other- WEB体験版 | YU-RIS | タイトル | `b2010_whirlpool` |
+| 58 | 2011 | NTR彼女はいじめられっ娘 - TRIAL VERSION - | - | タイトル | `b2011_anim_team_mm` |
+| 59 | 2011 | 裏教師～背徳の淫悦授業～ 体験版 | - | タイトル | `b2011_bishop` |
+| 60 | 2011 | b2011_blackcyc | - | タイトル (Go 版 vnbox add/serve で WinRAR SFX から) | `b2011_blackcyc` |
+| 61 | 2011 | シオンの血族 | SiglusEngine | タイトル | `b2011_catwalk` |
+| 62 | 2011 | Starless 体験版 | - | タイトル (独自インストーラ) | `b2011_empress` |
+| 63 | 2011 | りとる†びっち ～Little Bitch Girls in Hog Farm～ 体験版 | Softpal | タイトル | `b2011_erectlip` |
+| 64 | 2011 | ホチキス - 体験版 | NeXAS | タイトル | `b2011_giga` |
+| 65 | 2011 | はっぴぃふぁくとりー　体験版 | KiriKiri | タイトル | `b2011_grand_cru` |
+| 66 | 2011 | 『種憑け村』序章体験版・導ノ儀 | ShiinaRio | タイトル | `b2011_guilty` |
+| 67 | 2011 | StrawberryNauts Ver1.00 | - | タイトル | `b2011_hook` |
+| 68 | 2011 | アルバイトの先輩の女のコに仕事を教わっていたら始まっちゃうＨな関係。　体験版 | - | タイトル | `b2011_kaguya` |
+| 69 | 2011 | ユユカナ 体験版 | KiriKiri | タイトル (従来 32bit Wine。新 WoW64 だと kernel32 認証エラー) | `b2011_nanawind` |
+| 70 | 2011 | 姫様限定！～PrincessLimited～web体験版ver1.0 | - | タイトル | `b2011_princess_sugar` |
+| 71 | 2011 | ラブラブル体験版 Ver1.00 | - | タイトル | `b2011_smee` |
+| 72 | 2012 | JOKER-死線の果ての道化師- | KiriKiri | タイトル | `b2012_akabeesoft3` |
+| 73 | 2012 | 中の人などいない！　体験版 | KiriKiri2 | タイトル (quartz パッチ) | `b2012_alcot` |
+| 74 | 2012 | 母娘乱館 体験版 | AliceSoft System4 | 本編テキスト | `b2012_alicesoft` |
+| 75 | 2012 | 学園ＮＴＲ -僕の知らない彼女の淫顔- 体験版 | - | タイトル | `b2012_atelier_gh` |
+| 76 | 2012 | 美脚隷嬢優奈「脚もお尻もこんなに穢すなんて……絶対に許さない！」体験版 | KiriKiri | タイトル | `b2012_cross_over` |
+| 77 | 2012 | b2012_erectlip | - | タイトル (再試行・Go 版でパッケージ化) | `b2012_erectlip` |
+| 78 | 2012 | 星空へ架かる橋ＡＡ 円佳SPアフター体験版 | - | タイトル | `b2012_feng` |
+| 79 | 2012 | つぼい君のスイッチ！体験版 | - | 本編 | `b2012_fudegaki_soft` |
+| 80 | 2012 | キスベル　体験版 | NeXAS | タイトル | `b2012_giga` |
+| 81 | 2012 | リヴォルバーガール☆ハンマーレディ　体験版 | KiriKiri | タイトル | `b2012_kai` |
+| 82 | 2012 | 恋妹SWEET☆DAYS 体験版 | KiriKiri | タイトル | `b2012_parasol` |
+| 83 | 2012 | 籠女の繭 体験版 | - | タイトル | `b2012_tinkerbell` |
+| 84 | 2012 | MonsterParkⅡ | - | タイトル | `b2012_trois` |
+| 85 | 2013 | ランス01体験版 | AliceSoft System4 | タイトル | `b2013_alicesoft` |
+| 86 | 2013 | 息子の友達に堕とされて　体験版 | YU-RIS | タイトル | `b2013_anim` |
+| 87 | 2013 | 花嫁狩凌 ～絶対快楽の白濁淫毒～ 体験版 | KiriKiri | タイトル | `b2013_cross_over` |
+| 88 | 2013 | VenusBlood-GAIA- WEB専用ADV体験版 | KiriKiri | タイトル | `b2013_dualtail` |
+| 89 | 2013 | お嬢様はご機嫌ナナメ 体験版 | AdvHD | タイトル (InstallShield) | `b2013_ensemble` |
+| 90 | 2013 | キスアト体験版 | NeXAS | タイトル | `b2013_giga` |
+| 91 | 2013 | PriministAr（体験版） Ver1.00 | - | タイトル | `b2013_hooksoft` |
+| 92 | 2013 | 妹のおかげでモテすぎてヤバい。 体験版 | KiriKiri | タイトル | `b2013_hulotte` |
+| 93 | 2013 | 肉牝Ｒ３０（体験版） | - | タイトル | `b2013_kaguya` |
+| 94 | 2013 | ナマイキデレーション体験版 WEB Ver. | KiriKiri | タイトル | `b2013_madosoft` |
+| 95 | 2013 | ぜったいマジラブ！あまイチャはぷにんぐ！体験版 Ver 1.0 | - | タイトル | `b2013_tinkerbell` |
+| 96 | 2014 | 体験版 甘えてくれる恋人とのエッチなひととき編 | CatSystem2 | タイトル | `b2014_azarashi_soft` |
+| 97 | 2014 | b2014_ensemble_sweet | - | タイトル (再試行・Go 版でパッケージ化) | `b2014_ensemble_sweet` |
+| 98 | 2014 | Re;Lord ～ヘルフォルトの魔女とぬいぐるみ～ - 体験版 Ver. | Escude | タイトル | `b2014_escude` |
+| 99 | 2014 | ＰＲＥＴＴＹ×Ｃ∧ＴＩＯＮ | KiriKiri | タイトル (終了確認ダイアログまで操作) | `b2014_hibiki_works` |
+| 100 | 2014 | しゃぶらレンタル　体験版 | - | タイトル | `b2014_kaguya` |
+| 101 | 2014 | 奪われた学園～罠に落ちた優等生～　体験版 | KiriKiri | タイトル | `b2014_undermoon` |
+| 102 | 2014 | b2014_waffle | - | メニュー (解像度選択→確認をクリックで通過) | `b2014_waffle` |
+| 103 | 2014 | こすぷれえっち 体験版 | - | タイトル (MS 別名フォント) | `b2014_wendybell` |
+| 104 | 2014 | G.I.B. ガールズ・イン・ブラック  WEB体験版 | YU-RIS | タイトル | `b2014_whirlpool` |
+| 105 | 2014 | 春風センセーション！体験版 | CatSystem2 | タイトル (再試行: 待機延長) | `b2014_windmill_oasis` |
+| 106 | 2015 | お兄ちゃん、教えて……～義妹とヒミツの保健実習～　体験版　Ver1.00 | KiriKiri | タイトル | `b2015_ammolite` |
+| 107 | 2015 | 愛娘は、マゾ性隷～娘だからって遠慮しないでね？～　体験版　Ver1.00 | KiriKiri | タイトル | `b2015_appetite` |
+| 108 | 2015 | ClosedGAME体験版 | Majiro | タイトル | `b2015_empress` |
+| 109 | 2015 | 巨乳大魔王のドスケベクエスト ～完全敗北した少年勇者クンＵＣ～　【体験版】 | Softpal | タイトル | `b2015_erectlip` |
+| 110 | 2015 | 淫らに喘ぐ七人の夜這いする孕女　体験版 | AdvHD | タイトル | `b2015_guilty` |
+| 111 | 2015 | ろーらいず!!! 体験版 | SiglusEngine | タイトル (TZ=Asia/Tokyo) | `b2015_hamham` |
+| 112 | 2015 | トラベリングスターズ 体験版02 Ver1.00 | BGI/Ethornell | タイトル (ログに例外あり) | `b2015_hooksoft` |
+| 113 | 2015 | ハラミタマ　体験版 | - | タイトル | `b2015_kaguya` |
+| 114 | 2015 | 極煌戦姫ミストルティア 体験版 | KiriKiri | タイトル | `b2015_mille_feuille` |
+| 115 | 2015 | おしおき生意気ギャル ～エロいオシオキをしたら自分からエッチを求めてきた～ 体験版 | KiriKiri | タイトル | `b2015_pachipachi_soft` |
+| 116 | 2016 | よめがみ My Sweet Goddess! リコＨシーン体験版 | KiriKiri | タイトル (Wine qasf パッチ: WMV オープニングの無限ループ修正) | `b2016_alcot` |
+| 117 | 2016 | 満淫オーク電車～くっ！　任務じゃなければこんな場所…～　体験版　Ver1.00 | KiriKiri | タイトル | `b2016_apadash` |
+| 118 | 2016 | アナル＊ティーチャー～感度良肛！？　逆レッスン～　体験版　Ver1.00 | KiriKiri | タイトル | `b2016_appetite` |
+| 119 | 2016 | 間宮くんちの五つ子事情 体験版 | KiriKiri | タイトル | `b2016_cube` |
+| 120 | 2016 | お嬢様はイイナリみたいです！？ 体験版 | - | タイトル | `b2016_evoll` |
+| 121 | 2016 | リプキス　体験版 | NeXAS | タイトル | `b2016_giga` |
+| 122 | 2016 | はらかつ！ ～気になるあの子と子作りエッチ～ Trial Version: 1.0.0.0 [data ver:1.00] | - | 本編 | `b2016_inter_heart_glossy` |
+| 123 | 2016 | 小悪魔発育チュ～！（体験版） | FVP | タイトル (再試行・Go 版でパッケージ化) | `b2016_kaguya` |
+| 124 | 2017 | いつまでも俺は母に恋してる！  - 体験版２ - | - | タイトル | `b2017_anim` |
+| 125 | 2017 | 催眠アプリで寝取りハメ～これまでの恨み、ヤり返してやる！　体験版　Ver1.00 | KiriKiri | タイトル | `b2017_appetite` |
+| 126 | 2017 | なちゅらるばけーしょん | - | タイトル (再試行) | `b2017_hibiki_works` |
+| 127 | 2017 | はらかつ２　～子作りエッチでお悩み解決～ Trial Version: 1.0.0.0 [data ver:1.00] | - | 本編テキスト | `b2017_inter_heart_glossy` |
+| 128 | 2017 | 女装千年王国　体験版 | YU-RIS | タイトル | `b2017_no_strike` |
+| 129 | 2017 | ことのは・アムリラート | KiriKiri | タイトル (OP動画再生後) | `b2017_sukerasparo` |
+| 130 | 2017 | 透けちゃって！！～九死に一生を得て濃密セカンドライフ～ Trial Version: 1.0.0.0 [data ver:1.00] | - | 本編テキスト | `b2017_sweet_heart` |
+| 131 | 2017 | あなたに恋する恋愛ルセット　【体験版】 | Softpal | タイトル | `b2017_unisonshift` |
+| 132 | 2017 | b2017_waffle | - | タイトル (解像度選択→確認をクリックで通過) | `b2017_waffle` |
+| 133 | 2018 | わんこの嫁入り ～ようこそ！いぬのしっぽへ～ 体験版 version 1.00 | - | タイトル | `b2018_alumi_soft` |
+| 134 | 2018 | P.S.あなたを心から愛しています～最期まで気づけなかった妻の苦しみ～　体験版 | KiriKiri | タイトル | `b2018_appetite` |
+| 135 | 2018 | 彼女が異種族だった場合～クールな先輩ダークエルフとの甘やかし同棲日誌～体験版 | YU-RIS | タイトル | `b2018_casket` |
+| 136 | 2018 | 恋はそっと咲く花のように　体験版 | FVP | タイトル (再試行・Go 版でパッケージ化) | `b2018_ensemble` |
+| 137 | 2018 | 爆乳催眠女教師　【体験版】 | Softpal | タイトル | `b2018_erectlip` |
+| 138 | 2018 | 催眠学園１年生体験版 | - | タイトル | `b2018_fudegaki_soft` |
+| 139 | 2018 | 俺の上であがく六人の伽女　体験版２ | AdvWin32/WillPlus | タイトル | `b2018_guilty` |
+| 140 | 2018 | ノットフィクション！ Trial Version: 1.0.0.0 [data ver:1.00] | - | タイトル | `b2018_hachimitsu_soft` |
+| 141 | 2018 | LoveHolic　体験版 | - | タイトル | `b2018_kaguya` |
+| 142 | 2018 | 僕と彼女のご奉仕同棲　体験版 | AdvWin32/WillPlus | タイトル | `b2018_tokohana` |
+| 143 | 2019 | いつまでも息子のままじゃいられない！５ - 体験版 - | - | タイトル | `b2019_anim` |
+| 144 | 2019 | 女体化パニック！３～お、俺は男だ！　でも、悔しいけど気持ちいいっ……のか！？　体験版 | KiriKiri | タイトル | `b2019_appetite` |
+| 145 | 2019 | アイドル裏営業～汚されたステージ衣装～体験版 | - | タイトル | `b2019_channel_ubai` |
+| 146 | 2019 | VenusBlood FRONTIER International SLG Trial 日本語版 | KiriKiri | タイトル | `b2019_dualtail` |
+| 147 | 2019 | アイキス 豪華体験版 | NeXAS | タイトル | `b2019_giga` |
+| 148 | 2019 | どっちのｉが好きですか？　Ｈシーン体験版　Ver1.00 | BGI | タイトル | `b2019_hooksoft` |
+| 149 | 2019 | お姉さん先生　体験版 | - | タイトル | `b2019_kaguya` |
+| 150 | 2019 | WhiteBlue　web体験版ver2.0 | - | タイトル | `b2019_lilim_darkness` |
+| 151 | 2019 | モウソウスピーカー～Ｈな妄想が聴こえてくるよ～　体験版 | KiriKiri | タイトル | `b2019_sator` |
+| 152 | 2019 | おにギュＨ＿ＨＣＢ体験版 | KiriKiri | タイトル | `b2019_tinkle_position` |
+| 153 | 2020 | 墓多 DYING ZOMBIES -体験版- | KiriKiri | タイトル | `b2020_akabeesoft3` |
+| 154 | 2020 | 優来（ゆら）があいつに抱かれる理由（わけ） 体験版 | KiriKiri | タイトル | `b2020_at_sakura` |
+| 155 | 2020 | アナベル・メイドガーデン体験版 | QLIE | タイトル (ログに例外あり) | `b2020_barista_lab` |
+| 156 | 2020 | はじカノ -君がいる部屋- 体験版 | - | タイトル | `b2020_caramel_box_strawberry` |
+| 157 | 2020 | 悪堕ち 魔導処女～絶対支配の触手調教～　体験版 | KiriKiri | タイトル | `b2020_chaos_r` |
+| 158 | 2020 | 爆乳淫辱霊媒師　【体験版】 | Softpal | タイトル | `b2020_erectlip` |
+| 159 | 2020 | アイシング-love coating- 体験版 Version: 1.0.0.1 [data ver:1.00] | Unity | タイトル | `b2020_hachimitsu_soft` |
+| 160 | 2020 | リトルシックガール　～桃蜜は妹の香り～　体験版 | KiriKiri | タイトル | `b2020_lass_pixy` |
+| 161 | 2020 | shin-neko ～再会した妹との新たな関係～　【体験版】 | Softpal | タイトル | `b2020_milimili` |
+| 162 | 2020 | 世話焼き奥さんで人の頼みを断れない亜衣さんにお願いして中出しハメ放題のドスケベ妻になってもらった 体験版 | KiriKiri | タイトル (再試行: 待機延長) | `b2020_pin_point` |
+| 163 | 2020 | ティーリオ傭兵団の初仕事 体験版 v1.2.0 | - | 本編 (SRPG) | `b2020_rikuzendo` |
+| 164 | 2021 | 愛する彼女は画面の中、他の男の上で腰をふる 体験版 | KiriKiri | タイトル | `b2021_at_sakura` |
+| 165 | 2021 | 神聖昂燐ダクリュオン～正しい天使の育てかた～　体験版 | KiriKiri | タイトル | `b2021_chaos_r` |
+| 166 | 2021 | アイドル姉妹をエッチにプロデュース！ 体験版 | KiriKiri | タイトル | `b2021_kelp` |
+| 167 | 2021 | 魔法少女消耗戦線DEADΩAEGIS_体験版 | - | タイトル | `b2021_metalogiq` |
+| 168 | 2021 | ちんかもツインズ２！　～夏だ！海だ！ふたごの妹おっぱい対決だ！～　【体験版】 | Softpal | タイトル | `b2021_milimili` |
+| 169 | 2021 | 売国王姫～堕落のメス豚母娘～体験版 | KiriKiri | タイトル (再試行) | `b2021_pin_point` |
+| 170 | 2021 | プリンセス☆シスターズ！～四姉妹は全員あなたの許嫁～　web体験版ver1.0 | - | タイトル | `b2021_princess_sugar` |
+| 171 | 2021 | 人妻LovelyMoment | - | タイトル | `b2021_stick` |
+| 172 | 2021 | 淫妖蟲 穢 ～凌蝕桃源退魔録～体験版 Version01 | - | タイトル | `b2021_tinkerbell` |
+| 173 | 2021 | けもの道☆ガーリッシュスクエア　体験版 | YU-RIS | タイトル | `b2021_whirlpool` |
+| 174 | 2022 | 黒ギャル子ちゃんとしっぽり温泉旅行 ～Hしまくり三泊四日の旅～　【体験版】 | Softpal | タイトル | `b2022_amuse_craft_erotica` |
+| 175 | 2022 | 愛妻Ｘ交姦妊活スワッピング - 体験版 - | - | タイトル | `b2022_anim` |
+| 176 | 2022 | 愛する恋人を大嫌いな旧友に寝取られた件 体験版 | KiriKiri | タイトル | `b2022_at_sakura` |
+| 177 | 2022 | BstTrial | Unity | タイトル | `b2022_ba_ku` |
+| 178 | 2022 | あやかし遊郭～花魁道中～体験版 | YU-RIS | タイトル | `b2022_casket` |
+| 179 | 2022 | 進軍ゴブリン軍団～人類総苗床化作戦～ 体験版 | KiriKiri | タイトル | `b2022_chaos_r` |
+| 180 | 2022 | 華は短し、踊れよ乙女 - 体験版 | AdvWin32/WillPlus | タイトル | `b2022_ensemble` |
+| 181 | 2022 | 南国プリズン体験版 | - | タイトル | `b2022_evoll` |
+| 182 | 2022 | リンパにATATA! ～メス牡蠣ミルクどぴゅらっしゅ♡～ | KiriKiri | タイトル | `b2022_hending` |
+| 183 | 2022 | 羞恥隷嬢学園 | - | タイトル | `b2022_lunaprism` |
+| 184 | 2022 | 触災の島～Island of the Dead～体験版　Ver1.00 | KiriKiri | タイトル | `b2022_syoku` |
+| 185 | 2023 | 最強の人妻ヒロインが寝取られるまで～お願い！夫にはバラさないで…～　体験版　Ver1.00 | KiriKiri | タイトル | `b2023_apadash` |
+| 186 | 2023 | 洗脳航路～エイリアンの苗床に導かれるエリート女軍人たち～　体験版　Ver1.00 | KiriKiri | タイトル | `b2023_appetite` |
+| 187 | 2023 | 堕とされた義姉 体験版 | KiriKiri | タイトル | `b2023_at_sakura` |
+| 188 | 2023 | 神聖昂燐エストランジェ体験版 | KiriKiri | タイトル | `b2023_chaos_r` |
+| 189 | 2023 | 爆乳遊廓 ～癒され太夫孕ませの夜鶴～　【体験版】 | Softpal | タイトル | `b2023_erectlip` |
+| 190 | 2023 | 夜勤病棟 リメイク 体験版 | - | タイトル | `b2023_fg_remake` |
+| 191 | 2023 | 瑠璃桜 | KiriKiri | タイトル | `b2023_lump_of_sugar_all` |
+| 192 | 2023 | 非道狩～ヒトカリ～ 体験版 | Softpal | タイトル | `b2023_turumiku_another` |
+| 193 | 2023 | モラトリアム 体験版 | - | タイトル | `b2023_wendybell` |
+| 194 | 2024 | 性調教済だった愛する彼女 体験版 | KiriKiri | タイトル | `b2024_at_sakura` |
+| 195 | 2024 | ちょっとナマイキなトイレの花子さん ～えっちぃ学園のおばけとエロエロ搾精性活～ 【体験版】 | Softpal | 本編テキスト | `b2024_milimili` |
+| 196 | 2024 | VenusBlood RAGNAROK International_EN AdvTrial | Unity | 本編 (ゲーム開始後のマップ) | `b2024_ninetail` |
+| 197 | 2024 | 狙われた優等生　身代わりの代償　体験版 | EntisGLS | タイトル | `b2024_syrup_mm` |
+| 198 | 2024 | ムジナ 体験版Ver02 | - | タイトル (kernelbase + ntdll パッチ) | `b2024_tinkerbell` |
+| 199 | 2025 | お姉ちゃんのあまエロレッスン２ ～お隣の巨乳お姉ちゃんにイッパイ甘やかされるめちゃエロライフ～  - 体験版 - | FVP | タイトル (再試行・Go 版でパッケージ化) | `b2025_anim` |
+| 200 | 2025 | 学生会長・紫藤喜那の淫鬱 体験版 | KiriKiri | タイトル | `b2025_at_sakura` |
+| 201 | 2025 | のーぶるバトラー TRIAL EDITION | AdvWin32/WillPlus | タイトル | `b2025_ensemble_sweet` |
+| 202 | 2025 | 爆乳淫乱ビーチ　体験版 | Softpal | タイトル | `b2025_erectlip` |
+| 203 | 2025 | 虜ノ焔 ～淫欲の炎に満ちた地下闘技場～ 体験版 | FVP | タイトル (再試行: 待機延長) | `b2025_guilty` |
+| 204 | 2025 | Vanilla Android　シコ猿DT大学生の俺と美少女アンドロイドがいろんなプレイでハメパコミッション　体験版 | KiriKiri | タイトル | `b2025_monoceros_plus` |
+| 205 | 2025 | 小日向柚月と初夜したいっ！　【体験版】 | Softpal | タイトル | `b2025_unisonshift` |
+| 206 | 2026 | ママラブ！２～俺の彼女は俺のママ☆世話焼き巨乳凛桜ママ～ - 体験版 - | - | タイトル | `b2026_anim` |
+| 207 | 2026 | ディメンション凸ラバース!! 【体験版】 | Softpal | タイトル | `b2026_crystalia` |
+| 208 | 2026 | どいなかガールズゆーとぴあ Trial Version: 1.0.0.0 [data ver:1.00] | - | タイトル | `b2026_dessert_soft` |
+| 209 | 2026 | OfficeLove -クールな上司と秘密のイキ抜き- Trial Edition | AdvWin32/WillPlus | タイトル | `b2026_tokohana` |
+| 210 | 2026 | 友恵の探偵物語～のぞき魔な私の天職～体験版 | - | タイトル | `b2026_wendybell` |
+| 211 | - | 有閑夫人倶楽部 体験版 | AdvHD | 本編テキスト (icu シム) | `r1_advhd` |
+| 212 | - | 遥かなるニライカナイ 体験版 | Artemis | 本編 + 音声 | `r1_artemis` |
+| 213 | - | クダンノフォークロア 体験版 | BGI | 本編テキスト (独自Setup) | `r1_bgi_kudan` |
+| 214 | - | 果つることなき未来ヨリ 体験版 | CatSystem2 | 本編テキスト | `r1_cs2_hatsumira` |
+| 215 | - | 彼岸花の咲く夜に お試し版 | NScripter | 本編 (CreateInstall) | `r1_higanbana` |
+| 216 | - | KAG3 紹介デモ | KiriKiri2 | 本編テキスト | `r1_kag3` |
+| 217 | - | 先輩、好きです……押忍！ 体験版 | KiriKiri | 本編テキスト | `r1_krkr_apt306` |
+| 218 | - | あいれぼ 体験版 | Majiro | 本編テキスト (独自インストーラ) | `r1_majiro` |
+| 219 | - | Wind RP 体験版 | Musica | 本編テキスト | `r1_musica` |
+| 220 | - | ナルキッソス SIDE 2nd | NScripter | 本編テキスト | `r1_naru2` |
+| 221 | - | 天翼のアスクレイン 体験版 | QLIE | 本編テキスト | `r1_qlie` |
+| 222 | - | 5 -ファイブ- 体験版 | RealLive | 本編テキスト (SFX) | `r1_reallive_five` |
+| 223 | - | The Question | Ren'Py | 本編テキスト | `r1_renpy` |
+| 224 | - | でか乳巫女と巨乳シスター 体験版 | SakanaGL | タイトル (Managed=N) | `r1_sakana` |
+| 225 | - | うみねこのなく頃に咲 体験版 | PONScripter | 本編テキスト | `r1_saku` |
+| 226 | - | プリマドール 体験版 | SiglusEngine | 本編テキスト | `r1_siglus_primadoll` |
+| 227 | - | トイレの花子さん 体験版 | Softpal | 本編テキスト | `r1_softpal_hanako` |
+| 228 | - | 転性魔王さま 体験版 | Softpal | 本編テキスト | `r1_softpal_tenmao` |
+| 229 | - | トライアンソロジー 体験版 | NScripter | 本編 | `r1_trt` |
+| 230 | - | 転生した世界で… 体験版 | TyranoScript | 本編テキスト | `r1_tyrano` |
+| 231 | - | 旭光のマリアージュ 体験版 | Unity | 本編テキスト (vnbox Wine) | `r1_unity` |
+| 232 | - | YU-RIS サンプル | YU-RIS | 演出/動画 | `r1_yuris` |
 
-<details><summary>弱い確認 (ロゴ・注意画面・起動ダイアログまで) 15 本</summary>
+<details><summary>弱い確認 (ロゴ・注意画面・起動ダイアログまで) 3 本</summary>
 
 | 年 | タイトル | 止まったところ | ID |
 |---|---|---|---|
-| 2008 | いたずら極―リアル―　体験版 | 注意画面以降 | `b2008_interheart` |
-| 2009 | らぶでれーしょん！ Ver1.00 | ロゴ以降 | `b2009_smee` |
-| 2014 | ＰＲＥＴＴＹ×Ｃ∧ＴＩＯＮ | 注意画面 | `b2014_hibiki_works` |
-| 2014 | 春風センセーション！体験版 | 注意画面以降 | `b2014_windmill_oasis` |
-| 2016 | 小悪魔発育チュ～！（体験版） | ロゴ以降 | `b2016_kaguya` |
-| 2017 | なちゅらるばけーしょん | 年齢注意画面 | `b2017_hibiki_works` |
 | 2017 | ニュートンと林檎の樹　体験版＋ | 起動 (インストーラ経由) | `b2017_laplacian` |
-| 2017 | 隣人に壊されていく俺の妻 体験版 | 解像度選択画面 (WinRAR SFX) | `b2017_waffle` |
-| 2018 | 恋はそっと咲く花のように　体験版 | 注意画面以降 | `b2018_ensemble` |
 | 2018 | グランギニョルの夜 体験版Ver.01 | 注意画面→CG | `b2018_tinkerbell` |
-| 2020 | 世話焼き奥さんで人の頼みを断れない亜衣さんにお願いして中出しハメ放題のドスケベ妻になってもらった 体験版 | 起動 | `b2020_pin_point` |
-| 2021 | 売国王姫～堕落のメス豚母娘～体験版 | CG表示 (タイトルか未確定) | `b2021_pin_point` |
-| 2025 | お姉ちゃんのあまエロレッスン２ ～お隣の巨乳お姉ちゃんにイッパイ甘やかされるめちゃエロライフ～  - 体験版 - | 注意画面 (Managed=N) | `b2025_anim` |
-| 2025 | 虜ノ焔 ～淫欲の炎に満ちた地下闘技場～ 体験版 | ロゴ以降 | `b2025_guilty` |
 | 2026 | Triptych ～トリプティック～ 体験版 | 注意画面 | `b2026_tinkerbell` |
 
 </details>

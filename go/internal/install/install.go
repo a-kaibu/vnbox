@@ -38,6 +38,19 @@ const (
 // (its subfolders, e.g. gamedata/, are still looked at).
 func Find(dir string) string {
 	inst := find(dir)
+	if inst == "" {
+		// an installer or self-extractor with an arbitrary name (e.g. HimeTrial.exe is InstallShield)
+		r := detect.Detect(dir)
+		if r.Engine == "unknown" && len(r.Exes) > 0 {
+			for _, h := range r.Exes[0].Hits {
+				// SFX:ZIP / SFX:LZH also match resources embedded in ordinary game exes
+				if strings.HasPrefix(h, "Installer:") || h == "SFX:WinRAR" || h == "SFX:7z" || h == "SFX:CAB" {
+					return filepath.Join(dir, r.Exes[0].Path)
+				}
+			}
+		}
+		return ""
+	}
 	if inst == "" || strings.HasSuffix(strings.ToLower(inst), ".msi") || strings.EqualFold(filepath.Base(inst), "data1.hdr") {
 		return inst
 	}

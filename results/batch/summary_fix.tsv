@@ -7,9 +7,7 @@ b2020_pin_point	vnbox	OK	Games/fix_b2020_pin_point/人の頼みを断れない�
 b2025_guilty	vnbox	OK	Games/fix_b2025_guilty/torikonohomura_trial/虜ノ焔 ～淫欲の炎に満ちた地下闘技場～ 体験版/AdvHD.exe
 b2009_smee	vulkan	NG:blank(0)	Games/fix_b2009_smee/らぶでれ～しょん！体験版/LoveDere.exe
 b2006_pulltop	-	NG:package(起動 exe が決まりませんでした (インストー�)
-b2009_eushully	vulkan	NG:blank(0)	Games/fix_b2009_eushully/Himegari_Trial/HimeTrial.exe
 b2020_sukerasomero	vulkan	NG:blank(0)	Games/fix_b2020_sukerasomero/oshilove_trial/oshilove_trial/BGI.exe
-b2013_inter_heart	vulkan	NG:blank(0)	Games/fix_b2013_inter_heart/itazura_trial2.exe
 b2014_hibiki_works	vnbox	OK	Games/fix_b2014_hibiki_works/WEB体験版_101/ＰＲＥＴＴＹ×Ｃ∧ＴＩＯＮ.exe
 b2014_ensemble_sweet	vnbox	OK	Program Files (x86)/WILLPLUS/彼女はエッチで淫らなヘンタイ体験版/AdvHD.exe
 b2015_minato_carnival	vulkan	NG:small_window	みなとカーニバル/姉小路直子と銀色の死神 体験版/姉小路直子と銀色の死神.exe
@@ -21,7 +19,6 @@ b2008_blackcyc	vulkan	NG:blank(0)	Games/fix_b2008_blackcyc/ＢＤＤ体験版Ⅱ
 b2021_pin_point	vnbox	OK	Games/fix_b2021_pin_point/売国王姫体験版/売国王姫.exe
 b2012_erectlip	vnbox	OK	Games/fix_b2012_erectlip/淫落痴漢電車～恥辱姦状線～体験版/chikan_try.exe
 b2007_akabeesoft	vnbox	OK	Games/fix_b2007_akabeesoft/#G線上の魔王web体験版/setup.exe
-b2014_waffle	-	NG:package(vnbox: could not determine the executable; edit /home/user/vnbox/packages/fix_b2)
 b2021_bishop	vulkan	NG:blank(0)	Games/fix_b2021_bishop/ktjk3_trial/屈辱3　体験版/demo.exe
 b2019_sukerasparo	vulkan	NG:blank(0)	Games/fix_b2019_sukerasparo/190412_kudan_trial/kudan_trial/BGI.exe
 b2011_lumpofsugar	vulkan	NG:blank(0)	Games/fix_b2011_lumpofsugar/DiamicDays_Trial/DD_trial.exe
@@ -31,11 +28,29 @@ b2010_marine	vulkan	NG:blank(0)	Games/fix_b2010_marine/ぱいずりチアリー�
 b2024_ninetail	vnbox	OK	Games/fix_b2024_ninetail/VBRI_AllAge_ADVTrial_Ver.EN/VBRI_ADVTrial.exe
 b2007_blackcyc	-	NG:package(vnbox: no executable in the archive (video-only distribution?))
 b2013_parasol	-	NG:package(vnbox: no executable in the archive (video-only distribution?))
-b2014_silkys_plus	vulkan	NG:blank(0)	Games/fix_b2014_silkys_plus/なないろリンカネーション体験版ver1.2/start.exe
 b2009_rootnuko	-	NG:package(vnbox: no executable in the archive (video-only distribution?))
-b2017_waffle	-	NG:package(vnbox: could not determine the executable; edit /home/user/vnbox/packages/fix_b2)
 b2016_kaguya	vnbox	OK	Games/fix_b2016_kaguya/小悪魔発育チュ～！（体験版）/GAME_SYS.exe
 b2008_interheart	vnbox	OK	Games/fix_b2008_interheart/ItazuraR-Trial/ItazuraR.exe
 b2025_anim	vnbox	OK	Games/fix_b2025_anim/ANIM_お姉ちゃんのあまエロレッスン2 体験版/aneama2_trial.exe
 b2018_ensemble	vnbox	OK	Games/fix_b2018_ensemble/KOIHANA_WEB_TRIAL/ADVHD.EXE
+b2021_dessert_soft	vulkan	NG:blank(0)	Games/fix_b2021_dessert_soft/TomefureS-trial/GetPIN.exe
+b2020_shiba_soft	vulkan	NG:blank(0)	Games/fix_b2020_shiba_soft/mamakanoPlus_trial/GetPIN.exe
+b2014_waffle	vnbox	OK	Games/fix_b2014_waffle/巨乳ファンタジー２if体験版/gamedata/巨乳ファンタジー２if体験版.exe
+b2017_waffle	vnbox	OK	Games/fix_b2017_waffle/隣人に壊されていく俺の妻_体験版/gamedata/rinjin_trial.exe
+b2019_marshmallow_soft	vulkan	NG:blank(0)	Games/fix_b2019_marshmallow_soft/lovecommu-trial2/GetPIN.exe
+b2009_eushully	vnbox	OK	Games/fix_b2009_eushully/Himegari_Trial/HimeTrial.exe
+b2018_mirai	vulkan	NG:small_window	mirai/宿星のガールフレンド２ 体験版/宿星のガールフレンド２.exe
+b2017_onomatope_raspberry	vulkan	NG:blank(0)	Games/fix_b2017_onomatope_raspberry/bitchsister_trial_101/BITCHES2_TKB.exe
+b2011_blackcyc	vnbox	OK	Games/fix_b2011_blackcyc/獄淫の尖塔体験版/gokuin_trial.exe
+b2016_silkys_sakura	vulkan	NG:blank(0)	Games/fix_b2016_silkys_sakura/ママのおっぱい～俺の童貞ミルクが搾り取られた件～ 体験版/start.exe
+b2013_inter_heart	vulkan	NG:blank(0)	Games/fix_b2013_inter_heart/itazura_trial2.exe
+b2014_silkys_plus	vulkan	NG:blank(0)	Games/fix_b2014_silkys_plus/なないろリンカネーション体験版ver1.2/start.exe
+b2019_lass_pixy	vulkan	NG:small_window	Games/fix_b2019_lass_pixy/LSG1_tr/リトルシックガール体験版/リトルシックガール　体験版.exe
+b2013_lumpofsugar	vulkan	NG:blank(0)	Games/fix_b2013_lumpofsugar/sekachu_trial_WEB2/sekachu_trial_WEB2/sekachu_trial_WEB2.exe
+b2012_waffle	vnbox	OK	Games/fix_b2012_waffle/すくみず食べ放題　体験版/gamedata/すくみず食べ放題_体験版.exe
+b2015_nanawind	vulkan	NG:dead	Games/fix_b2015_nanawind/ALIA’s CARNIVAL! Flowering Sky　体験版(WEB.ver)/ALIA’s CARNIVAL! Flowering Sky　体験版(WEB.ver).exe
 b2023_cyc_rose	vulkan	NG:blank(0)	Games/fix_b2023_cyc_rose/薔薇ノ木ニ薔薇ノ花咲ク体験版/baraRe_trial.exe
+b2014_ensemble	vnbox	OK	Program Files (x86)/WILLPLUS/ゴールデンマリッジ_体験版/AdvHD.exe
+b2026_tinkerbell	vulkan	NG:blank(0)	Games/fix_b2026_tinkerbell/ムジナ・臭_体験版/mujinaS.exe
+b2006_alcot	vnbox	OK	Games/fix_b2006_alcot/tri_trial/tri_trial.exe
+b2020_marshmallow_soft	vulkan	NG:blank(0)	Games/fix_b2020_marshmallow_soft/amamama-trial/GetPIN.exe

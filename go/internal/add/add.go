@@ -99,6 +99,12 @@ func Add(ctx context.Context, name, src string, o Options) (*pkg.Package, error)
 		if err != nil {
 			return nil, err
 		}
+		// nothing was installed: the "installer" was the game itself (or a launcher of it)
+		if l, _ := p.Launch(); l.Target == "" && r.Files == 0 && dir != "" {
+			fmt.Fprintf(o.Log, "[%s] installer produced nothing; packaging the folder as is\n", name)
+			os.RemoveAll(dst)
+			return addFolder(dir, dst, name, o)
+		}
 		if o.Exe != "" {
 			l, _ := p.Launch()
 			l.Target = filepath.ToSlash(o.Exe)
@@ -107,7 +113,11 @@ func Add(ctx context.Context, name, src string, o Options) (*pkg.Package, error)
 		return checkTarget(p)
 	}
 
-	// 3) ready-to-run game: put it under C:\Games\<name>
+	return addFolder(dir, dst, name, o)
+}
+
+// addFolder packages a ready-to-run game folder under C:\Games\<name>.
+func addFolder(dir, dst, name string, o Options) (*pkg.Package, error) {
 	gdir := filepath.Join(dst, "files", "Games", name)
 	if err := os.MkdirAll(gdir, 0o755); err != nil {
 		return nil, err
