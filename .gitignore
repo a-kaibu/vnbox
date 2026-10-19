@@ -25,6 +25,4 @@ __pycache__/
 *.pyc
 vnbox-tools.tar.gz
 # 第6弾の実行中は追記が続くので一時的に追跡しない (終わったら git add -f で記録する)
-/results/batch/summary6.tsv
-/results/batch/summary_re6.tsv
 __pycache__/

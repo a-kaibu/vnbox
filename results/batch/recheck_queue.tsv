@@ -1,0 +1,63 @@
+s2018_lune_elf_saimin	shot:t40 pass:3 click:610,300 sleep:6 shot:t1 click:610,300 sleep:12 shot:t2 click:480,400 sleep:6 key:Return sleep:8 shot:c
+s2024_no_strike_yuribatake	shot:t40 click:462,266 sleep:12 shot:t1 click:960,600 sleep:6 key:Return sleep:8 shot:c
+dl_RJ01731003	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+s2026_no_strike_jyosou_yuriarashi	shot:t40 click:462,266 sleep:12 shot:t1 click:960,600 sleep:6 key:Return sleep:8 shot:c
+dl_VJ010622	shot:t40 key:Return sleep:8 click:848,373 sleep:8 shot:t1 click:640,400 sleep:10 key:Return sleep:8 click:640,400 sleep:10 shot:t2 click:848,373 sleep:8 click:640,400 sleep:10 key:Return sleep:10 shot:c
+s2020_sagaplanets_kakenuke	shot:t60 pass:3 sleep:20 shot:t1 sleep:10 shot:c
+dl_VJ01000456	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ01715225	shot:t40 click:174,618 sleep:12 shot:t1 click:270,480 sleep:8 shot:t2 click:270,480 sleep:8 shot:c
+s2022_onomatope_raspberry_yorozuya	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_VJ01000628	shot:t40 click:690,490 sleep:12 shot:t1 click:958,700 sleep:8 shot:t2 key:Return sleep:8 shot:c
+dl_RJ01720064	shot:t40 click:640,400 sleep:6 click:640,400 sleep:6 shot:t1 click:640,400 sleep:6 click:640,400 sleep:8 shot:t2 key:Return sleep:8 click:640,400 sleep:10 shot:c
+s2011_marine_marching	shot:t40 click:478,340 sleep:8 pass:6 sleep:8 shot:t1 pass:4 click:480,270 sleep:6 key:Return sleep:8 shot:t2 click:480,270 sleep:6 key:Return sleep:8 shot:c
+dl_RJ01604592	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ01648691	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ01730521	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ01712071	shot:t40 click:1007,329 sleep:10 shot:t1 click:640,400 sleep:6 shot:t2 key:Return sleep:6 click:640,400 sleep:8 shot:c
+s2010_lumpofsugar_prismrhythm	shot:t40 pass:6 sleep:12 shot:t1 click:320,240 sleep:5 key:Return sleep:8 shot:t2 click:320,240 sleep:5 key:Return sleep:8 shot:c	-	-click 195,298
+s2018_waffle_shinyu	shot:t40 click:300,454 sleep:4 click:300,454 sleep:10 shot:t1 click:640,311 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ357058	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+s2018_pin_point_yakyurare	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_VJ01004381	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c	vnbox-dxvk
+s2014_lune_revenge_room	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+s2013_lune_kazokusaimin	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_VJ01000803	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+s2015_lune_kunoichi_suzaku	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ01741863	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+s2026_eushully_parente	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 key:Return sleep:10 shot:t3 key:Return sleep:10 shot:c
+s2022_hooksoft_houkago2	shot:t40 pass:6 sleep:12 shot:t1 click:234,630 sleep:12 shot:t2 click:640,400 sleep:5 click:640,400 sleep:8 shot:c	vnbox-dxvk
+dl_VJ013025	shot:t40 click:300,454 sleep:4 click:300,454 sleep:10 shot:t1 click:640,311 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ01650072	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ01729003	shot:t40 pass:6 sleep:12 shot:t1 click:1427,653 sleep:15 shot:t2 click:960,540 sleep:8 shot:c	vnbox-dxvk
+dl_RJ01690707	shot:t40 sleep:20 shot:t1 click:1685,870 sleep:10 shot:t2 key:Escape sleep:5 shot:c
+dl_RJ01696828	shot:t40 sleep:20 shot:t1 click:1440,705 sleep:15 shot:t2 click:960,540 sleep:8 shot:c
+dl_RJ01728560	shot:t40 sleep:20 shot:t1 click:105,255 sleep:15 shot:t2 click:960,540 sleep:8 shot:c	vnbox-dxvk
+dl_VJ012484	shot:t40 click:300,454 sleep:4 click:300,454 sleep:10 shot:t1 click:640,311 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ01699647	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ01743502	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+s2011_lumpofsugar_gackoh	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+s2025_bishop_ingk_houkago2	shot:t40 click:443,78 sleep:30 shot:t1 click:640,400 sleep:10 shot:t2 click:640,400 sleep:10 shot:c
+s2011_waffle_sex_friend	shot:t40 click:280,257 sleep:3 click:385,428 sleep:15 shot:t1 click:640,400 sleep:5 key:Return sleep:8 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:c
+s2023_quince_soft_little_proncess_go	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ01726603	shot:t40 sleep:10 shot:t1 click:710,653 sleep:15 shot:t2 click:960,540 sleep:8 shot:c
+dl_RJ01728421	shot:t40 sleep:10 shot:t1 click:1690,653 sleep:15 shot:t2 click:960,540 sleep:8 shot:c
+s2026_bishop_tks	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+s2017_marmalade_mashimaro	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ01641249	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+s2025_j_studio_galsfiction	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+s2023_hadashi_harem_shangrila	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+s2026_lump_of_sugar_tayutama_zero	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ01731343	shot:t40 sleep:30 shot:t1 click:960,540 sleep:10 shot:t2 key:Return sleep:10 shot:c	vnbox-dxvk
+s2015_waffle_kyonyu3	shot:t40 click:300,454 sleep:4 click:300,454 sleep:10 shot:t1 click:640,311 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:c
+s2014_atelier_gh_8mz	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+s2012_tinkerbell_kankeizu	shot:t40 sleep:5 shot:t1 click:926,380 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ01744611	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+s2006_waffle_tobosya4	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ01721615	shot:t40 sleep:20 shot:t1 click:960,540 sleep:10 shot:t2 key:Return sleep:10 shot:c	vnbox-dxvk
+s2006_kaguya_hitocos2	shot:t40 pass:6 sleep:12 shot:t1 click:640,400 sleep:4 click:640,400 sleep:4 click:640,400 sleep:4 click:640,400 sleep:6 shot:t2 click:640,400 sleep:4 click:640,400 sleep:4 click:640,400 sleep:6 shot:c
+s2008_guilty_wana2	shot:t40 pass:6 sleep:12 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c
+dl_RJ01728288	shot:t40 sleep:10 shot:t1 click:300,600 sleep:15 shot:t2 click:960,540 sleep:8 shot:c
+dl_RJ01734456	shot:t40 sleep:10 shot:t1 click:960,520 sleep:15 shot:t2 click:960,540 sleep:8 shot:c
+dl_RJ01705199	shot:t40 sleep:20 shot:t1 click:960,540 sleep:10 shot:t2 key:Return sleep:10 shot:c
+dl_RJ01739908	shot:t40 sleep:90 shot:t1 sleep:60 shot:t2 click:960,540 sleep:10 shot:c
+s2019_lump_of_sugar_wakabairono_quartet	shot:t40 pass:6 sleep:20 shot:t1 sleep:12 shot:t2 click:640,400 sleep:5 key:Return sleep:8 shot:t3 click:640,400 sleep:5 key:Return sleep:8 shot:c	-	-click 603,268
