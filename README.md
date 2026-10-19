@@ -622,6 +622,16 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 21. **入れ子の自己解凍**: zip の中身が ZIP 自己解凍 exe 1 つだけ、という配布がある (スペルマン)。exe をゲームとして起動すると何も出ないので、もう一段展開する。
 11. **インストーラの自動操作**: MSI は `msiexec /qn`、それ以外 (CreateInstall / BGI / Majiro / CatSystem2 / InstallShield / 独自) は `wizard.sh` が小さいダイアログに Enter (効かなければ Space) を送り続けるだけで、今回の 8 種すべて完了した。WinRAR SFX は Linux 側の unrar で開けないことがあり、Wine で SFX 自体を動かして展開した。
 
+22. **ウィンドウの大きさ**: WM が無いと最大化・全画面の要求が実行されず、Wine 側は 1920x1080 なのに X のウィンドウが小さいまま右下が切れていた (かけぬけ★青春スパーキング)。枠を描かない openbox を Xvfb ごとに動かす。`run.sh` は Wine 内から見たクライアント領域と X のウィンドウを比べ、X 側が小さければ `NG:size_mismatch` にする。
+23. **自前で枠を描くウィンドウ**: Chromium 系 (NW.js / Electron) は WM_NCCALCSIZE でクライアント領域を枠いっぱいに広げる。Wine は WM が枠を描く前提でタイトルバー分を X ウィンドウから外すので、上 30px が欠けていた (RPG ツクール MZ 製)。win32u パッチでウィンドウ全体を出す。
+24. **NW.js も Chromium**: RPG ツクール MZ の一部は GPU プロセス無しでは真っ黒のまま。Electron と同じ引数を `vnbox add` が NW.js (nw.dll) にも付ける。
+25. **ダイアログの重なり**: 「フルスクリーンで表示しますか？」や「ディスプレイ設定を変更しますか？」がゲーム本体の大きなウィンドウの手前に出る。`pass:` は最大のウィンドウでなく、いちばん小さいダイアログ大のウィンドウに既定のボタンを押させ、続けて出るダイアログも数秒待つ。
+26. **既定のボタンが無いインストーラ**: 「インストール」「同意する」「次へ」を Enter で押せないものは `tools/clickbtn` (Wine 内で BM_CLICK) がラベルで探して押す。ボタンを自前で描く BGI のメニュー (子ウィンドウなし) は、ウィンドウクラスと大きさで位置を決め打ちする。押下は PostMessage (モーダルダイアログを開くと SendMessage が戻らない)。
+27. **prefix の hardlink**: 複製した prefix は base と hardlink を共有するので、`cp` で既存ファイルを上書きすると base まで書き換わる (DXVK や VC++ の DLL が base に入っていた)。`--remove-destination` で置き換え、winetricks の前は system32 等を自前のコピーにする。
+28. **起動ランチャー**: BISHOP の startup.exe は作品によって「ゲーム開始」で C++ 例外を出して終わる。startup.ini の `[EXE] Boot=/Demo=` を直接起動する。Eushully の InstallLauncher.exe は隣の Inno の setup.exe を無人で実行すれば済む。
+29. **Unity 6 (6000.x)**: wined3d では黒画面。DXVK で描画されるので `vnbox add` が UnityPlayer.dll の版を見て `vnbox-dxvk` を付ける。ただし入力が届かない作品がある (不倫旅館 体験版: マウスもキーボードも無反応)。Unity 6 は EnableMouseInPointer を呼ぶので WM_POINTER への変換を試作したが、この作品は通常のマウスメッセージに戻して処理しており効果がなかった。未解決。
+30. **VR 専用**: DLsite の「VR」作品には OpenXR ヘッドセットが無いと何も描かないものがある (対象外)。
+
 ## 次にやること
 
 - GPU のある環境ではハードウェアエンコード (VAAPI / NVENC) に切り替えて CPU を空ける。
