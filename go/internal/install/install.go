@@ -57,7 +57,7 @@ func Find(dir string) string {
 	instDir := filepath.Dir(inst)
 	// BGI trials ship BGIForInstalling.exe / installer.arc: the game only starts once Setup.exe
 	// has written its install key, so Setup.exe is the real installer here
-	if needsInstall(instDir) || hasPackedExe(dir) {
+	if needsInstall(instDir) || bgiDataBelow(instDir) || hasPackedExe(dir) {
 		return inst
 	}
 	// the game exe next to setup.exe makes setup.exe a config tool, but only if game data is
@@ -89,6 +89,36 @@ func needsInstall(dir string) bool {
 		}
 	}
 	return have["rio.ini"] && have["setup.exe"]
+}
+
+// bgiDataBelow: a BGI game folder that still needs installing (BGIForInstalling.exe /
+// installer.arc) one level below the installer, e.g. Foo_Install.exe next to Foo/.
+func bgiDataBelow(dir string) bool {
+	ents, _ := os.ReadDir(dir)
+	for _, e := range ents {
+		if e.IsDir() && needsInstall(filepath.Join(dir, e.Name())) {
+			return true
+		}
+	}
+	return false
+}
+
+// isInstallerName: setup.exe, install*.exe, Foo_Install.exe, Foo-setup.exe, インストール/セットアップ (not uninstallers)
+func isInstallerName(name string) bool {
+	n := strings.ToLower(name)
+	if !strings.HasSuffix(n, ".exe") || strings.Contains(n, "uninst") {
+		return false
+	}
+	base := strings.TrimSuffix(n, ".exe")
+	if base == "setup" || strings.HasPrefix(base, "install") || strings.Contains(name, "インストール") || strings.Contains(name, "セットアップ") {
+		return true
+	}
+	for _, suf := range []string{"_install", "-install", " install", "_setup", "-setup", " setup"} {
+		if strings.HasSuffix(base, suf) {
+			return true
+		}
+	}
+	return false
 }
 
 // hasPackedExe: the game exe is shipped encoded (*.exe.emb) and only the installer decodes it.
@@ -127,8 +157,7 @@ func find(dir string) string {
 		if err != nil || found != "" || d.IsDir() {
 			return nil
 		}
-		n := strings.ToLower(d.Name())
-		if n == "setup.exe" || (strings.HasPrefix(n, "install") && strings.HasSuffix(n, ".exe")) || (strings.Contains(d.Name(), "インストール") || strings.Contains(d.Name(), "セットアップ")) && strings.HasSuffix(n, ".exe") {
+		if isInstallerName(d.Name()) {
 			found = p
 		}
 		return nil
@@ -257,7 +286,7 @@ func Drive(ctx context.Context, env wine.Env, dir, exe, shotDir string, clicks [
 		if shotDir != "" {
 			d.Shot(filepath.Join(shotDir, fmt.Sprintf("wiz_%02d.png", i)), w)
 		}
-	})
+	}, func() bool { return PressButton(ctx, env, log) })
 	return nil
 }
 
@@ -304,4 +333,27 @@ func dirSize(dir string) int64 {
 		return nil
 	})
 	return n
+}
+
+// PressButton clicks the most likely "go on" button (インストール, 同意する, 次へ, OK, 完了 ...)
+// of the frontmost window through runtime/tools/clickbtn.exe, built from tools/clickbtn on
+// first use. It reports whether a button was clicked.
+func PressButton(ctx context.Context, env wine.Env, log io.Writer) bool {
+	exe := filepath.Join(wine.Root(), "runtime", "tools", "clickbtn.exe")
+	if _, err := os.Stat(exe); err != nil {
+		os.MkdirAll(filepath.Dir(exe), 0o755)
+		src := filepath.Join(wine.Root(), "tools", "clickbtn", "clickbtn.c")
+		if out, err := exec.Command("i686-w64-mingw32-gcc", "-O1", "-finput-charset=UTF-8", "-o", exe, src, "-luser32").CombinedOutput(); err != nil {
+			fmt.Fprintf(log, "  clickbtn: %v: %s\n", err, out)
+			return false
+		}
+	}
+	c := env.Command(ctx, "", exe)
+	c.Stderr = nil
+	out, err := c.Output()
+	if err != nil {
+		return false
+	}
+	fmt.Fprintf(log, "  %s", out)
+	return true
 }

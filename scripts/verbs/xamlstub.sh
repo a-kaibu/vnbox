@@ -7,7 +7,7 @@ if [ ! -f "$R/xamlstub32.dll" ]; then   # 初回だけ作る: Windows SDK のメ
   [ -x "$R/venv/bin/python" ] || { python3 -m venv "$R/venv" && "$R/venv/bin/pip" install -q dnfile; }
   PYTHON="$R/venv/bin/python" "$V/tools/xamlstub/build.sh" "$R/winmd" "$R/xamlstub32.dll" >/dev/null
 fi
-mkdir -p "$P/drive_c/vnbox"; cp "$R/xamlstub32.dll" "$P/drive_c/vnbox/"
+mkdir -p "$P/drive_c/vnbox"; cp --remove-destination "$R/xamlstub32.dll" "$P/drive_c/vnbox/"
 reg=$(mktemp --suffix=.reg); { echo "REGEDIT4"; while read -r c; do [ -n "$c" ] || continue
   printf '\n[HKEY_LOCAL_MACHINE\\Software\\Microsoft\\WindowsRuntime\\ActivatableClassId\\%s]\n"DllPath"="C:\\\\vnbox\\\\xamlstub32.dll"\n"ActivationType"=dword:00000000\n' "$c"
 done < "$V/tools/xamlstub/classes.txt"; } > "$reg"

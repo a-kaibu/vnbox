@@ -181,7 +181,8 @@ func (p *Package) Prepare(ctx context.Context, fl wine.Flavor, prefix string) er
 		}
 	}
 	// cp -a keeps timestamps, so package files stay older than the marker and are not saves.
-	if err := exec.Command("cp", "-a", filepath.Join(p.Dir, "files")+"/.", filepath.Join(prefix, "drive_c")+"/").Run(); err != nil {
+	// the prefix is a hardlink clone of the base: replace files instead of writing through the links
+	if err := exec.Command("cp", "-a", "--remove-destination", filepath.Join(p.Dir, "files")+"/.", filepath.Join(prefix, "drive_c")+"/").Run(); err != nil {
 		return fmt.Errorf("copy files: %w", err)
 	}
 	env := wine.Env{Flavor: fl, Prefix: prefix, Display: os.Getenv("DISPLAY")}
@@ -195,6 +196,16 @@ func (p *Package) Prepare(ctx context.Context, fl wine.Flavor, prefix string) er
 	}
 	if l.Renderer != "" {
 		env.RegAdd(ctx, `HKCU\Software\Wine\Direct3D`, "renderer", "", l.Renderer)
+	}
+	for _, v := range l.Winetricks {
+		if !strings.HasPrefix(v, "vnbox-") {
+			// winetricks copies DLLs into system32 in place, which would write through the
+			// prefix's hard links into the base prefix: give this prefix its own copies first
+			if err := unshareSystemDirs(prefix); err != nil {
+				return err
+			}
+			break
+		}
 	}
 	for _, v := range l.Winetricks {
 		// "vnbox-<name>" は vnbox 自前の手順 (scripts/verbs/<name>.sh <prefix>)、それ以外は winetricks の verb
@@ -211,6 +222,30 @@ func (p *Package) Prepare(ctx context.Context, fl wine.Flavor, prefix string) er
 	}
 	env.Wait()
 	return Snapshot(prefix)
+}
+
+// unshareSystemDirs replaces the hard-linked windows/system32, syswow64 and Fonts of a cloned
+// prefix with real copies.
+func unshareSystemDirs(prefix string) error {
+	for _, d := range []string{"system32", "syswow64", "Fonts"} {
+		dir := filepath.Join(prefix, "drive_c", "windows", d)
+		if _, err := os.Stat(dir); err != nil {
+			continue
+		}
+		tmp := dir + ".vnbox-copy"
+		os.RemoveAll(tmp)
+		if out, err := exec.Command("cp", "-a", dir, tmp).CombinedOutput(); err != nil {
+			os.RemoveAll(tmp)
+			return fmt.Errorf("unshare %s: %v: %s", d, err, out)
+		}
+		if err := os.RemoveAll(dir); err != nil {
+			return err
+		}
+		if err := os.Rename(tmp, dir); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Snapshot records the current registry as the save baseline and marks the prefix prepared.

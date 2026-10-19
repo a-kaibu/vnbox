@@ -153,7 +153,10 @@ var dialogKeys = []string{"Return", "alt+n", "click", "space", "alt+i", "alt+y",
 // most wizards put 次へ / OK. It stops after `idle` checks without a dialog, after max dialogs,
 // or when a dialog ignores everything ten times in a row.
 // Every dialog is passed to onStep (for screenshots / logging) before it is pressed.
-func (d Display) PressDialogs(max, idle int, onStep func(i int, w Window)) int {
+//
+// pressButton, when set, is tried first on each dialog: it clicks a labelled button
+// (インストール, 次へ, 同意する, OK ...) from inside Wine and reports whether it found one.
+func (d Display) PressDialogs(max, idle int, onStep func(i int, w Window), pressButton func() bool) int {
 	quiet, n, stuck := 0, 0, 0
 	seen := map[string]bool{}
 	for n < max {
@@ -205,7 +208,14 @@ func (d Display) PressDialogs(max, idle int, onStep func(i int, w Window)) int {
 			return true
 		}
 		changed := false
+		if pressButton != nil && pressButton() {
+			time.Sleep(3 * time.Second)
+			changed = progressed()
+		}
 		for _, k := range dialogKeys {
+			if changed {
+				break
+			}
 			if k != "click" {
 				d.Key(dlg, k)
 				time.Sleep(2 * time.Second)

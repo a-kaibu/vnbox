@@ -58,3 +58,15 @@ func TestFind(t *testing.T) {
 		t.Errorf("msi: %q", got)
 	}
 }
+
+func TestIsInstallerName(t *testing.T) {
+	for name, want := range map[string]bool{
+		"setup.exe": true, "Install.exe": true, "NSM_MYST_trial_Install.exe": true, "game-setup.exe": true,
+		"インストール.exe": true, "UnInstaller.exe": false, "uninstall.exe": false, "BGIForInstalling.exe": false,
+		"Game.exe": false, "setup.ini": false, "SetupTool.exe": false,
+	} {
+		if got := isInstallerName(name); got != want {
+			t.Errorf("isInstallerName(%q) = %v, want %v", name, got, want)
+		}
+	}
+}

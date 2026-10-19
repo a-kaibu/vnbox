@@ -15,10 +15,13 @@ if [ ! -f "$WINEPREFIX/.vnbox-applied" ]; then
   for r in system user; do
     [ -s "$PKG/$r.reg.frag" ] && python3 -I "$VNBOX/scripts/regdiff.py" apply "$PKG/$r.reg.frag" "$WINEPREFIX/$r.reg"
   done
-  cp -a "$PKG/files/." "$WINEPREFIX/drive_c/"
+  cp -a --remove-destination "$PKG/files/." "$WINEPREFIX/drive_c/"   # prefix は base の hardlink なので上書きせず置き換える
   R=$(ini renderer); [ -n "$R" ] && wine reg add 'HKCU\Software\Wine\Direct3D' /v renderer /d "$R" /f >/dev/null 2>&1
+  # winetricks は system32 の DLL をその場で上書きするので、base と hardlink を共有したままだと base まで書き換わる。先に自前のコピーにする
+  unshare(){ local d t; for d in system32 syswow64 Fonts; do t="$WINEPREFIX/drive_c/windows/$d"; [ -d "$t" ] && [ ! -e "$t.vnbox-own" ] || continue
+    rm -rf "${t:?}.vnbox-copy"; cp -a "$t" "$t.vnbox-copy" && rm -rf "${t:?}" && mv "$t.vnbox-copy" "$t" && touch "$t.vnbox-own"; done; }
   for v in $(ini winetricks); do   # vnbox-<name> は scripts/verbs/<name>.sh
-    case $v in vnbox-*) a=${v#vnbox-}; bash "$VNBOX/scripts/verbs/${a%%:*}.sh" "$WINEPREFIX" $( [[ $a == *:* ]] && tr ':' ' ' <<< "${a#*:}" );; *) winetricks -q "$v";; esac
+    case $v in vnbox-*) a=${v#vnbox-}; bash "$VNBOX/scripts/verbs/${a%%:*}.sh" "$WINEPREFIX" $( [[ $a == *:* ]] && tr ':' ' ' <<< "${a#*:}" );; *) unshare; winetricks -q "$v";; esac
   done
   wineserver -w 2>/dev/null || true
   # セーブ (store.sh) は「ここから後に変わったもの」なので、準備直後のレジストリを控えておく
