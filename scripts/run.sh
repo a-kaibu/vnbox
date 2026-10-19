@@ -69,8 +69,10 @@ for op in $SEQ; do
     sleep:*) sleep ${op#sleep:};;
     pass:*)  # 起動設定や確認 (「フルスクリーンで表示しますか？」等) の小さいダイアログがあれば Enter → 効かなければ Space で抜ける (最大 N 回)
              # ゲーム本体の大きなウィンドウの手前に出ているダイアログも対象 (既定のボタンを押す)
-             for _ in $(seq ${op#pass:}); do
-               W=$(dialogwin); [ -z "$W" ] && { [ -z "$(gamewin)" ] && { sleep 3; continue; }; break; }
+             # 確認ダイアログが続けて出ることがある (閉じてから数秒後に次が出る) ので、無い状態が 3 回続くまで見る
+             empty=0
+             for _ in $(seq $(( ${op#pass:} * 2 ))); do
+               W=$(dialogwin); [ -z "$W" ] && { empty=$((empty+1)); [ $empty -ge 3 ] && [ -n "$(gamewin)" ] && break; sleep 3; continue; }; empty=0
                xdotool windowactivate $W 2>/dev/null || xdotool windowfocus $W 2>/dev/null; sleep 0.3; xdotool key Return 2>/dev/null; sleep 4
                [ "$(dialogwin)" = "$W" ] && { xdotool windowactivate $W 2>/dev/null || xdotool windowfocus $W 2>/dev/null; sleep 0.2; xdotool key space 2>/dev/null; sleep 4; }
              done;;
