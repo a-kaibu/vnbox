@@ -261,8 +261,17 @@ func DetectSkip(root, skip string) Result {
 
 var notGame = regexp.MustCompile(`(?i)unins|setup|install|config|設定|launcher|crash|vc_?redist|dxsetup|directx|updater|readme|manual|support|インストール|getpin|pin\.exe|regist|認証|savefolder|セーブフォルダ`)
 
-// MainExe picks the executable to launch: the largest one that does not look like a tool.
+// launchers that must be started instead of the game exe (they write the launch settings)
+var launcher = regexp.MustCompile(`(?i)(^|/)startup\.exe$`)
+
+// MainExe picks the executable to launch: a known launcher if present, otherwise the
+// largest exe that does not look like a tool.
 func (r Result) MainExe() string {
+	for _, e := range r.Exes {
+		if launcher.MatchString(filepathToSlash(e.Path)) {
+			return e.Path
+		}
+	}
 	for _, e := range r.Exes {
 		if !notGame.MatchString(e.Path) {
 			return e.Path
@@ -292,3 +301,5 @@ func sortedKeys(m map[string]bool) []string {
 	sort.Strings(out)
 	return out
 }
+
+func filepathToSlash(p string) string { return strings.ReplaceAll(p, "\\", "/") }
