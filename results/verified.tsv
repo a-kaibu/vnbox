@@ -664,3 +664,4 @@ dl_VJ01000803	ALPHA-NIGHTHAWK	-	タイトル (Liar のインストーラを clic
 dl_RJ01726603	父と娘仲直りH旅行～夏休みは南の島のリゾートで!!	Unity	本編 (オープニングの選択画面。Unity 6、mouse-in-pointer パッチでクリック可)
 dl_RJ01728421	もんむすのペット 甘サド捕食系サキュバス編	Unity	本編 (はじめから → 会話。Unity 6、mouse-in-pointer パッチでクリック可)
 s2011_waffle_sex_friend	都合のよいセックスフレンド？体験版	LiveMaker	起動時の解像度選択 → 確認画面 (ゲーム描画)
+s2026_bishop_tks	超狂指導日誌 体験版	-	タイトル (BISHOP 起動ランチャーの「ゲーム開始」で設定 bsxx.ini を書いてから本体が起動。手動で確認)

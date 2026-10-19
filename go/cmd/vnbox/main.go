@@ -612,8 +612,35 @@ func bishopGame(exe string) string {
 			}
 		}
 	}
+	// the game exits at once without the settings file the launcher writes on ゲーム開始
+	// ([StartUp] ConfigName=, e.g. bsxx.ini): keep the launcher if the trial does not ship one
+	if cfg := iniValue(string(b), "StartUp", "ConfigName"); cfg != "" {
+		have := false
+		for _, e := range ents {
+			have = have || strings.EqualFold(e.Name(), cfg)
+		}
+		if !have {
+			return ""
+		}
+	}
 	if len(found) > 0 {
 		return found[0]
+	}
+	return ""
+}
+
+// iniValue returns key in [section] of an ini text ("" if absent; ; comments are skipped).
+func iniValue(text, section, key string) string {
+	sect := ""
+	for _, ln := range strings.Split(text, "\n") {
+		ln = strings.TrimSpace(ln)
+		if strings.HasPrefix(ln, "[") {
+			sect = strings.Trim(ln, "[]")
+			continue
+		}
+		if k, v, ok := strings.Cut(ln, "="); ok && !strings.HasPrefix(ln, ";") && strings.EqualFold(sect, section) && strings.EqualFold(strings.TrimSpace(k), key) {
+			return strings.TrimSpace(v)
+		}
 	}
 	return ""
 }
