@@ -197,9 +197,15 @@ func (p *Package) Prepare(ctx context.Context, fl wine.Flavor, prefix string) er
 		env.RegAdd(ctx, `HKCU\Software\Wine\Direct3D`, "renderer", "", l.Renderer)
 	}
 	for _, v := range l.Winetricks {
+		// "vnbox-<name>" は vnbox 自前の手順 (scripts/verbs/<name>.sh <prefix>)、それ以外は winetricks の verb
 		c := exec.CommandContext(ctx, "winetricks", "-q", v)
+		if name, ok := strings.CutPrefix(v, "vnbox-"); ok {
+			c = exec.CommandContext(ctx, "bash", filepath.Join(wine.Root(), "scripts", "verbs", name+".sh"), prefix)
+		}
 		c.Env = env.Vars()
-		c.Run()
+		if out, err := c.CombinedOutput(); err != nil {
+			return fmt.Errorf("%s: %v: %s", v, err, out)
+		}
 	}
 	env.Wait()
 	return Snapshot(prefix)

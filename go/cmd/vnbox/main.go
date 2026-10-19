@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -183,6 +184,10 @@ func cmdAdd(ctx context.Context, args []string) error {
 		// GPU 処理を本体プロセスに入れ、ソフトウェア描画 (SwiftShader) を使わせる
 		if t == "Runtime:Electron" && l.Args == "" {
 			l.Args = electronArgs
+		}
+		// XAML Islands (C++/WinRT の Windows.UI.Xaml): Wine に実装が無いので何もしない代用品を入れる
+		if t == "Runtime:XamlIslands" && !slices.Contains(l.Winetricks, "vnbox-xamlstub") {
+			l.Winetricks = append(l.Winetricks, "vnbox-xamlstub")
 		}
 		if strings.HasPrefix(t, "DRM:") || strings.HasPrefix(t, "Protect:") {
 			drm = append(drm, t)

@@ -57,6 +57,15 @@ type binSig struct {
 
 func bs(name, sig string) binSig { return binSig{name, []byte(sig)} }
 
+// utf16 is the UTF-16LE form of an ASCII string (for wide string literals in executables).
+func utf16(s string) string {
+	b := make([]byte, 0, 2*len(s))
+	for i := 0; i < len(s); i++ {
+		b = append(b, s[i], 0)
+	}
+	return string(b)
+}
+
 var binSigs = []binSig{
 	bs("KiriKiri", "TVP(KIRIKIRI)"), bs("KiriKiri", "XP3\r\n \n\x1a"),
 	bs("NScripter", "NScripter"), bs("YU-RIS", "YU-RIS"), bs("SiglusEngine", "SiglusEngine"),
@@ -82,6 +91,7 @@ var binSigs = []binSig{
 	bs("Protect:SecuROM", ".securom"),
 	bs("Runtime:DirectShow", "quartz.dll"), bs("Runtime:VC71", "MSVCR71.dll"),
 	bs("Runtime:VC80", "MSVCR80.dll"), bs("Runtime:VC90", "MSVCR90.dll"), bs("Runtime:VC100", "MSVCR100.dll"),
+	bs("Runtime:XamlIslands", utf16("Windows.UI.Xaml.Hosting.DesktopWindowXamlSource")),
 	bs("Runtime:MFC42", "MFC42.DLL"), bs("Runtime:VB6", "MSVBVM60.DLL"), bs("Runtime:D3DX9", "d3dx9_"),
 	bs("Runtime:DotNet", "_CorExeMain"), bs("Runtime:WMP", "wmvcore.dll"), bs("Runtime:Flash", "Flash.ocx"),
 }

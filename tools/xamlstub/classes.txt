@@ -1,0 +1,10 @@
+Windows.UI.Xaml.Hosting.WindowsXamlManager
+Windows.UI.Xaml.Hosting.DesktopWindowXamlSource
+Windows.UI.Xaml.Controls.Grid
+Windows.UI.Xaml.Controls.TextBox
+Windows.UI.Xaml.Controls.Button
+Windows.UI.Colors
+Windows.UI.Xaml.Media.Imaging.BitmapImage
+Windows.UI.Xaml.Media.ImageBrush
+Windows.UI.Xaml.Media.SolidColorBrush
+Windows.Foundation.Uri

@@ -17,7 +17,9 @@ if [ ! -f "$WINEPREFIX/.vnbox-applied" ]; then
   done
   cp -a "$PKG/files/." "$WINEPREFIX/drive_c/"
   R=$(ini renderer); [ -n "$R" ] && wine reg add 'HKCU\Software\Wine\Direct3D' /v renderer /d "$R" /f >/dev/null 2>&1
-  for v in $(ini winetricks); do winetricks -q "$v"; done
+  for v in $(ini winetricks); do   # vnbox-<name> は scripts/verbs/<name>.sh
+    case $v in vnbox-*) bash "$VNBOX/scripts/verbs/${v#vnbox-}.sh" "$WINEPREFIX";; *) winetricks -q "$v";; esac
+  done
   wineserver -w 2>/dev/null || true
   # セーブ (store.sh) は「ここから後に変わったもの」なので、準備直後のレジストリを控えておく
   mkdir -p "$WINEPREFIX/.vnbox-reg0"; cp "$WINEPREFIX/system.reg" "$WINEPREFIX/user.reg" "$WINEPREFIX/.vnbox-reg0/"
