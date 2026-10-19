@@ -23,6 +23,8 @@ if [ ! -f "$WINEPREFIX/.vnbox-applied" ]; then
   mkdir -p "$WINEPREFIX/.vnbox-reg0"; cp "$WINEPREFIX/system.reg" "$WINEPREFIX/user.reg" "$WINEPREFIX/.vnbox-reg0/"
   touch "$WINEPREFIX/.vnbox-applied"
 fi
+# 起動引数は prefix にも書いておく (run.sh で直接起動するときに使う)
+printf '%s\n' "$(ini args)" > "$WINEPREFIX/.vnbox-args"
 [ -n "${PREPARE_ONLY:-}" ] && { echo "$WINEPREFIX"; exit 0; }
 T=$(ini target); cd "$WINEPREFIX/drive_c/$(dirname "$T")"
 exec wine "$(basename "$T")" $(ini args)
