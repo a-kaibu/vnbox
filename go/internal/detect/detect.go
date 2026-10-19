@@ -92,8 +92,11 @@ type Result struct {
 	Path   string         `json:"path"`
 	Engine string         `json:"engine"`
 	Scores map[string]int `json:"engine_scores"`
-	Tags   []string       `json:"tags"` // Installer:*, SFX:*, DRM:*, Runtime:*
-	Exes   []Exe          `json:"exes"`
+	// FileEngine is the engine guessed from data file names only (no executable signatures).
+	// A launcher or installer exe can mention an engine without the game being present.
+	FileEngine string   `json:"file_engine"`
+	Tags       []string `json:"tags"` // Installer:*, SFX:*, DRM:*, Runtime:*
+	Exes       []Exe    `json:"exes"`
 }
 
 // ScanBinary returns the signatures found in the first 64 MB and last 8 MB of a file.
@@ -170,6 +173,7 @@ func Detect(root string) Result { return DetectSkip(root, "") }
 // DetectSkip is Detect ignoring the files directly inside skip (its subfolders are still scanned).
 func DetectSkip(root, skip string) Result {
 	res := Result{Path: root, Scores: map[string]int{}}
+	fileScores := map[string]int{}
 	var exes []string
 	st, err := os.Stat(root)
 	if err != nil {
@@ -197,6 +201,9 @@ func DetectSkip(root, skip string) Result {
 			for _, s := range fileSigs {
 				if s.re.MatchString(n) {
 					res.Scores[s.name]++
+					if !strings.Contains(s.name, ":") {
+						fileScores[s.name]++
+					}
 				}
 			}
 			if !d.IsDir() && strings.HasSuffix(n, ".exe") {
@@ -243,6 +250,12 @@ func DetectSkip(root, skip string) Result {
 	}
 	sort.Strings(res.Tags)
 	res.Engine = best
+	res.FileEngine, bestScore = "unknown", 0
+	for k, v := range fileScores {
+		if v > bestScore || (v == bestScore && k < res.FileEngine) {
+			res.FileEngine, bestScore = k, v
+		}
+	}
 	return res
 }
 

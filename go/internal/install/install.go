@@ -61,7 +61,7 @@ func Find(dir string) string {
 			return ""
 		}
 	}
-	if detect.DetectSkip(dir, instDir).Engine != "unknown" {
+	if detect.DetectSkip(dir, instDir).FileEngine != "unknown" {
 		return ""
 	}
 	return inst

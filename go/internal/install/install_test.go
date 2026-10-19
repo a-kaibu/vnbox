@@ -45,6 +45,12 @@ func TestFind(t *testing.T) {
 	if got := Find(f); filepath.Base(got) != "HimeTrial.exe" {
 		t.Errorf("signature installer: %q", got)
 	}
+	// CatSystem2 launcher menu that names the engine, real game only behind setup/INSTALL.exe
+	g := t.TempDir()
+	mk(t, g, map[string]string{"n/menu.exe": "MZ CatSystem2 CS2CONF", "n/boot.dfn": "", "n/setup/INSTALL.exe": "MZ", "n/setup/cs2.exe": "MZ CatSystem2", "n/setup/scene.int": ""})
+	if got := Find(g); filepath.Base(got) != "INSTALL.exe" {
+		t.Errorf("launcher menu + installer: %q", got)
+	}
 	// MSI always wins
 	c := t.TempDir()
 	mk(t, c, map[string]string{"x/game.msi": "", "x/data.xp3": ""})
