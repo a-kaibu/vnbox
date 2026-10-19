@@ -4,6 +4,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -194,6 +195,11 @@ func cmdAdd(ctx context.Context, args []string) error {
 	// Unity 6 (6000.x) の Direct3D 11 描画は wined3d では黒画面のまま。DXVK (Vulkan) で描ける
 	if unity6(filepath.Join(p.Dir, "files", filepath.FromSlash(l.Target))) && !slices.Contains(l.Winetricks, "vnbox-dxvk") {
 		l.Winetricks = append(l.Winetricks, "vnbox-dxvk")
+	}
+	// Godot 4: プロジェクトが Direct3D 12 を指定していると、Wine 内蔵の vkd3d が DXIL を読めずに落ちる
+	// (魔王なのにスライムしか作れない 体験版)。Vulkan (lavapipe) で描かせる
+	if l.Args == "" && godot4(filepath.Join(p.Dir, "files", filepath.FromSlash(l.Target))) {
+		l.Args = "--rendering-driver vulkan"
 	}
 	// NW.js (RPG ツクール MV/MZ 等) も Chromium なので同じ: 一部の作品は GPU プロセス無しでは真っ黒のまま
 	// (淫らに染めて 体験版、RPG ツクール MZ)
@@ -602,6 +608,12 @@ func bishopGame(exe string) string {
 		return found[0]
 	}
 	return ""
+}
+
+// godot4 reports whether exe is a Godot 4 export (it knows the --rendering-driver option).
+func godot4(exe string) bool {
+	b, err := os.ReadFile(exe)
+	return err == nil && bytes.Contains(b, []byte("Godot Engine")) && bytes.Contains(b, []byte("--rendering-driver"))
 }
 
 // unity6 reports whether the UnityPlayer.dll next to exe is from Unity 6 (version 6000.x).
