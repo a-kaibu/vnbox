@@ -9,10 +9,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -21,6 +24,7 @@ import (
 	"vnbox/internal/capture"
 	"vnbox/internal/detect"
 	"vnbox/internal/extract"
+	"vnbox/internal/meta"
 	"vnbox/internal/pkg"
 	"vnbox/internal/portal"
 	"vnbox/internal/regdiff"
@@ -32,7 +36,10 @@ import (
 const usage = `vnbox — Windows ノベルゲームを Wine で動かしてブラウザ配信する
 
   vnbox add <name> <配布物> [-exe 相対パス] [-click x,y;...] [-no-upload]   zip/lzh/7z/rar/SFX/インストーラ/フォルダからパッケージを作る
-  vnbox serve [-addr :8080] [-token T]                ポータル: 一覧から選んで起動・配信 (複数同時)
+  vnbox meta <name> [-title T] [-engine E] [-thumb 画像]  ギャラリー表示用のタイトル・エンジン・サムネイルを設定
+  vnbox meta <name> -fetch [-id egs:N|vndb:vN] | meta -all   批評空間 (届かなければ VNDB) からブランド・発売日・点数・タグ・あらすじ・カバーを取得
+  vnbox meta-search <キーワード>                        批評空間/VNDB の候補 ID を一覧
+  vnbox serve [-addr :8080] [-token T]                ポータル: ギャラリーから選んで起動・配信 (複数同時)
   vnbox play <name> [-addr :8080] [-token T]          1 本だけ起動して配信
   vnbox prepare <name>                                実行用 prefix を準備してパスを表示
   vnbox store list | history <name>
@@ -61,6 +68,10 @@ func main() {
 	switch cmd {
 	case "add":
 		err = cmdAdd(ctx, args)
+	case "meta":
+		err = cmdMeta(ctx, args)
+	case "meta-search":
+		err = cmdMetaSearch(ctx, args)
 	case "serve":
 		err = cmdServe(ctx, args)
 	case "play":
@@ -141,6 +152,7 @@ func cmdAdd(ctx context.Context, args []string) error {
 	clickFlag := c.fs.String("click", "", "インストーラの最初の画面でクリックする座標 (例: 695,203;400,300)")
 	up := c.fs.Bool("upload", false, "S3 にも上げる (VNBOX_S3 が設定されていれば既定で上げる)")
 	noUp := c.fs.Bool("no-upload", false, "S3 に上げない")
+	title := c.fs.String("title", "", "ギャラリーに出すタイトル (既定はパッケージ名)")
 	pos := c.parse(args)
 	if len(pos) < 2 {
 		return errors.New("usage: vnbox add <name> <配布物>")
@@ -157,7 +169,17 @@ func cmdAdd(ctx context.Context, args []string) error {
 		return err
 	}
 	l, _ := p.Launch()
-	fmt.Printf("package: %s\ntarget:  %s\n", p.Dir, l.Target)
+	// gallery metadata: the title given and the engine of the installed game folder
+	l.Title = *title
+	if gdir := filepath.Join(p.Dir, "files", filepath.Dir(filepath.FromSlash(l.Target))); l.Engine == "" {
+		if e := detect.Detect(gdir).Engine; e != "" && e != "unknown" {
+			l.Engine = e
+		}
+	}
+	if err := pkg.WriteLaunch(p.Dir, l); err != nil {
+		return err
+	}
+	fmt.Printf("package: %s\ntarget:  %s\nengine:  %s\n", p.Dir, l.Target, l.Engine)
 	st, err := openStore(ctx)
 	if err != nil {
 		return err
@@ -454,3 +476,126 @@ func cmdRegdiff(args []string) error {
 	}
 	return fmt.Errorf("unknown regdiff command %q", args[0])
 }
+
+// cmdMeta edits what the gallery shows for a package; with VNBOX_S3 the side objects are updated too.
+func cmdMeta(ctx context.Context, args []string) error {
+	c := newFlags("meta")
+	title := c.fs.String("title", "", "タイトル")
+	engine := c.fs.String("engine", "", "エンジン名")
+	thumb := c.fs.String("thumb", "", "サムネイルにする画像 (png/jpg 等。480px 幅の JPEG に変換)")
+	fetch := c.fs.Bool("fetch", false, "批評空間 (届かなければ VNDB) からメタデータとカバー画像を取得")
+	id := c.fs.String("id", "", "取得するエントリを指定: egs:<ゲームID> / vndb:v<ID> (-fetch を含む)")
+	all := c.fs.Bool("all", false, "-fetch を全パッケージ (meta.json が無いもの) に対して行う")
+	pos := c.parse(args)
+	if *all {
+		return fetchAllMeta(ctx)
+	}
+	if len(pos) < 1 {
+		return errors.New("usage: vnbox meta <name> [-title T] [-engine E] [-thumb 画像] [-fetch] [-id egs:N|vndb:vN] | vnbox meta -all")
+	}
+	p, err := pkg.Open(pkg.Dir(pos[0]))
+	if err != nil {
+		return err
+	}
+	if *fetch || *id != "" {
+		if err := fetchMeta(ctx, meta.NewFetcher(os.Stderr), p, *id); err != nil {
+			return err
+		}
+	}
+	l, err := p.Launch()
+	if err != nil {
+		return err
+	}
+	if *title != "" {
+		l.Title = *title
+	}
+	if *engine != "" {
+		l.Engine = *engine
+	}
+	if err := pkg.WriteLaunch(p.Dir, l); err != nil {
+		return err
+	}
+	if *thumb != "" {
+		out, err := exec.CommandContext(ctx, "ffmpeg", "-v", "error", "-y", "-i", *thumb, "-frames:v", "1",
+			"-vf", "scale='min(480,iw)':-2", "-q:v", "4", p.Thumb()).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("ffmpeg: %v: %s", err, out)
+		}
+	}
+	fmt.Printf("title=%s engine=%s thumb=%v\n", l.Title, l.Engine, fileExists(p.Thumb()))
+	st, err := openStore(ctx)
+	if err != nil || st == nil {
+		return err
+	}
+	if ini, err := os.ReadFile(filepath.Join(p.Dir, "launch.ini")); err == nil {
+		if err := st.PutPackageFile(ctx, p.Name, "ini", ini); err != nil {
+			return err
+		}
+	}
+	return st.PushThumb(ctx, p)
+}
+
+// fetchMeta looks the package up by its gallery title (or pinned id) and stores meta.json + cover.jpg.
+func fetchMeta(ctx context.Context, f *meta.Fetcher, p *pkg.Package, id string) error {
+	l, err := p.Launch()
+	if err != nil {
+		return err
+	}
+	title := l.Title
+	if title == "" {
+		title = p.Name
+	}
+	in, err := f.Lookup(ctx, title, id)
+	if err != nil {
+		return fmt.Errorf("%s (%s): %w", p.Name, title, err)
+	}
+	if err := meta.Save(ctx, p.Dir, in); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: cover: %v\n", p.Name, err)
+	}
+	fmt.Printf("%s: %s / %s / %s / score %d (%s)\n", p.Name, in.Title, in.Brand, in.Release, in.Score, in.Source)
+	return nil
+}
+
+func fetchAllMeta(ctx context.Context) error {
+	ents, err := os.ReadDir(filepath.Join(wine.Root(), "packages"))
+	if err != nil {
+		return err
+	}
+	f := meta.NewFetcher(io.Discard)
+	st, _ := openStore(ctx)
+	for _, e := range ents {
+		p, err := pkg.Open(pkg.Dir(e.Name()))
+		if err != nil || fileExists(filepath.Join(p.Dir, meta.InfoFile)) {
+			continue
+		}
+		if err := fetchMeta(ctx, f, p, ""); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		if st != nil {
+			st.PushThumb(ctx, p)
+		}
+	}
+	return nil
+}
+
+// cmdMetaSearch lists database entries for a keyword, to pick an id for `vnbox meta -id`.
+func cmdMetaSearch(ctx context.Context, args []string) error {
+	if len(args) < 1 {
+		return errors.New("usage: vnbox meta-search <キーワード>")
+	}
+	cands, err := meta.NewFetcher(os.Stderr).Search(ctx, strings.Join(args, " "))
+	if err != nil {
+		return err
+	}
+	for _, c := range cands {
+		pre := "egs:"
+		if c.Source == "vndb" {
+			pre = "vndb:"
+		}
+		fmt.Printf("%-14s %-10s %5d票  %s  (%s)\n", pre+c.ID, c.Release, c.Votes, c.Title, c.Brand)
+	}
+	return nil
+}
+
+func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }

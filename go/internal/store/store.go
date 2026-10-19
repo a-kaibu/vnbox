@@ -152,7 +152,41 @@ func (s *Store) PushPackage(ctx context.Context, p *pkg.Package) error {
 	if err != nil {
 		return err
 	}
-	return s.put(ctx, s.key("packages", p.Name+".ini"), bytes.NewReader(ini))
+	if err := s.put(ctx, s.key("packages", p.Name+".ini"), bytes.NewReader(ini)); err != nil {
+		return err
+	}
+	return s.PushThumb(ctx, p)
+}
+
+// PushThumb uploads the gallery side objects of a package (thumbnail as packages/<name>.jpg,
+// meta.json as .json, cover.jpg as .cover.jpg) so the gallery can show games that are only in
+// the store. Missing files are skipped.
+func (s *Store) PushThumb(ctx context.Context, p *pkg.Package) error {
+	for file, ext := range map[string]string{pkg.ThumbFile: "jpg", "meta.json": "json", "cover.jpg": "cover.jpg"} {
+		b, err := os.ReadFile(filepath.Join(p.Dir, file))
+		if err != nil {
+			continue
+		}
+		if err := s.PutPackageFile(ctx, p.Name, ext, b); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// PutPackageFile writes the side object packages/<name>.<ext>.
+func (s *Store) PutPackageFile(ctx context.Context, name, ext string, b []byte) error {
+	return s.put(ctx, s.key("packages", name+"."+ext), bytes.NewReader(b))
+}
+
+// PackageFile reads the small side object packages/<name>.<ext> ("ini" or "jpg").
+func (s *Store) PackageFile(ctx context.Context, name, ext string) ([]byte, error) {
+	body, err := s.get(ctx, s.key("packages", name+"."+ext))
+	if err != nil {
+		return nil, err
+	}
+	defer body.Close()
+	return io.ReadAll(io.LimitReader(body, 8<<20))
 }
 
 // PullPackage downloads a package into packages/<name>/ unless it is already there.

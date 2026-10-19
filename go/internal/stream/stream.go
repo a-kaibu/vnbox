@@ -6,8 +6,10 @@ package stream
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -202,4 +204,31 @@ func (g *Game) input(w http.ResponseWriter, r *http.Request) {
 	default:
 		log.Printf("unknown input %q", ev.T)
 	}
+}
+
+// Snapshot returns one JPEG frame of the game window scaled to at most width pixels wide.
+func Snapshot(ctx context.Context, display string, width int) ([]byte, error) {
+	win, ok := x11.Display(display).Largest()
+	if !ok || win.Area() <= 1 {
+		return nil, errors.New("no game window")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "ffmpeg", "-v", "error", "-f", "x11grab", "-draw_mouse", "0",
+		"-video_size", fmt.Sprintf("%dx%d", win.W, win.H), "-i", fmt.Sprintf("%s+%d,%d", display, win.X, win.Y),
+		"-frames:v", "1", "-vf", fmt.Sprintf("scale='min(%d,iw)':-2", width), "-f", "mjpeg", "-q:v", "4", "-")
+	cmd.Env = append(os.Environ(), "DISPLAY="+display)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	if len(out) < 4 || out[0] != 0xff || out[1] != 0xd8 {
+		return nil, errors.New("ffmpeg returned no JPEG")
+	}
+	return out, nil
+}
+
+// Snapshot returns one JPEG frame of this game.
+func (g *Game) Snapshot(ctx context.Context, width int) ([]byte, error) {
+	return Snapshot(ctx, g.Display, width)
 }

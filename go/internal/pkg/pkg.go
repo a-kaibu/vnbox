@@ -2,7 +2,8 @@
 // Windows system (files under C:\ and registry fragments) plus how to launch it.
 //
 //	packages/<name>/
-//	  launch.ini        [launch] target=<path under C:\> args= renderer= winetricks=
+//	  launch.ini        [launch] target=<path under C:\> args= renderer= winetricks= title= engine=
+//	  thumb.jpg         optional gallery thumbnail (taken while the game runs)
 //	  files/            copied into drive_c
 //	  system.reg.frag   HKLM changes
 //	  user.reg.frag     HKCU changes
@@ -13,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,7 +38,15 @@ type Launch struct {
 	Renderer   string // WineD3D renderer: gl / vulkan / gdi
 	Winetricks []string
 	Flavor     string // optional: "classic" to force the distribution Wine
+	Title      string // display name for the gallery (defaults to the package name)
+	Engine     string // detected engine, shown in the gallery
 }
+
+// ThumbFile is the gallery thumbnail inside a package directory.
+const ThumbFile = "thumb.jpg"
+
+// Thumb returns the thumbnail path of the package (it may not exist).
+func (p *Package) Thumb() string { return filepath.Join(p.Dir, ThumbFile) }
 
 // Package is a package directory.
 type Package struct {
@@ -66,8 +76,13 @@ func (p *Package) Launch() (Launch, error) {
 		return Launch{}, err
 	}
 	defer f.Close()
+	return ParseLaunch(f)
+}
+
+// ParseLaunch parses the content of a launch.ini.
+func ParseLaunch(r io.Reader) (Launch, error) {
 	var l Launch
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(r)
 	for sc.Scan() {
 		k, v, ok := strings.Cut(sc.Text(), "=")
 		if !ok {
@@ -85,6 +100,10 @@ func (p *Package) Launch() (Launch, error) {
 			l.Winetricks = strings.Fields(v)
 		case "flavor":
 			l.Flavor = v
+		case "title":
+			l.Title = v
+		case "engine":
+			l.Engine = v
 		}
 	}
 	return l, sc.Err()
@@ -98,6 +117,12 @@ func WriteLaunch(dir string, l Launch) error {
 	}
 	if l.Flavor != "" {
 		s += "flavor=" + l.Flavor + "\n"
+	}
+	if l.Title != "" {
+		s += "title=" + l.Title + "\n"
+	}
+	if l.Engine != "" {
+		s += "engine=" + l.Engine + "\n"
 	}
 	return os.WriteFile(filepath.Join(dir, "launch.ini"), []byte(s), 0o644)
 }

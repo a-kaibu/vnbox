@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -69,7 +70,8 @@ func TestPackageRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	dir := filepath.Join(root, "packages", "demo")
 	os.MkdirAll(filepath.Join(dir, "files", "Games", "demo"), 0o755)
-	pkg.WriteLaunch(dir, pkg.Launch{Target: "Games/demo/game.exe"})
+	pkg.WriteLaunch(dir, pkg.Launch{Target: "Games/demo/game.exe", Title: "デモ 体験版", Engine: "BGI"})
+	os.WriteFile(filepath.Join(dir, pkg.ThumbFile), []byte("\xff\xd8jpeg\xff\xd9"), 0o644)
 	big := strings.Repeat("ノベル", 400000) // > 5 MB to exercise multipart upload
 	os.WriteFile(filepath.Join(dir, "files", "Games", "demo", "game.exe"), []byte(big), 0o644)
 	p, _ := pkg.Open(dir)
@@ -88,6 +90,16 @@ func TestPackageRoundTrip(t *testing.T) {
 	l, _ := st.List(ctx)
 	if len(l.Packages) != 1 || l.Packages[0].Name != "demo" {
 		t.Fatalf("list: %+v", l)
+	}
+	ini, err := st.PackageFile(ctx, "demo", "ini")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ln, _ := pkg.ParseLaunch(bytes.NewReader(ini)); ln.Title != "デモ 体験版" || ln.Engine != "BGI" {
+		t.Fatalf("remote ini: %+v", ln)
+	}
+	if j, err := st.PackageFile(ctx, "demo", "jpg"); err != nil || string(j) != "\xff\xd8jpeg\xff\xd9" {
+		t.Fatalf("thumb: %q %v", j, err)
 	}
 }
 

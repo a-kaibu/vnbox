@@ -145,8 +145,11 @@ func (s *Session) run(ctx context.Context) {
 	}
 	tick := time.NewTicker(s.opt.SaveInterval)
 	defer tick.Stop()
+	first := time.After(45 * time.Second) // gallery thumbnail once the title screen is up
 	for {
 		select {
+		case <-first:
+			s.thumb(ctx)
 		case <-exited:
 			// the launcher may have exited after spawning the game: keep going while Wine has windows
 			if _, ok := x11.Display(s.Display).Largest(); ok {
@@ -157,6 +160,7 @@ func (s *Session) run(ctx context.Context) {
 			s.finish()
 			return
 		case <-tick.C:
+			s.thumb(ctx)
 			s.save(ctx, false)
 		case <-ctx.Done():
 			s.finish()
@@ -208,6 +212,11 @@ func (s *Session) save(ctx context.Context, final bool) {
 	if s.opt.Store == nil {
 		return
 	}
+	if final {
+		if p, err := pkg.Open(pkg.Dir(s.Name)); err == nil {
+			s.opt.Store.PushThumb(ctx, p)
+		}
+	}
 	r, err := s.opt.Store.SavePush(ctx, s.Name, s.Prefix)
 	switch {
 	case err != nil:
@@ -218,6 +227,19 @@ func (s *Session) save(ctx context.Context, final bool) {
 		}
 	default:
 		fmt.Fprintf(s.opt.Log, "[%s] saved %d files (%d bytes) %s\n", s.Name, r.Files, r.Bytes, r.Timestamp)
+	}
+}
+
+// thumb stores the current game screen as the package's gallery thumbnail.
+// Nearly uniform frames (black screens while loading) compress to a few KB and are skipped.
+func (s *Session) thumb(ctx context.Context) {
+	b, err := stream.Snapshot(ctx, s.Display, 480)
+	if err != nil || len(b) < 4<<10 {
+		return
+	}
+	p := filepath.Join(pkg.Dir(s.Name), pkg.ThumbFile)
+	if os.WriteFile(p+".tmp", b, 0o644) == nil {
+		os.Rename(p+".tmp", p)
 	}
 }
 
@@ -233,6 +255,9 @@ func (s *Session) Done() <-chan struct{} { return s.done }
 
 // Stop ends the game and waits for the final save.
 func (s *Session) Stop() {
+	if s.Running() {
+		s.thumb(context.Background()) // the scene the player stopped at, before Wine is killed
+	}
 	s.cancel()
 	select {
 	case <-s.done:
