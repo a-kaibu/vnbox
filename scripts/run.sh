@@ -23,6 +23,10 @@ export WINEDEBUG=${RUN_DEBUG:-err+all,fixme-all}
 [ -d "$WINEPREFIX/drive_c/Program Files/dotnet" ] && export WINEDLLOVERRIDES="mshtml=;winemenubuilder.exe=d"
 # パッケージの起動引数 (launch.sh が prefix に書いたもの) を、指定が無ければ使う
 [ -z "${ARGS:-}" ] && [ -s "$WINEPREFIX/.vnbox-args" ] && ARGS=$(cat "$WINEPREFIX/.vnbox-args")
+# ゲームのプロセスが生きているか。exe 名は正規表現として扱わず (「(体験版).exe」等)、
+# 並列実行中の別 prefix の同名 exe (Game.exe 等) と取り違えないよう WINEPREFIX も確かめる
+game_alive(){ local p pat; pat=$(basename "$EXE" | sed 's/[][\.*^$()+?{}|]/\\&/g')
+  for p in $(pgrep -f -- "$pat"); do tr '\0' '\n' </proc/$p/environ 2>/dev/null | grep -qxF "WINEPREFIX=$WINEPREFIX" && return 0; done; return 1; }
 cd "$GDIR"
 wine "$EXE" ${ARGS:-} >"$OUT/wine.log" 2>&1 &
 PID=$!
@@ -33,7 +37,7 @@ big=$(for w in $(xdotool search --onlyvisible --name . 2>/dev/null); do eval $(x
 if [ "${big:-0}" -le 1 ] && [ -z "${NO_MANAGED_FALLBACK:-}" ]; then   # 起動が遅いだけのゲームもあるので 20 秒待って再確認
   sleep 20; big=$(for w in $(xdotool search --onlyvisible --name . 2>/dev/null); do eval $(xdotool getwindowgeometry --shell $w 2>/dev/null); echo $((WIDTH*HEIGHT)); done | sort -n | tail -1)
 fi
-if [ "${big:-0}" -le 1 ] && pgrep -f "$(basename "$EXE")" >/dev/null && [ -z "${NO_MANAGED_FALLBACK:-}" ]; then
+if [ "${big:-0}" -le 1 ] && game_alive && [ -z "${NO_MANAGED_FALLBACK:-}" ]; then
   echo "managed_fallback=1" >> "$OUT/fallback.txt"
   wineserver -k 2>/dev/null; sleep 1
   wine reg add 'HKCU\Software\Wine\X11 Driver' /v Managed /d N /f >/dev/null 2>&1; wineserver -w
@@ -75,7 +79,7 @@ for op in $SEQ; do
              echo "rec: unique_frames=$U / total=$T (${op#rec:}s)" | tee -a "$OUT/rec.txt";;
   esac
 done
-ALIVE=no; pgrep -f "$(basename "$EXE")" >/dev/null && ALIVE=yes
+ALIVE=no; game_alive && ALIVE=yes
 WINS=$(xdotool search --onlyvisible --name . getwindowname %@ 2>/dev/null | grep -v '^$' | sort -u | tr '\n' '|')
 # Wine から見たウィンドウの描画領域 (client) と X のウィンドウの大きさを比べる。X の方が小さいと画面の右下が切れて見える
 # (WM が最大化・全画面の要求を実行しなかった等)。いちばん大きいウィンドウで 16px 以上小さければ size_mismatch=yes

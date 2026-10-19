@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -288,6 +289,11 @@ func DetectSkip(root, skip string) Result {
 		if v > bestScore || (v == bestScore && k < res.FileEngine) {
 			res.FileEngine, bestScore = k, v
 		}
+	}
+	// An Electron app's exe is a 100+ MB Chromium build in which short engine signatures turn up
+	// by chance; without engine data files, the engine is the Electron app itself.
+	if res.FileEngine == "unknown" && slices.Contains(res.Tags, "Runtime:Electron") {
+		res.Engine = "Electron"
 	}
 	return res
 }
