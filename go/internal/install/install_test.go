@@ -64,6 +64,7 @@ func TestIsInstallerName(t *testing.T) {
 		"setup.exe": true, "Install.exe": true, "NSM_MYST_trial_Install.exe": true, "game-setup.exe": true,
 		"インストール.exe": true, "UnInstaller.exe": false, "uninstall.exe": false, "BGIForInstalling.exe": false,
 		"Game.exe": false, "setup.ini": false, "SetupTool.exe": false,
+		"GensouKeifu_DLsite_Trial_Setup_0.2.3.exe": true, "Foo-setup-v1.exe": true,
 	} {
 		if got := isInstallerName(name); got != want {
 			t.Errorf("isInstallerName(%q) = %v, want %v", name, got, want)

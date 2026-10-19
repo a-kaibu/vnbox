@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -103,6 +104,8 @@ func bgiDataBelow(dir string) bool {
 	return false
 }
 
+var setupVersion = regexp.MustCompile(`[_ -](setup|install)[_ -]v?\d+(\.\d+)*$`)
+
 // isInstallerName: setup.exe, install*.exe, Foo_Install.exe, Foo-setup.exe, インストール/セットアップ (not uninstallers)
 func isInstallerName(name string) bool {
 	n := strings.ToLower(name)
@@ -118,7 +121,8 @@ func isInstallerName(name string) bool {
 			return true
 		}
 	}
-	return false
+	// Foo_Setup_0.2.3.exe / Foo-setup-v1.exe: the word followed by a version
+	return setupVersion.MatchString(base)
 }
 
 // hasPackedExe: the game exe is shipped encoded (*.exe.emb) and only the installer decodes it.

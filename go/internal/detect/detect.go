@@ -187,7 +187,7 @@ func PEArch(path string) string {
 	return "x86"
 }
 
-// Detect scans a folder (up to 6 levels deep) or a single file.
+// Detect scans a folder (up to 8 levels deep) or a single file.
 func Detect(root string) Result { return DetectSkip(root, "") }
 
 // DetectSkip is Detect ignoring the files directly inside skip (its subfolders are still scanned).
@@ -211,7 +211,7 @@ func DetectSkip(root, skip string) Result {
 				return nil
 			}
 			rel, _ := filepath.Rel(root, p)
-			if strings.Count(rel, string(filepath.Separator)) > 5 { // installers put games at Program Files/<brand>/<title>/<sub>/x.exe
+			if strings.Count(rel, string(filepath.Separator)) > 7 { // installers put games at Program Files/<brand>/<title>/<sub>/x.exe or users/<u>/AppData/Local/Programs/<brand>/<title>/x.exe
 				if d.IsDir() {
 					return filepath.SkipDir
 				}
