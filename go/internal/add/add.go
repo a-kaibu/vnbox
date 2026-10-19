@@ -123,6 +123,10 @@ func Add(ctx context.Context, name, src string, o Options) (*pkg.Package, error)
 		}
 		r, err := s.End()
 		if err != nil {
+			// a failed capture (e.g. the disk filled up while copying) cannot be resumed
+			// by add: do not leave the installed prefix and a half-written package behind
+			os.RemoveAll(s.Prefix)
+			os.RemoveAll(dst)
 			return nil, err
 		}
 		fmt.Fprintf(o.Log, "captured %d files; candidates: %v\n", r.Files, r.Candidates)
