@@ -158,7 +158,7 @@ func (d Display) PressDialogs(max, idle int, onStep func(i int, w Window)) int {
 		}
 		seen[d.ShotHash(dlg)] = true
 		// BGI's installer dialog ignores the keyboard; its インストールの開始 button is fixed
-		if strings.HasPrefix(dlg.Name, "BURIKO General Interpreter") && dlg.W == 460 {
+		if strings.HasPrefix(strings.ToUpper(dlg.Name), "BURIKO GENERAL INTERPRETER") && dlg.W == 460 {
 			d.Click(dlg, 307, 216, 1)
 			time.Sleep(3 * time.Second)
 			continue

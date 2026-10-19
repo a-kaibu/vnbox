@@ -188,6 +188,17 @@ func Run(ctx context.Context, s *capture.Session, path, display, shotDir string,
 	case GUI:
 		err = Drive(ctx, env, dir, exe, shotDir, clicks, log)
 	}
+	// installers that copy in the background after their last dialog: wait until drive C
+	// stops growing (checked every 5 s, two equal readings in a row)
+	driveC := filepath.Join(s.Prefix, "drive_c")
+	for prev, same := int64(-1), 0; same < 2 && ctx.Err() == nil; {
+		time.Sleep(5 * time.Second)
+		if n := dirSize(driveC); n == prev {
+			same++
+		} else {
+			prev, same = n, 0
+		}
+	}
 	// the installer is done; whatever still runs (a launched game, a readme viewer, a
 	// dialog nobody answers) would keep wineserver alive forever
 	time.Sleep(3 * time.Second)
