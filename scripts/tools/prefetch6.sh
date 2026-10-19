@@ -6,8 +6,10 @@ mkdir -p downloads/b6pre
 fetch(){ local id=$(printf '%s\n' "$1" | cut -f1) url=$(printf '%s\n' "$1" | cut -f2) D
   grep -q "^$id	" $V/results/batch/summary6.tsv 2>/dev/null && return
   [ -d $V/results/batch/$id.b6lock ] && return                  # batch6 が既に取り掛かっている
-  D=$V/downloads/b6pre/$id; mkdir $D 2>/dev/null || return
+  # 空きを待ってから取り掛かる (先に印を付けると、batch6 がまだ始まらない取得を待ち続けてしまう)
   while [ "$(ls -d $V/downloads/b6pre/*/.done 2>/dev/null | wc -l)" -ge $AHEAD ] || [ "$(df --output=avail -B1G / | tail -1 | tr -d ' ')" -lt 9 ]; do sleep 20; done
+  [ -d $V/results/batch/$id.b6lock ] && return
+  D=$V/downloads/b6pre/$id; mkdir $D 2>/dev/null || return
   if curl -sSL --retry 3 -m 3600 -A Mozilla/5.0 -o "$D/$(basename "${url%%\?*}")" "$url"; then touch $D/.done; else touch $D/.fail; fi; }
 export -f fetch; export V AHEAD
 cut -f1-2 "$LIST" | tr '\n' '\0' | xargs -0 -P "$P" -I{} bash -c 'fetch "$1"' _ {}
