@@ -26,7 +26,6 @@ b2006_lune	ソウルイーター　体験版　Game Edition	-	ゲーム開始 (�
 b2007_marine	しおふきマーメイド体験版	-	ゲーム開始 (名前入力)
 b2007_sagaplanets	聖炎天使エレアノール 体験版	RealLive	タイトル
 b2008_mille_feuille	魔法少女沙枝 Vol.2 体験版	KiriKiri	タイトル (MSI)
-b2008_interheart	いたずら極―リアル―　体験版	-	弱:注意画面以降
 b2009_purplesoftware	シグナルハート 体験版 Ver.01	QLIE	本編
 b2010_whirlpool	涼風のメルト -Where wishes are drawn to each other- WEB体験版	YU-RIS	タイトル
 b2010_giga	JINKI EXTEND Re:VISION -SECOND IMPACT-	NeXAS	タイトル
@@ -40,10 +39,8 @@ b2014_wendybell	こすぷれえっち 体験版	-	タイトル (MS 別名フォ�
 b2015_appetite	愛娘は、マゾ性隷～娘だからって遠慮しないでね？～　体験版　Ver1.00	KiriKiri	タイトル
 b2015_hamham	ろーらいず!!! 体験版	SiglusEngine	タイトル (TZ=Asia/Tokyo)
 b2016_cube	間宮くんちの五つ子事情 体験版	KiriKiri	タイトル
-b2016_kaguya	小悪魔発育チュ～！（体験版）	-	弱:ロゴ以降
 b2017_laplacian	ニュートンと林檎の樹　体験版＋	CatSystem2	弱:起動 (インストーラ経由)
 b2017_waffle	隣人に壊されていく俺の妻 体験版	-	弱:解像度選択画面 (WinRAR SFX)
-b2018_ensemble	恋はそっと咲く花のように　体験版	-	弱:注意画面以降
 b2018_alumi_soft	わんこの嫁入り ～ようこそ！いぬのしっぽへ～ 体験版 version 1.00	-	タイトル
 b2019_hooksoft	どっちのｉが好きですか？　Ｈシーン体験版　Ver1.00	BGI	タイトル
 b2019_lilim_darkness	WhiteBlue　web体験版ver2.0	-	タイトル
@@ -55,7 +52,6 @@ b2022_amuse_craft_erotica	黒ギャル子ちゃんとしっぽり温泉旅行 �
 b2023_erectlip	爆乳遊廓 ～癒され太夫孕ませの夜鶴～　【体験版】	Softpal	タイトル
 b2023_turumiku_another	非道狩～ヒトカリ～ 体験版	Softpal	タイトル
 b2024_syrup_mm	狙われた優等生　身代わりの代償　体験版	EntisGLS	タイトル
-b2025_anim	お姉ちゃんのあまエロレッスン２ ～お隣の巨乳お姉ちゃんにイッパイ甘やかされるめちゃエロライフ～  - 体験版 -	-	弱:注意画面 (Managed=N)
 b2026_crystalia	ディメンション凸ラバース!! 【体験版】	Softpal	タイトル
 b2006_ninetail	機械仕掛けのイブ　～Ｄｅａ　Ｅｘ　Ｍａｃｈｉｎａ～	KiriKiri	タイトル
 b2006_unisonshift	ななついろ★ドロップス-体験版	-	本編
@@ -99,7 +95,6 @@ b2013_madosoft	ナマイキデレーション体験版 WEB Ver.	KiriKiri	タイ�
 b2018_hachimitsu_soft	ノットフィクション！ Trial Version: 1.0.0.0 [data ver:1.00]	-	タイトル
 b2018_casket	彼女が異種族だった場合～クールな先輩ダークエルフとの甘やかし同棲日誌～体験版	YU-RIS	タイトル
 b2014_azarashi_soft	体験版 甘えてくれる恋人とのエッチなひととき編	CatSystem2	タイトル
-b2014_hibiki_works	ＰＲＥＴＴＹ×Ｃ∧ＴＩＯＮ	KiriKiri	弱:注意画面
 b2015_pachipachi_soft	おしおき生意気ギャル ～エロいオシオキをしたら自分からエッチを求めてきた～ 体験版	KiriKiri	タイトル
 b2018_tokohana	僕と彼女のご奉仕同棲　体験版	AdvWin32/WillPlus	タイトル
 b2015_ammolite	お兄ちゃん、教えて……～義妹とヒミツの保健実習～　体験版　Ver1.00	KiriKiri	タイトル
@@ -228,3 +223,12 @@ b2009_smee	らぶでれーしょん！ Ver1.00	FVP	タイトル (起動時の Sa
 b2017_hibiki_works	なちゅらるばけーしょん	-	タイトル (再試行)
 b2021_pin_point	売国王姫～堕落のメス豚母娘～体験版	KiriKiri	タイトル (再試行)
 b2014_ensemble_sweet	b2014_ensemble_sweet	-	タイトル (再試行・Go 版でパッケージ化)
+b2007_akabeesoft	b2007_akabeesoft	-	タイトル (Go 版: Inno Setup を無人インストール)
+b2008_interheart	いたずら極―リアル―　体験版	FVP	タイトル (再試行・Go 版でパッケージ化)
+b2012_erectlip	b2012_erectlip	-	タイトル (再試行・Go 版でパッケージ化)
+b2016_kaguya	小悪魔発育チュ～！（体験版）	FVP	タイトル (再試行・Go 版でパッケージ化)
+b2018_ensemble	恋はそっと咲く花のように　体験版	FVP	タイトル (再試行・Go 版でパッケージ化)
+b2025_anim	お姉ちゃんのあまエロレッスン２ ～お隣の巨乳お姉ちゃんにイッパイ甘やかされるめちゃエロライフ～  - 体験版 -	FVP	タイトル (再試行・Go 版でパッケージ化)
+b2010_marine	b2010_marine	Softpal	タイトル (起動設定ファイル警告を OK で通過)
+b2024_ninetail	VenusBlood RAGNAROK International_EN AdvTrial	Unity	本編 (ゲーム開始後のマップ)
+b2014_hibiki_works	ＰＲＥＴＴＹ×Ｃ∧ＴＩＯＮ	KiriKiri	タイトル (終了確認ダイアログまで操作)

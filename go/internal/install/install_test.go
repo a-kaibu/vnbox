@@ -33,6 +33,12 @@ func TestFind(t *testing.T) {
 	if got := Find(d); filepath.Base(got) != "setup.exe" {
 		t.Errorf("lone setup.exe: %q", got)
 	}
+	// ready-to-run KiriKiri game that ships an installer.exe and a WinRAR setup next to it
+	e := t.TempDir()
+	mk(t, e, map[string]string{"t/installer.exe": "MZ", "t/gamedata/data.xp3": "", "t/gamedata/game.exe": "MZ TVP(KIRIKIRI)xxxxxxxxxxxxxxxxxxxx"})
+	if got := Find(e); got != "" {
+		t.Errorf("game with bundled installer.exe: %q", got)
+	}
 	// MSI always wins
 	c := t.TempDir()
 	mk(t, c, map[string]string{"x/game.msi": "", "x/data.xp3": ""})

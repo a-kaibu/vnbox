@@ -167,7 +167,7 @@ func PEArch(path string) string {
 // Detect scans a folder (up to 3 levels deep) or a single file.
 func Detect(root string) Result { return DetectSkip(root, "") }
 
-// DetectSkip is Detect without the subtree skip (e.g. an installer's own folder).
+// DetectSkip is Detect ignoring the files directly inside skip (its subfolders are still scanned).
 func DetectSkip(root, skip string) Result {
 	res := Result{Path: root, Scores: map[string]int{}}
 	var exes []string
@@ -183,8 +183,8 @@ func DetectSkip(root, skip string) Result {
 			if err != nil || p == root {
 				return nil
 			}
-			if skip != "" && p == skip {
-				return filepath.SkipDir
+			if skip != "" && !d.IsDir() && filepath.Dir(p) == skip {
+				return nil
 			}
 			rel, _ := filepath.Rel(root, p)
 			if strings.Count(rel, string(filepath.Separator)) > 3 {

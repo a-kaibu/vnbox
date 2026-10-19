@@ -27,3 +27,15 @@ b2019_sukerasparo	vulkan	NG:blank(0)	Games/fix_b2019_sukerasparo/190412_kudan_tr
 b2011_lumpofsugar	vulkan	NG:blank(0)	Games/fix_b2011_lumpofsugar/DiamicDays_Trial/DD_trial.exe
 b2012_bishop	vulkan	NG:blank(0)	Games/fix_b2012_bishop/demo.exe
 b2018_tinkerbell	vulkan	NG:blank(0)	Games/fix_b2018_tinkerbell/グランギニョルの夜体験版001/Tngg.exe
+b2010_marine	vulkan	NG:blank(0)	Games/fix_b2010_marine/ぱいずりチアリーダーvs搾乳応援団_体験版/paicheer_体験版.exe
+b2024_ninetail	vnbox	OK	Games/fix_b2024_ninetail/VBRI_AllAge_ADVTrial_Ver.EN/VBRI_ADVTrial.exe
+b2007_blackcyc	-	NG:package(vnbox: no executable in the archive (video-only distribution?))
+b2013_parasol	-	NG:package(vnbox: no executable in the archive (video-only distribution?))
+b2014_silkys_plus	vulkan	NG:blank(0)	Games/fix_b2014_silkys_plus/なないろリンカネーション体験版ver1.2/start.exe
+b2009_rootnuko	-	NG:package(vnbox: no executable in the archive (video-only distribution?))
+b2017_waffle	-	NG:package(vnbox: could not determine the executable; edit /home/user/vnbox/packages/fix_b2)
+b2016_kaguya	vnbox	OK	Games/fix_b2016_kaguya/小悪魔発育チュ～！（体験版）/GAME_SYS.exe
+b2008_interheart	vnbox	OK	Games/fix_b2008_interheart/ItazuraR-Trial/ItazuraR.exe
+b2025_anim	vnbox	OK	Games/fix_b2025_anim/ANIM_お姉ちゃんのあまエロレッスン2 体験版/aneama2_trial.exe
+b2018_ensemble	vnbox	OK	Games/fix_b2018_ensemble/KOIHANA_WEB_TRIAL/ADVHD.EXE
+b2023_cyc_rose	vulkan	NG:blank(0)	Games/fix_b2023_cyc_rose/薔薇ノ木ニ薔薇ノ花咲ク体験版/baraRe_trial.exe

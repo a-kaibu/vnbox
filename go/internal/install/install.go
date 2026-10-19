@@ -30,7 +30,31 @@ const (
 )
 
 // Find returns the installer inside an extracted folder ("" if it looks like a ready-to-run game).
+//
+// Many ready-to-run games ship a setup.exe / installer.exe (a config tool or a file copier),
+// while some distributions are only a launcher menu with the real game behind an installer.
+// The game counts as ready to run when the game exe sits right next to the installer, or when
+// an engine is still recognised after ignoring the files directly beside the installer
+// (its subfolders, e.g. gamedata/, are still looked at).
 func Find(dir string) string {
+	inst := find(dir)
+	if inst == "" || strings.HasSuffix(strings.ToLower(inst), ".msi") || strings.EqualFold(filepath.Base(inst), "data1.hdr") {
+		return inst
+	}
+	instDir := filepath.Dir(inst)
+	if main := detect.Detect(dir).MainExe(); main != "" {
+		m := filepath.Join(dir, main)
+		if m != inst && filepath.Dir(m) == instDir {
+			return ""
+		}
+	}
+	if detect.DetectSkip(dir, instDir).Engine != "unknown" {
+		return ""
+	}
+	return inst
+}
+
+func find(dir string) string {
 	var found string
 	filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
 		if err != nil || found != "" {
@@ -59,26 +83,6 @@ func Find(dir string) string {
 		}
 		return nil
 	})
-	if found == "" {
-		return ""
-	}
-	// setup.exe next to a recognisable game is usually a config tool, not an installer.
-	// Look at the folder without the installer's own subfolder: if no engine is left
-	// (only a launcher menu, say), the game has to be installed first.
-	instDir := filepath.Dir(found)
-	if instDir == dir {
-		if detect.Detect(dir).Engine != "unknown" {
-			return ""
-		}
-		return found
-	}
-	// the game exe sits next to setup.exe: it is a config tool of a ready-to-run game
-	if main := detect.Detect(dir).MainExe(); main != "" && filepath.Join(dir, main) != found && filepath.Dir(filepath.Join(dir, main)) == instDir {
-		return ""
-	}
-	if detect.DetectSkip(dir, instDir).Engine != "unknown" {
-		return ""
-	}
 	return found
 }
 
@@ -117,7 +121,28 @@ func Run(ctx context.Context, s *capture.Session, path, display, shotDir string,
 	run := func(args ...string) error {
 		c := env.Command(ctx, dir, args...)
 		c.Stdout, c.Stderr = log, log
-		return c.Run()
+		if err := c.Start(); err != nil {
+			return err
+		}
+		done := make(chan error, 1)
+		go func() { done <- c.Wait() }()
+		// Many installers launch the game when they finish and wait for it to exit.
+		// A game-sized window means the installation is complete: stop everything.
+		d := x11.Display(display)
+		for {
+			select {
+			case err := <-done:
+				return err
+			case <-time.After(5 * time.Second):
+				if w, ok := d.Largest(); ok && w.W >= 640 && w.H >= 400 {
+					fmt.Fprintf(log, "[%s] game window %q appeared: installation finished\n", s.Name, w.Name)
+					time.Sleep(3 * time.Second)
+					env.Kill()
+					<-done
+					return nil
+				}
+			}
+		}
 	}
 	var err error
 	switch kind {
