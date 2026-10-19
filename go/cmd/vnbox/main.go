@@ -179,6 +179,11 @@ func cmdAdd(ctx context.Context, args []string) error {
 	}
 	var drm []string
 	for _, t := range det.Tags {
+		// Electron (TyranoScript v5 等): GPU プロセスが Wine + GPU なしで起動できず WebGL が使えないので、
+		// GPU 処理を本体プロセスに入れ、ソフトウェア描画 (SwiftShader) を使わせる
+		if t == "Runtime:Electron" && l.Args == "" {
+			l.Args = electronArgs
+		}
 		if strings.HasPrefix(t, "DRM:") || strings.HasPrefix(t, "Protect:") {
 			drm = append(drm, t)
 		}
@@ -524,6 +529,8 @@ func cmdRegdiff(args []string) error {
 	}
 	return fmt.Errorf("unknown regdiff command %q", args[0])
 }
+
+const electronArgs = "--in-process-gpu --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist"
 
 // cmdMeta edits what the gallery shows for a package; with VNBOX_S3 the side objects are updated too.
 func cmdMeta(ctx context.Context, args []string) error {

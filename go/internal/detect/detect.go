@@ -45,6 +45,7 @@ var fileSigs = []fileSig{
 	fs("Eushully AGE", `^(age\.exe|agerc\.dll|sys4ini\.bin|.*\.alf)$`),
 	fs("AliceSoft System4", `^(.*\.ain|.*\.ald|.*\.afa|system40\.exe)$`), fs("FVP", `^(.*\.hcb)$`),
 	fs("AdvWin32/WillPlus", `^(rio\.arc|advwin32\.exe)$`), fs("NeXAS", `^(.*\.pac)$`),
+	fs("Runtime:Electron", `^(app\.asar|electron\.asar|default_app\.asar)$`),
 	fs("Installer:InstallShield", `^(data1\.cab|data1\.hdr|.*\.hdr|ikernel\.ex_|setup\.inx|_setup\.dll)$`),
 	fs("Installer:MSI", `^.*\.msi$`),
 }
