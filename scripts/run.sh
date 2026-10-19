@@ -75,10 +75,21 @@ for op in $SEQ; do
 done
 ALIVE=no; pgrep -f "$(basename "$EXE")" >/dev/null && ALIVE=yes
 WINS=$(xdotool search --onlyvisible --name . getwindowname %@ 2>/dev/null | grep -v '^$' | sort -u | tr '\n' '|')
+# Wine から見たウィンドウの描画領域 (client) と X のウィンドウの大きさを比べる。X の方が小さいと画面の右下が切れて見える
+# (WM が最大化・全画面の要求を実行しなかった等)。いちばん大きいウィンドウで 16px 以上小さければ size_mismatch=yes
+MISMATCH=no
+[ -f "$VNBOX/runtime/tools/winsize.exe" ] || { mkdir -p "$VNBOX/runtime/tools"; i686-w64-mingw32-gcc -O1 -o "$VNBOX/runtime/tools/winsize.exe" "$VNBOX/tools/winsize/winsize.c" -luser32 2>/dev/null; }
+if [ -f "$VNBOX/runtime/tools/winsize.exe" ] && [ "$ALIVE" = yes ]; then
+  wine "$VNBOX/runtime/tools/winsize.exe" > "$OUT/winsize.txt" 2>/dev/null
+  read -r cw ch < <(awk '{print $5*$6, $5, $6}' "$OUT/winsize.txt" | sort -n | tail -1 | cut -d' ' -f2-)
+  W2=$(gamewin); [ -n "$W2" ] && eval $(xdotool getwindowgeometry --shell $W2 2>/dev/null)
+  echo "client=${cw:-?}x${ch:-?} x11=${WIDTH:-?}x${HEIGHT:-?}" > "$OUT/sizes.txt"
+  if [ -n "${cw:-}" ] && [ -n "${WIDTH:-}" ] && { [ $((cw - WIDTH)) -gt 16 ] || [ $((ch - HEIGHT)) -gt 16 ]; }; then MISMATCH=yes; fi
+fi
 wineserver -k 2>/dev/null; wait $PID 2>/dev/null
 for p in $(pgrep -x Xvfb); do tr '\0' ' ' </proc/$p/cmdline | grep -q "^Xvfb $DISPLAY " && kill $p; done
 {
-  echo "name=$NAME exe=$EXE alive_after=$ALIVE"
+  echo "name=$NAME exe=$EXE alive_after=$ALIVE size_mismatch=$MISMATCH $(cat "$OUT/sizes.txt" 2>/dev/null)"
   echo "windows=$WINS"
   echo "--- top errors ---"
   grep -E ':err:|Unhandled|not found|could not load|Could not' "$OUT/wine.log" | grep -v winebth \

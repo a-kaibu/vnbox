@@ -4,6 +4,7 @@
 cd "$(dirname "$0")/../.."; R=results/$1
 [ -f $R/summary.txt ] || { echo "NG:no_run"; exit; }
 grep -q 'alive_after=yes' $R/summary.txt || { echo "NG:dead"; exit; }
+grep -q 'size_mismatch=yes' $R/summary.txt && { echo "NG:size_mismatch($(grep -o 'client=[^ ]* x11=[^ ]*' $R/summary.txt))"; exit; }
 grep -qE 'Unhandled exception|page fault|RtlpWaitForCriticalSection' $R/wine.log 2>/dev/null && { echo "NG:crash"; exit; }
 shots=($(ls $R/0*.png 2>/dev/null)); n=${#shots[@]}; [ $n -lt 2 ] && { echo "NG:noshot"; exit; }
 last=${shots[$((n-1))]}; first=${shots[1]}
