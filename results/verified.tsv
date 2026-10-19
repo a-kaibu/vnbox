@@ -370,7 +370,7 @@ dl_RJ01733667	彼女をマッサージした後	Unity	本編 (H レベル画面)
 dl_RJ01730521	大魔法少女カサネ	NW.js/Tyrano	タイトル
 dl_VJ010622	仄暗き時の果てより	-	タイトル (製品版 DRM: PlayDRM)
 dl_RJ01648691	測り難きは下心	NW.js/Tyrano	本編 (マップ)
-dl_RJ01690707	不倫旅館 ～息子の友だちのママ～	Unity	弱: タイトルは表示 (DXVK) するがマウス・キーボード入力が届かない (Unity 6。EnableMouseInPointer を実装しても変わらず、原因調査中)
+dl_RJ01690707	不倫旅館 ～息子の友だちのママ～	Unity	弱: タイトルは表示 (DXVK) するが、クリックもキーも反応しない (Unity 6000.3。mouse-in-pointer パッチ後も同じ。同じ 6000.3 の闇夜のPARENTE はクリックできる。Windows.System.DispatcherQueue が無いことが疑わしい)
 dl_RJ01712071	魔胚受胎 ～古代触手と異種交配の実験記録～	Electron	本編 (難易度選択。手動で確認)
 s2010_lumpofsugar_prismrhythm	PrismRhythm-プリズムリズム- Web特別体験版	BGI/Ethornell	タイトル (独自メニューのインストーラ: vnbox add -click 195,298 で Install を押す)
 s2023_casket_oshitona_vtuber02	画面から出てきた推しVtuberとHな同棲生活 ～庶民派吸血鬼お嬢様は契約したい～体験版	YU-RIS	タイトル
@@ -597,3 +597,4 @@ s2011_hulotte_with_ribbon	With Ribbon Hシーン体験版	KiriKiri	OP 動画 →
 s2014_bishop_mk2ie	牝教師2～淫従の螺旋～IE 体験版	-	タイトル (起動ランチャー経由。ランチャーが終了するので判定は dead)
 s2026_eushully_parente	闇夜のPARENTE 幻燐の姫将軍 Remastered 体験版	-	本編前のゲーム開始設定画面 (Inno の setup.exe を無人実行、Unity 6 + DXVK)
 dl_RJ01650072	どこでもHな世界～地味子のバイト日記～	NW.js/Tyrano	タイトル (zip のファイル名が GBK: 文字コードを自動判定して展開。手動で確認)
+dl_RJ01696828	THE TOWER ～コントラクト～	Unity	タイトル → OPTION で設定画面 (Unity 6、DXVK と mouse-in-pointer パッチ)
