@@ -596,3 +596,4 @@ dl_VJ01006708	【特典同梱版】FORTUNE×WORLD ～僕らがゲームを作る
 s2011_hulotte_with_ribbon	With Ribbon Hシーン体験版	KiriKiri	OP 動画 → タイトルロゴ
 s2014_bishop_mk2ie	牝教師2～淫従の螺旋～IE 体験版	-	タイトル (起動ランチャー経由。ランチャーが終了するので判定は dead)
 s2026_eushully_parente	闇夜のPARENTE 幻燐の姫将軍 Remastered 体験版	-	本編前のゲーム開始設定画面 (Inno の setup.exe を無人実行、Unity 6 + DXVK)
+dl_RJ01650072	どこでもHな世界～地味子のバイト日記～	NW.js/Tyrano	タイトル (zip のファイル名が GBK: 文字コードを自動判定して展開。手動で確認)

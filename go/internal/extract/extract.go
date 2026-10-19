@@ -14,7 +14,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
 // ErrNotArchive means the file is an executable that is not a self-extracting archive
@@ -78,14 +80,53 @@ func empty(dir string) bool {
 }
 
 var sjis = japanese.ShiftJIS.NewDecoder()
+var gbk = simplifiedchinese.GBK.NewDecoder()
+
+// pickDecoder chooses how to read the non-UTF-8 names of one archive: CP932 (Japanese
+// Windows) unless the names do not decode as CP932, or mostly turn into half-width katakana
+// (the typical result of reading GBK as CP932), while they all decode as GBK (archives made
+// on Chinese Windows: 素材 → ﾋﾘｲﾄ).
+func pickDecoder(names []string) *encoding.Decoder {
+	bad, kana, other := 0, 0, 0
+	for _, n := range names {
+		if utf8.ValidString(n) {
+			continue
+		}
+		s, err := sjis.String(n)
+		if err != nil || strings.ContainsRune(s, utf8.RuneError) {
+			bad++
+			continue
+		}
+		for _, r := range s {
+			switch {
+			case r >= 0xff61 && r <= 0xff9f:
+				kana++
+			case r >= 0x80:
+				other++
+			}
+		}
+	}
+	if bad == 0 && kana*2 <= kana+other {
+		return sjis
+	}
+	for _, n := range names {
+		if utf8.ValidString(n) {
+			continue
+		}
+		if s, err := gbk.String(n); err != nil || strings.ContainsRune(s, utf8.RuneError) {
+			return sjis
+		}
+	}
+	return gbk
+}
 
 // decodeName returns the UTF-8 form of a zip entry name. Entries without the UTF-8 flag
-// (archive/zip reports them as NonUTF8) are decoded as CP932 unless that produces garbage.
-func decodeName(name string, nonUTF8 bool) string {
+// (archive/zip reports them as NonUTF8) are decoded with dec unless that produces garbage.
+func decodeName(name string, nonUTF8 bool, dec *encoding.Decoder) string {
 	if !nonUTF8 {
 		return name
 	}
-	s, err := sjis.String(name)
+	s, err := dec.String(name)
 	if err != nil || (strings.ContainsRune(s, utf8.RuneError) && utf8.ValidString(name)) {
 		return name
 	}
@@ -99,8 +140,15 @@ func unzip(src, dst string) error {
 	}
 	defer r.Close()
 	root, _ := filepath.Abs(dst)
+	var names []string
 	for _, f := range r.File {
-		name := decodeName(f.Name, f.NonUTF8)
+		if f.NonUTF8 {
+			names = append(names, f.Name)
+		}
+	}
+	dec := pickDecoder(names)
+	for _, f := range r.File {
+		name := decodeName(f.Name, f.NonUTF8, dec)
 		name = strings.ReplaceAll(name, `\`, "/")
 		p := filepath.Join(root, filepath.FromSlash(name))
 		if !strings.HasPrefix(p, root+string(filepath.Separator)) && p != root { // zip slip
@@ -142,7 +190,8 @@ func writeEntry(f *zip.File, p string) error {
 	return os.Chtimes(p, f.Modified, f.Modified)
 }
 
-// FixNames renames every entry under root whose name is not valid UTF-8, decoding it as CP932.
+// FixNames renames every entry under root whose name is not valid UTF-8, decoding it as CP932
+// (or GBK, see pickDecoder).
 // Deepest entries are renamed first so that parent paths stay valid.
 func FixNames(root string) error {
 	var paths []string
@@ -153,9 +202,14 @@ func FixNames(root string) error {
 		return nil
 	})
 	sort.Slice(paths, func(i, j int) bool { return len(paths[i]) > len(paths[j]) })
+	names := make([]string, len(paths))
+	for i, p := range paths {
+		names[i] = filepath.Base(p)
+	}
+	dec := pickDecoder(names)
 	for _, p := range paths {
 		dir, name := filepath.Split(p)
-		if s, err := sjis.String(name); err == nil && s != name {
+		if s, err := dec.String(name); err == nil && s != name {
 			if err := os.Rename(p, filepath.Join(dir, s)); err != nil {
 				return err
 			}

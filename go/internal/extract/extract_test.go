@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
 func TestZipShiftJISNames(t *testing.T) {
@@ -64,5 +66,17 @@ func TestFixNames(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "セーブ", "セーブ")); err != nil {
 		t.Fatal("nested Shift-JIS names were not converted")
+	}
+}
+
+func TestPickDecoder(t *testing.T) {
+	enc := func(e *encoding.Encoder, s string) string { b, _ := e.String(s); return b }
+	jp := []string{enc(japanese.ShiftJIS.NewEncoder(), "体験版/データ.xp3"), enc(japanese.ShiftJIS.NewEncoder(), "ゲーム.exe")}
+	if pickDecoder(jp) != sjis {
+		t.Error("Shift_JIS names not read as CP932")
+	}
+	cn := []string{enc(simplifiedchinese.GBK.NewEncoder(), "UI素材"), enc(simplifiedchinese.GBK.NewEncoder(), "开始游戏背景.png")}
+	if pickDecoder(cn) != gbk {
+		t.Error("GBK names not read as GBK")
 	}
 }
