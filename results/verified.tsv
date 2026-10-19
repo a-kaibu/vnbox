@@ -370,7 +370,7 @@ dl_RJ01733667	彼女をマッサージした後	Unity	本編 (H レベル画面)
 dl_RJ01730521	大魔法少女カサネ	NW.js/Tyrano	タイトル
 dl_VJ010622	仄暗き時の果てより	-	タイトル (製品版 DRM: PlayDRM)
 dl_RJ01648691	測り難きは下心	NW.js/Tyrano	本編 (マップ)
-dl_RJ01690707	不倫旅館 ～息子の友だちのママ～	Unity	タイトル (DXVK)
+dl_RJ01690707	不倫旅館 ～息子の友だちのママ～	Unity	弱: タイトルは表示 (DXVK) するがマウス・キーボード入力が届かない (Unity 6。EnableMouseInPointer を実装しても変わらず、原因調査中)
 dl_RJ01712071	魔胚受胎 ～古代触手と異種交配の実験記録～	Electron	本編 (難易度選択。手動で確認)
 s2010_lumpofsugar_prismrhythm	PrismRhythm-プリズムリズム- Web特別体験版	BGI/Ethornell	タイトル (独自メニューのインストーラ: vnbox add -click 195,298 で Install を押す)
 s2023_casket_oshitona_vtuber02	画面から出てきた推しVtuberとHな同棲生活 ～庶民派吸血鬼お嬢様は契約したい～体験版	YU-RIS	タイトル
@@ -429,3 +429,13 @@ s2019_appetite_aniyome_furin	兄嫁に誘われて～義姉がエロ過ぎて家
 s2013_alicesoft_drapeko	どらぺこ！体験版	AliceSoft System4	タイトル (起動時の注意書き → タイトル)
 s2019_inter_heart_aneiro2	イイナリ姉色 Trial Version: 1.0.0.0 [data ver:1.00]	-	本編 (登場人物選択画面)
 s2025_bishop_rs	s2025_bishop_rs	-	タイトル (BISHOP の起動ランチャーが「ゲーム開始」で落ちるので、startup.ini の demo.exe を直接起動。手動で確認)
+s2021_at_sakura_tuma_10	愛する妻と１０人の過去男 体験版	KiriKiri	タイトル
+s2018_appetite_shokushu_ouji	触手王子の肉嫁探し～母と姉弟の終わらない絶頂地獄～　体験版	KiriKiri	タイトル
+dl_RJ01720493	Moeのファンサービスリフト♡～つり出し	NW.js/Tyrano	タイトル
+dl_VJ01004136	早乙女結衣の淫らな隠しごと ～隠されたアイドルのビッチな裏事情～	KiriKiri	タイトル (製品版 DRM: PlayDRM)
+dl_RJ01618221	アリナと淫魔の呪い	NW.js/Tyrano	タイトル
+s2014_whirlpool_tearstilla	鯨神のティアスティラ 体験版	YU-RIS	タイトル
+s2022_at_sakura_ntr_tuma_miina	ネトラセ妻、美衣奈 体験版	KiriKiri	タイトル
+s2012_hook_lovelyquest	LOVELY QUEST 体験版 Ver1.00	-	タイトル
+s2015_kaguya_chu_pet	ＣＨＵ×ペット　体験版	-	タイトル
+s2012_bishop_tjslg	特別授業3SLG 体験版	-	タイトル (起動ランチャー startup.exe 経由。ランチャーが終了するので判定は dead)
