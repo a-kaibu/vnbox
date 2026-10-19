@@ -194,6 +194,10 @@ func cmdAdd(ctx context.Context, args []string) error {
 		if t == "Runtime:SharpDX11" && !slices.Contains(l.Winetricks, "vnbox-dxvk") {
 			l.Winetricks = append(l.Winetricks, "vnbox-dxvk")
 		}
+		// VC\Runtimes の版と msvcp140_2.dll の版を確かめてから起動するもの (Unreal Engine 5 等): 最新の VC++ ランタイムを入れる
+		if t == "Runtime:VCRuntimeCheck" && !slices.Contains(l.Winetricks, "vnbox-vcrun") {
+			l.Winetricks = append(l.Winetricks, "vnbox-vcrun")
+		}
 		if t == "Runtime:XamlIslands" && !slices.Contains(l.Winetricks, "vnbox-xamlstub") {
 			l.Winetricks = append(l.Winetricks, "vnbox-xamlstub")
 		}

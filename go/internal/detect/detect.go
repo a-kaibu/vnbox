@@ -93,6 +93,7 @@ var binSigs = []binSig{
 	bs("Runtime:DirectShow", "quartz.dll"), bs("Runtime:VC71", "MSVCR71.dll"),
 	bs("Runtime:VC80", "MSVCR80.dll"), bs("Runtime:VC90", "MSVCR90.dll"), bs("Runtime:VC100", "MSVCR100.dll"),
 	bs("Runtime:XamlIslands", utf16("Windows.UI.Xaml.Hosting.DesktopWindowXamlSource")),
+	bs("Runtime:VCRuntimeCheck", utf16(`SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes`)),
 	bs("Runtime:MFC42", "MFC42.DLL"), bs("Runtime:VB6", "MSVBVM60.DLL"), bs("Runtime:D3DX9", "d3dx9_"),
 	bs("Runtime:DotNet", "_CorExeMain"), bs("Runtime:WMP", "wmvcore.dll"), bs("Runtime:Flash", "Flash.ocx"),
 }
