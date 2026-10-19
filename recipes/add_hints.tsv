@@ -11,3 +11,6 @@ b2011_lumpofsugar	-click 300,340	BGI インストーラ「ゲームのインス�
 b2019_sukerasparo	-click 660,223	BGI インストーラ「インストール」
 b2015_lump_of_sugar	-click 280,181	BGI インストーラ「ゲームのインストール」
 b2010_lumpofsugar	-click 157,408;307,216	BGI インストーラ「インストール」(要 wined3d READ_SCANLINE パッチ)
+s2010_lumpofsugar_prismrhythm	-click 195,298	独自メニューのインストーラ「Install」
+s2023_quince_soft_little_proncess_go	-click 135,503	独自インストーラメニュー「ゲームのインストール」
+s2026_bishop_tks	run: click 443,78	BISHOP 起動ランチャー「ゲーム開始」(初回に設定 bsxx.ini を書く)
