@@ -7,6 +7,9 @@ V = '/home/user/vnbox'
 args = sys.argv[1:]; note = 'タイトル'
 if '--note' in args:
     i = args.index('--note'); note = args[i + 1]; del args[i:i + 2]
+tt = None
+if '--title' in args:
+    i = args.index('--title'); tt = args[i + 1]; del args[i:i + 2]
 replace = '--replace' in args
 args = [a for a in args if a != '--replace']
 lst = {c[0]: c for c in (l.rstrip('\n').split('\t') for l in open(f'{V}/downloads/batch6.tsv', encoding='utf-8'))}
@@ -31,10 +34,10 @@ for a in args:
     c, s = lst.get(a), summ.get(a)
     if not c or not s:
         print('unknown id', a); continue
-    title = c[2] or window_title(a, s[1]) or a
+    title = tt or c[2] or window_title(a, s[1]) or a
     engine = s[4] if len(s) > 4 and s[4] else '-'
     extra = []
-    if s[1] == 'classic': extra.append('従来 Wine')
+    if s[1] == 'classic' and s[2] == 'OK': extra.append('従来 Wine')
     if c[4] and c[4] not in ('なし', '-'): extra.append(f'製品版 DRM: {c[4]}')
     if len(s) > 7 and s[7]: extra.append(f'痕跡: {s[7].rstrip(",")}')
     rows.append(f"{a}\t{title}\t{engine}\t{note}{' (' + ', '.join(extra) + ')' if extra else ''}\n")

@@ -80,6 +80,17 @@ func Add(ctx context.Context, name, src string, o Options) (*pkg.Package, error)
 		}
 	}
 
+	// an archive holding nothing but a self-extracting exe (ZIP / 7z / LZH SFX): unpack that too
+	if dir != "" {
+		if only := soleFile(dir); strings.EqualFold(filepath.Ext(only), ".exe") && !isWinRARSFX(only) {
+			out := filepath.Join(work, "sfx2")
+			if err := extract.Extract(only, out); err == nil && hasExe(out) {
+				fmt.Fprintf(o.Log, "[%s] nested self-extractor %s unpacked\n", name, filepath.Base(only))
+				dir = out
+			}
+		}
+	}
+
 	// 2) installer -> capture what it installs
 	inst := src
 	if dir != "" {
@@ -200,6 +211,25 @@ func hasExe(dir string) bool {
 		return nil
 	})
 	return found
+}
+
+// soleFile returns the path of the only file under dir (ignoring readme-like text files), or "".
+func soleFile(dir string) string {
+	var files []string
+	filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			switch strings.ToLower(filepath.Ext(d.Name())) {
+			case ".txt", ".url", ".html", ".htm", ".pdf":
+			default:
+				files = append(files, p)
+			}
+		}
+		return nil
+	})
+	if len(files) == 1 {
+		return files[0]
+	}
+	return ""
 }
 
 func isWinRARSFX(path string) bool {

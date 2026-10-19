@@ -41,7 +41,8 @@ func Extract(src, dst string) error {
 		err = run(dst, "7z", "x", "-y", src)
 	case strings.HasSuffix(low, ".exe"):
 		// 7z also crashes on some WinRAR SFX; a partial result is not usable
-		if run(dst, "7z", "x", "-y", src) != nil {
+		// -mcp=932: ZIP self-extractors carry Shift_JIS names
+		if run(dst, "7z", "x", "-y", "-mcp=932", src) != nil {
 			clear(dst)
 			return ErrNotArchive
 		}
