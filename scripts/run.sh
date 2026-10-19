@@ -48,6 +48,11 @@ fi
 gamewin(){ for w in $(xdotool search --onlyvisible --name . 2>/dev/null); do
   n=$(xdotool getwindowname $w 2>/dev/null); [[ "$n" == *"デスクトップ"* || "$n" == *Desktop* || -z "$n" ]] && continue
   eval $(xdotool getwindowgeometry --shell $w 2>/dev/null); echo "$((WIDTH*HEIGHT)) $w"; done | sort -rn | head -1 | cut -d' ' -f2; }
+# いちばん小さいダイアログ大のウィンドウ (40 万画素未満。IME・デスクトップ・極小の補助ウィンドウは除く)
+dialogwin(){ for w in $(xdotool search --onlyvisible --name . 2>/dev/null); do
+  n=$(xdotool getwindowname $w 2>/dev/null); [[ "$n" == *"デスクトップ"* || "$n" == *Desktop* || "$n" == "Default IME" || -z "$n" ]] && continue
+  eval $(xdotool getwindowgeometry --shell $w 2>/dev/null); [ $((WIDTH*HEIGHT)) -lt 400000 ] && [ "$WIDTH" -ge 120 ] && [ "$HEIGHT" -ge 40 ] && echo "$((WIDTH*HEIGHT)) $w"
+  done | sort -n | head -1 | cut -d' ' -f2; }
 W=$(gamewin)
 # スクショは画面全体からゲームウィンドウ矩形を切り出す (D3D/GL ウィンドウは -window 直撮りだと黒くなることがある)
 n=0; shot(){ n=$((n+1)); local W2 X Y WIDTH HEIGHT; W2=$(gamewin)
@@ -62,13 +67,12 @@ for op in $SEQ; do
              if [ -n "$W" ]; then xdotool mousemove --window "$W" ${xy%,*} ${xy#*,}; else xdotool mousemove ${xy%,*} ${xy#*,}; fi; sleep 0.4; xdotool mousedown 1; sleep 0.1; xdotool mouseup 1; sleep 1.2;;
     key:*)   W=$(gamewin); [ -n "$W" ] && xdotool windowfocus "$W" 2>/dev/null; xdotool key ${op#key:} 2>/dev/null; sleep 1.2;;
     sleep:*) sleep ${op#sleep:};;
-    pass:*)  # 起動設定などの小さいダイアログが最前面なら Enter → 効かなければ Space で抜ける (最大 N 回)
+    pass:*)  # 起動設定や確認 (「フルスクリーンで表示しますか？」等) の小さいダイアログがあれば Enter → 効かなければ Space で抜ける (最大 N 回)
+             # ゲーム本体の大きなウィンドウの手前に出ているダイアログも対象 (既定のボタンを押す)
              for _ in $(seq ${op#pass:}); do
-               W=$(gamewin); [ -z "$W" ] && { sleep 3; continue; }
-               eval $(xdotool getwindowgeometry --shell $W 2>/dev/null)
-               [ $((WIDTH*HEIGHT)) -ge 400000 ] && break
-               xdotool windowfocus $W 2>/dev/null; sleep 0.3; xdotool key Return 2>/dev/null; sleep 4
-               [ "$(gamewin)" = "$W" ] && { xdotool windowfocus $W 2>/dev/null; sleep 0.2; xdotool key space 2>/dev/null; sleep 4; }
+               W=$(dialogwin); [ -z "$W" ] && { [ -z "$(gamewin)" ] && { sleep 3; continue; }; break; }
+               xdotool windowactivate $W 2>/dev/null || xdotool windowfocus $W 2>/dev/null; sleep 0.3; xdotool key Return 2>/dev/null; sleep 4
+               [ "$(dialogwin)" = "$W" ] && { xdotool windowactivate $W 2>/dev/null || xdotool windowfocus $W 2>/dev/null; sleep 0.2; xdotool key space 2>/dev/null; sleep 4; }
              done;;
     shot:*)  shot ${op#shot:};;
     rec:*)   # rec:<秒> ゲームウィンドウを 30fps で録画し、ユニークフレーム数を数える
