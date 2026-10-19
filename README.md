@@ -272,15 +272,15 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 ## 動作確認の集計
 
 <!-- STATS:BEGIN -->
-**タイトル画面以降まで目視で確認できたもの: 686 本** (一覧は下の「起動確認済みタイトル一覧」)。
+**タイトル画面以降まで目視で確認できたもの: 687 本** (一覧は下の「起動確認済みタイトル一覧」)。
 - 第1〜3弾: 102 本 (第1弾 22 本 + suezou ミラー 80 本)
 - 第4弾 (2026-10-19): suezou ミラーから新たに 108 本、ムジナ 1 本、未解決分の解消 59 本
-- 第6弾 (2026-10-19〜20、Go 版 `vnbox add` でバッチ): 候補 423 本 (suezou 240 / DLsite 183) から **415 本** (suezou 239 / DLsite 176)。対象外 7 本、弱い確認 1 本、未確定 0 本
+- 第6弾 (2026-10-19〜20、Go 版 `vnbox add` でバッチ): 候補 423 本 (suezou 240 / DLsite 183) から **416 本** (suezou 239 / DLsite 177)。対象外 7 本、弱い確認 0 本、未確定 0 本
 
 対象外 (`results/excluded.tsv`、計 18 本) は理由付き: 配布物が紹介動画・音声・HTML5 のみ、配布ファイルの破損や削除、VR 専用、GPU 必須 (D3D12 SM6 専用の UE 5.8)。
-弱い確認 (1 本): `dl_RJ01690707` タイトルは表示 (DXVK) するが、クリックもキーも反応しない (Unity 6000.3。mouse-in-pointer パッチ後も同じ。同じ 6000.3 の闇夜のPARENTE はクリックできる。Windows.System.DispatcherQueue が無いことが疑わしい)
+弱い確認 (0 本): 
 
-第6弾の DLsite 分の製品版 DRM (作品ページの表記): なし 121 / PlayDRM 51 / ソフト電池 2 / シリアル番号 2 (体験版にはどれも入っていない)
+第6弾の DLsite 分の製品版 DRM (作品ページの表記): なし 122 / PlayDRM 51 / ソフト電池 2 / シリアル番号 2 (体験版にはどれも入っていない)
 
 第6弾のエンジン別 (`vnbox add` の判定):
 
@@ -288,7 +288,7 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 |---|---|
 | 判定外 (独自エンジン等) | 126 |
 | KiriKiri | 71 |
-| Unity | 38 |
+| Unity | 39 |
 | NW.js/Tyrano | 30 |
 | NeXAS | 20 |
 | YU-RIS | 19 |
@@ -320,7 +320,7 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 ## 起動確認済みタイトル一覧
 
 <!-- TITLES:BEGIN -->
-タイトル画面以降まで目視で確認: **686 本** (ロゴ・注意画面止まりの 1 本は下の折りたたみに別記)。
+タイトル画面以降まで目視で確認: **687 本** (ロゴ・注意画面止まりの 0 本は下の折りたたみに別記)。
 年 = 配布ミラーの掲載年度 / DLsite の登録年 (「-」は第1弾の手動テスト分)。エンジンの「-」は自動判定できなかったもの。
 
 | # | 年 | 出典 | タイトル | エンジン | 確認できたところ | ID |
@@ -891,132 +891,132 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 | 564 | 2026 | DLsite 同人 | 秘密 女騎士NTR | NW.js/Tyrano | タイトル | `dl_RJ01686418` |
 | 565 | 2026 | DLsite 同人 | ウルフ小隊戦記 | WolfRPG | タイトル | `dl_RJ01688457` |
 | 566 | 2026 | DLsite 同人 | 胎環リゾート 白砂のシークレット・ビーチ- YUI - | Unity | タイトル | `dl_RJ01688926` |
-| 567 | 2026 | DLsite 同人 | アクメコア運搬兵 | Unity | タイトル → Start で体験版の案内 (従来 Wine) (従来 Wine) | `dl_RJ01691731` |
-| 568 | 2026 | DLsite 同人 | Forgotten Village | - | タイトル | `dl_RJ01693441` |
-| 569 | 2026 | DLsite 同人 | カンビオンの揺籠 | Unity | タイトル | `dl_RJ01695481` |
-| 570 | 2026 | DLsite 同人 | サモンスピリッツ | NW.js/Tyrano | タイトル | `dl_RJ01696742` |
-| 571 | 2026 | DLsite 同人 | THE TOWER ～コントラクト～ | Unity | タイトル → OPTION で設定画面 (Unity 6、DXVK と mouse-in-pointer パッチ) | `dl_RJ01696828` |
-| 572 | 2026 | DLsite 同人 | かんもく:場面緘黙女子 | NW.js/Tyrano | 本編 | `dl_RJ01698597` |
-| 573 | 2026 | DLsite 同人 | とろぴかる・ちぇいす！長年追っていた指名手配犯をヌーディストビーチで発見したクール系女刑事 | NW.js/Tyrano | タイトル (NW.js に Chromium のソフトウェア描画の引数) | `dl_RJ01699647` |
-| 574 | 2026 | DLsite 同人 | 星直しのブレイブロード -淫欲の街と堕落の聖女候補- | NW.js/Tyrano | タイトル | `dl_RJ01699765` |
-| 575 | 2026 | DLsite 同人 | 魔法少女は触手に負けられない | - | タイトル (.NET 8 Desktop ランタイム + DXVK) | `dl_RJ01700416` |
-| 576 | 2026 | DLsite 同人 | お仕置きLesson | Unity | 起動時の利用規約画面 (ゲーム描画) (従来 Wine) | `dl_RJ01700539` |
-| 577 | 2026 | DLsite 同人 | ラッキィ・ホール-ハズレは淫魔の搾精穴- | NW.js/Tyrano | タイトル | `dl_RJ01701172` |
-| 578 | 2026 | DLsite 同人 | 政治家寝取られ | - | タイトル | `dl_RJ01701406` |
-| 579 | 2026 | DLsite 同人 | 【Live2D】逃亡中～ミッションをクリアしてザーメンの放出を阻止せよ！～ | NW.js/Tyrano | タイトル | `dl_RJ01701742` |
-| 580 | 2026 | DLsite 同人 | いとこのお姉ちゃんに睡眠●シミュレーション | NW.js/Tyrano | タイトル | `dl_RJ01702392` |
-| 581 | 2026 | DLsite 同人 | 爆乳お母さんと夏の都会性活 | LiveMaker | タイトル | `dl_RJ01703015` |
-| 582 | 2026 | DLsite 同人 | 【人外魔境ダイスレギオン】アーリーアクセス版 | Unity | 本編 (ステージ選択) | `dl_RJ01703385` |
-| 583 | 2026 | DLsite 同人 | 決着はバトルファックで -初回特典付き- | NW.js/Tyrano | 本編 (マップと会話) | `dl_RJ01703802` |
-| 584 | 2026 | DLsite 同人 | 魔王ですが、スライムしか作れません ～死に戻り魔王軍の放置経営～ | - | 起動時の言語選択 (Godot 4。D3D12 指定を --rendering-driver vulkan に切り替え。手動で確認) | `dl_RJ01704479` |
-| 585 | 2026 | DLsite 同人 | リノ&ハミー | WolfRPG | タイトル | `dl_RJ01705134` |
-| 586 | 2026 | DLsite 同人 | 痴女マゾ舐めプ傭兵"S" | - | タイトル (従来 Wine) | `dl_RJ01705199` |
-| 587 | 2026 | DLsite 同人 | 3D無限ぶっかけシミュ ～媚薬精液をすやすや魔女にぶっかけ！～ | Unity | タイトル | `dl_RJ01706267` |
-| 588 | 2026 | DLsite 同人 | ショタおねRPG 爆乳お姉さんたちと催〇でドスケベ三昧 爆乳(クソデカボイン)の桃源郷(パラダイス) | NW.js/Tyrano | 本編 (主人公の名前入力) | `dl_RJ01706991` |
-| 589 | 2026 | DLsite 同人 | 戦術バトルは不○火舞に任せなさい♪ | Electron | タイトル | `dl_RJ01706994` |
-| 590 | 2026 | DLsite 同人 | Alice In Distress RE | Electron | タイトル | `dl_RJ01707379` |
-| 591 | 2026 | DLsite 同人 | 感覚遮断落とし穴アニメシミュレーター | - | タイトル | `dl_RJ01707935` |
-| 592 | 2026 | DLsite 同人 | こんな安楽椅子探偵は嫌だ！ | YU-RIS | タイトル | `dl_RJ01708454` |
-| 593 | 2026 | DLsite 同人 | ひつじのやつ2 | - | タイトル | `dl_RJ01709084` |
-| 594 | 2026 | DLsite 同人 | あかりのコーデ | - | タイトル | `dl_RJ01710833` |
-| 595 | 2026 | DLsite 同人 | 化けきつねたいじ | Unity | 本編 (「はじめる」をクリック → 冒頭の文章。Unity 6、DXVK と mouse-in-pointer パッチ。手動で確認) | `dl_RJ01711994` |
-| 596 | 2026 | DLsite 同人 | 魔胚受胎 ～古代触手と異種交配の実験記録～ | Electron | 本編 (難易度選択。手動で確認) | `dl_RJ01712071` |
-| 597 | 2026 | DLsite 同人 | デカノモス | Unity | タイトル | `dl_RJ01714047` |
-| 598 | 2026 | DLsite 同人 | たりない天使さま | LiveMaker | タイトル | `dl_RJ01714826` |
-| 599 | 2026 | DLsite 同人 | 梨乃ねね ～子種を乞う村～ | - | タイトル (成人確認で「はい」) | `dl_RJ01715225` |
-| 600 | 2026 | DLsite 同人 | エッチになってく妹は俺のもの | WolfRPG | タイトル以降 (注意書き→ロード画面) | `dl_RJ01720064` |
-| 601 | 2026 | DLsite 同人 | 騎士見習いと村娘 | - | タイトル | `dl_RJ01720376` |
-| 602 | 2026 | DLsite 同人 | Moeのファンサービスリフト♡～つり出し | NW.js/Tyrano | タイトル | `dl_RJ01720493` |
-| 603 | 2026 | DLsite 同人 | ダーク・デザイア ～隷属おっぱい揉みゲーム～ | LiveMaker | 本編 (ゲーム画面) | `dl_RJ01720600` |
-| 604 | 2026 | DLsite 同人 | 魔法戦士 NANAMI 前編 | NW.js/Tyrano | タイトル | `dl_RJ01720958` |
-| 605 | 2026 | DLsite 同人 | むかしグラビアアイドルだった団地妻 | YU-RIS | タイトル | `dl_RJ01721024` |
-| 606 | 2026 | DLsite 同人 | 調教パンク2072 | Unity | 起動時の言語選択 (Unity、DXVK でロック待ちが解消) | `dl_RJ01721615` |
-| 607 | 2026 | DLsite 同人 | むぎゅっと☆搾精ナイトメア！ | NW.js/Tyrano | タイトル | `dl_RJ01722380` |
-| 608 | 2026 | DLsite 同人 | ポンコツ魔法使いセリスのHな冒険記 ～Hな呪いで精液を求める身体になった魔法使い～ | WolfRPG | タイトル | `dl_RJ01724124` |
-| 609 | 2026 | DLsite 同人 | 奴隷都市のリセル 18禁版 | - | タイトル | `dl_RJ01724237` |
-| 610 | 2026 | DLsite 同人 | 人妻のオナサポを受けて白濁生汁ピュッピュッピュッしなさい！ | Unity | タイトル | `dl_RJ01724681` |
-| 611 | 2026 | DLsite 同人 | 父と娘仲直りH旅行～夏休みは南の島のリゾートで!! | Unity | 本編 (オープニングの選択画面。Unity 6、mouse-in-pointer パッチでクリック可) | `dl_RJ01726603` |
-| 612 | 2026 | DLsite 同人 | 監禁部屋から逃げれない1 | NW.js/Tyrano | タイトル | `dl_RJ01727123` |
-| 613 | 2026 | DLsite 同人 | あの夏、誰も来ないバス停で。 | Unity | タイトル | `dl_RJ01728288` |
-| 614 | 2026 | DLsite 同人 | もんむすのペット 甘サド捕食系サキュバス編 | Unity | 本編 (はじめから → 会話。Unity 6、mouse-in-pointer パッチでクリック可) | `dl_RJ01728421` |
-| 615 | 2026 | DLsite 同人 | 小さな侵入者 | - | タイトル (Unreal、DXVK でロック待ちが解消) | `dl_RJ01728560` |
-| 616 | 2026 | DLsite 同人 | ドキドキ♡ガールズドッジ！ | Unity | タイトル | `dl_RJ01728583` |
-| 617 | 2026 | DLsite 同人 | 真依と秘密のマッサージ屋さん | - | タイトル → FreeMode (Unreal、DXVK で描画が詰まらない) | `dl_RJ01729003` |
-| 618 | 2026 | DLsite 同人 | 人狼さんはちんちんがお好き。 | WolfRPG | 本編 (マップと会話) | `dl_RJ01729227` |
-| 619 | 2026 | DLsite 同人 | すやすやまりちゃんシミュレーター | Unity | 本編 (ゲーム画面) (従来 Wine) | `dl_RJ01729974` |
-| 620 | 2026 | DLsite 同人 | 大魔法少女カサネ | NW.js/Tyrano | タイトル | `dl_RJ01730521` |
-| 621 | 2026 | DLsite 同人 | あなたと彼女の初えっち | Unity | タイトル | `dl_RJ01730784` |
-| 622 | 2026 | DLsite 同人 | 近所に住む(自称)女神のエルちゃんを、家に呼んだらついて来た件 | LiveMaker | タイトル (Electron: GPU を本体プロセスで・SwiftShader) | `dl_RJ01731003` |
-| 623 | 2026 | DLsite 同人 | ヤリステナイメスブター 世界を救った後の ボクの日常『性』活 | NW.js/Tyrano | タイトル | `dl_RJ01731048` |
-| 624 | 2026 | DLsite 同人 | Bondage Sandbox ep 1: Android in distress | - | 起動時のテーマ選択画面 (Unreal、DXVK でロック待ちが解消) | `dl_RJ01731343` |
-| 625 | 2026 | DLsite 同人 | Alto Recipeおまとめパック | WolfRPG | タイトル | `dl_RJ01731780` |
-| 626 | 2026 | DLsite 同人 | 灰払い傭兵記 | - | 本編 (初めから → 保存先の選択) | `dl_RJ01732086` |
-| 627 | 2026 | DLsite 同人 | セーター越しの乳首弄りでイカサレちゃう女の子 | Unity | 本編 (会話) | `dl_RJ01732951` |
-| 628 | 2026 | DLsite 同人 | 彼女をマッサージした後 | Unity | 本編 (H レベル画面) | `dl_RJ01733667` |
-| 629 | 2026 | DLsite 同人 | 私、絶対イキません！ | Unity | タイトル (従来 Wine) (従来 Wine) | `dl_RJ01734456` |
-| 630 | 2026 | DLsite 同人 | 【ver 1.0.6】転生の間へようこそ | Electron | 本編 (導入の説明画面) | `dl_RJ01735938` |
-| 631 | 2026 | DLsite 同人 | 巨乳美人お姉ちゃんは変態野郎なんかに絶対に負けない！ | Unity | タイトル | `dl_RJ01736920` |
-| 632 | 2026 | DLsite 同人 | 気弱な二人 | - | タイトル | `dl_RJ01739180` |
-| 633 | 2026 | DLsite 同人 | 【VR】精密少女模拟器 ～生理反应×极致自定义～ | - | 本編 (3D の部屋。体験版の残り時間が進む。Unity + DXVK、起動に数分。手動で確認) | `dl_RJ01739908` |
-| 634 | 2026 | DLsite 同人 | 社畜淫魔のノルマ生活 -快楽抽出シミュレーション- | Unity | タイトル | `dl_RJ01740259` |
-| 635 | 2026 | DLsite 同人 | 淫らに染めて ～叔母が堕ちるまで～ | NW.js/Tyrano | タイトル (NW.js に Chromium のソフトウェア描画の引数を付けて。手動で確認) | `dl_RJ01741863` |
-| 636 | 2026 | DLsite 同人 | 同じ階に住む美巨乳団地妻「改」 | Electron | タイトル | `dl_RJ01744242` |
-| 637 | 2026 | DLsite 同人 | 幻想の系譜 ～はじまりの巫女編～ | Unity | タイトル (Inno の Foo_Setup_0.2.3.exe を無人実行、ユーザー領域 AppData\\Local\\Programs へのインストール。手動で確認) | `dl_RJ01744611` |
-| 638 | 2026 | DLsite 同人 | 新人アイドル、枕営業します。～星川あゆの物語～ 体験版 | - | タイトル (Unreal Engine 5、最新 VC++ ランタイムを入れて llvmpipe で描画) | `dl_RJ01746276` |
-| 639 | 2026 | DLsite 同人 | 魔法少女ネム&モコ 悪墜ち魔法少女の誘惑 | RenPy | タイトル | `dl_RJ01746340` |
-| 640 | 2026 | DLsite 同人 | 女魔法使いセーラは俺から逃げられない！ ～便利なエロアイテムと孕むまでヤれる封鎖村～ | NW.js/Tyrano | 本編 (マップと会話) | `dl_RJ01746541` |
-| 641 | 2026 | DLsite 同人 | 巨乳美人のティふぁが変態プレイを受け続けて脱糞するまで | Unity | タイトル | `dl_RJ01746806` |
-| 642 | 2026 | DLsite 同人 | 原○カードクワルドトライアド Vol.2 | Electron | 本編 (マップと会話) | `dl_RJ01747016` |
-| 643 | 2026 | DLsite 同人 | Last12 - 勇者の恥ずかしい育児日記 - | NW.js/Tyrano | タイトル (自前で枠を描く NW.js のウィンドウ全体: win32u パッチ) | `dl_RJ357058` |
-| 644 | 2026 | DLsite 同人 | ドレスアップナイト -True Knight’s Refrain- | - | タイトル | `dl_RJ365650` |
-| 645 | 2026 | DLsite | 宿りし乙女の誓いと魔法 | AdvHD | タイトル (製品版 DRM: PlayDRM) | `dl_VJ01004594` |
-| 646 | 2026 | DLsite | Hakoniwa－ハコニワ－ | - | タイトル (製品版 DRM: PlayDRM) | `dl_VJ01005334` |
-| 647 | 2026 | DLsite | 【DLsite限定版】友恵の探偵物語 ～のぞき魔な私の天職～ | - | タイトル | `dl_VJ01005807` |
-| 648 | 2026 | DLsite | 姫と艶欲のインペリウム | Escude | タイトル (製品版 DRM: PlayDRM) | `dl_VJ01006026` |
-| 649 | 2026 | DLsite | 【限定版】モザイクの天使【オナサポボイスドラマ＆デジタル原画・設定資料集付き】 | SiglusEngine | タイトル | `dl_VJ01006176` |
-| 650 | 2026 | DLsite | 【限定版】モザイクの天使【デジタル原画・設定資料集付き】 | SiglusEngine | タイトル | `dl_VJ01006181` |
-| 651 | 2026 | DLsite | 娼姫レティシア ～今宵、王女は春を売る～ リマスター豪華特典版 | SiglusEngine | タイトル (製品版 DRM: PlayDRM) | `dl_VJ01006508` |
-| 652 | 2026 | DLsite | 背徳の母乳 ～そんなに出しちゃダメぇ～ | KiriKiri | タイトル (製品版 DRM: PlayDRM) | `dl_VJ01006612` |
-| 653 | 2026 | DLsite | サヤガタリ -妖刀の約束- | SiglusEngine | タイトル (製品版 DRM: PlayDRM) | `dl_VJ01006640` |
-| 654 | 2026 | DLsite | 【特典同梱版】FORTUNE×WORLD ～僕らがゲームを作る理由～ | SiglusEngine | 本編 (会話) (製品版 DRM: PlayDRM) | `dl_VJ01006708` |
-| 655 | 2026 | DLsite | 【通常版】FORTUNE×WORLD ～僕らがゲームを作る理由～ | SiglusEngine | 本編 (製品版 DRM: PlayDRM) | `dl_VJ01006709` |
-| 656 | 2026 | suezou | 養花師の背徳愛～純真天使は抱かれて色めく～ 【体験版】 | Softpal | タイトル | `s2026_amuse_craft_erotica_youkashi` |
-| 657 | 2026 | suezou | ご奉仕メイドはエッチなお姉さん ～俺だけの巨乳メイドにたっぷり甘やかされるめちゃエロご主人様ライフ～  - 体験版 - | - | タイトル (痕跡: enigmaprotector) | `s2026_anim_gohousi_maid` |
-| 658 | 2026 | suezou | 超狂指導日誌 体験版 | - | タイトル (BISHOP 起動ランチャーの「ゲーム開始」で設定 bsxx.ini を書いてから本体が起動。手動で確認) | `s2026_bishop_tks` |
-| 659 | 2026 | suezou | リビドーアバンちゅ～る TRIAL EDITION | AdvHD | タイトル | `s2026_ensemble_sweet_ribichu` |
-| 660 | 2026 | suezou | 闇夜のPARENTE 幻燐の姫将軍 Remastered 体験版 | - | 本編前のゲーム開始設定画面 (Inno の setup.exe を無人実行、Unity 6 + DXVK) | `s2026_eushully_parente` |
-| 661 | 2026 | suezou | s2026_lump_of_sugar_tayutama_zero | - | タイトル (ログにロック待ちの警告が出るが表示・動作) | `s2026_lump_of_sugar_tayutama_zero` |
-| 662 | 2026 | suezou | Jyosou Yuriarasi Trial | KiriKiri | タイトル (言語選択で日本語をクリック) | `s2026_no_strike_jyosou_yuriarashi` |
-| 663 | 2026 | suezou | 姉妹X催眠２ - MOTION EDITION - 体験版 | KiriKiri | タイトル | `s2026_poison_motion_sxs2_me` |
-| 664 | 2026 | suezou | 姉妹X催眠 - MOTION EDITION - 体験版 | KiriKiri | タイトル (従来 Wine) | `s2026_poison_motion_sxs_me` |
-| 665 | - | 手動 | 有閑夫人倶楽部 体験版 | AdvHD | 本編テキスト (icu シム) | `r1_advhd` |
-| 666 | - | 手動 | 遥かなるニライカナイ 体験版 | Artemis | 本編 + 音声 | `r1_artemis` |
-| 667 | - | 手動 | クダンノフォークロア 体験版 | BGI | 本編テキスト (独自Setup) | `r1_bgi_kudan` |
-| 668 | - | 手動 | 果つることなき未来ヨリ 体験版 | CatSystem2 | 本編テキスト | `r1_cs2_hatsumira` |
-| 669 | - | 手動 | 彼岸花の咲く夜に お試し版 | NScripter | 本編 (CreateInstall) | `r1_higanbana` |
-| 670 | - | 手動 | KAG3 紹介デモ | KiriKiri2 | 本編テキスト | `r1_kag3` |
-| 671 | - | 手動 | 先輩、好きです……押忍！ 体験版 | KiriKiri | 本編テキスト | `r1_krkr_apt306` |
-| 672 | - | 手動 | あいれぼ 体験版 | Majiro | 本編テキスト (独自インストーラ) | `r1_majiro` |
-| 673 | - | 手動 | Wind RP 体験版 | Musica | 本編テキスト | `r1_musica` |
-| 674 | - | 手動 | ナルキッソス SIDE 2nd | NScripter | 本編テキスト | `r1_naru2` |
-| 675 | - | 手動 | 天翼のアスクレイン 体験版 | QLIE | 本編テキスト | `r1_qlie` |
-| 676 | - | 手動 | 5 -ファイブ- 体験版 | RealLive | 本編テキスト (SFX) | `r1_reallive_five` |
-| 677 | - | 手動 | The Question | Ren'Py | 本編テキスト | `r1_renpy` |
-| 678 | - | 手動 | でか乳巫女と巨乳シスター 体験版 | SakanaGL | タイトル (Managed=N) | `r1_sakana` |
-| 679 | - | 手動 | うみねこのなく頃に咲 体験版 | PONScripter | 本編テキスト | `r1_saku` |
-| 680 | - | 手動 | プリマドール 体験版 | SiglusEngine | 本編テキスト | `r1_siglus_primadoll` |
-| 681 | - | 手動 | トイレの花子さん 体験版 | Softpal | 本編テキスト | `r1_softpal_hanako` |
-| 682 | - | 手動 | 転性魔王さま 体験版 | Softpal | 本編テキスト | `r1_softpal_tenmao` |
-| 683 | - | 手動 | トライアンソロジー 体験版 | NScripter | 本編 | `r1_trt` |
-| 684 | - | 手動 | 転生した世界で… 体験版 | TyranoScript | 本編テキスト | `r1_tyrano` |
-| 685 | - | 手動 | 旭光のマリアージュ 体験版 | Unity | 本編テキスト (vnbox Wine) | `r1_unity` |
-| 686 | - | 手動 | YU-RIS サンプル | YU-RIS | 演出/動画 | `r1_yuris` |
+| 567 | 2026 | DLsite 同人 | 不倫旅館 ～息子の友だちのママ～ | Unity | タイトル → 画面左の ⋮ で設定画面、クレジットも開く (Unity 6、DXVK と mouse-in-pointer パッチでクリック可。体験版では「過ちに耽る」は灰色で選べない) | `dl_RJ01690707` |
+| 568 | 2026 | DLsite 同人 | アクメコア運搬兵 | Unity | タイトル → Start で体験版の案内 (従来 Wine) (従来 Wine) | `dl_RJ01691731` |
+| 569 | 2026 | DLsite 同人 | Forgotten Village | - | タイトル | `dl_RJ01693441` |
+| 570 | 2026 | DLsite 同人 | カンビオンの揺籠 | Unity | タイトル | `dl_RJ01695481` |
+| 571 | 2026 | DLsite 同人 | サモンスピリッツ | NW.js/Tyrano | タイトル | `dl_RJ01696742` |
+| 572 | 2026 | DLsite 同人 | THE TOWER ～コントラクト～ | Unity | タイトル → OPTION で設定画面 (Unity 6、DXVK と mouse-in-pointer パッチ) | `dl_RJ01696828` |
+| 573 | 2026 | DLsite 同人 | かんもく:場面緘黙女子 | NW.js/Tyrano | 本編 | `dl_RJ01698597` |
+| 574 | 2026 | DLsite 同人 | とろぴかる・ちぇいす！長年追っていた指名手配犯をヌーディストビーチで発見したクール系女刑事 | NW.js/Tyrano | タイトル (NW.js に Chromium のソフトウェア描画の引数) | `dl_RJ01699647` |
+| 575 | 2026 | DLsite 同人 | 星直しのブレイブロード -淫欲の街と堕落の聖女候補- | NW.js/Tyrano | タイトル | `dl_RJ01699765` |
+| 576 | 2026 | DLsite 同人 | 魔法少女は触手に負けられない | - | タイトル (.NET 8 Desktop ランタイム + DXVK) | `dl_RJ01700416` |
+| 577 | 2026 | DLsite 同人 | お仕置きLesson | Unity | 起動時の利用規約画面 (ゲーム描画) (従来 Wine) | `dl_RJ01700539` |
+| 578 | 2026 | DLsite 同人 | ラッキィ・ホール-ハズレは淫魔の搾精穴- | NW.js/Tyrano | タイトル | `dl_RJ01701172` |
+| 579 | 2026 | DLsite 同人 | 政治家寝取られ | - | タイトル | `dl_RJ01701406` |
+| 580 | 2026 | DLsite 同人 | 【Live2D】逃亡中～ミッションをクリアしてザーメンの放出を阻止せよ！～ | NW.js/Tyrano | タイトル | `dl_RJ01701742` |
+| 581 | 2026 | DLsite 同人 | いとこのお姉ちゃんに睡眠●シミュレーション | NW.js/Tyrano | タイトル | `dl_RJ01702392` |
+| 582 | 2026 | DLsite 同人 | 爆乳お母さんと夏の都会性活 | LiveMaker | タイトル | `dl_RJ01703015` |
+| 583 | 2026 | DLsite 同人 | 【人外魔境ダイスレギオン】アーリーアクセス版 | Unity | 本編 (ステージ選択) | `dl_RJ01703385` |
+| 584 | 2026 | DLsite 同人 | 決着はバトルファックで -初回特典付き- | NW.js/Tyrano | 本編 (マップと会話) | `dl_RJ01703802` |
+| 585 | 2026 | DLsite 同人 | 魔王ですが、スライムしか作れません ～死に戻り魔王軍の放置経営～ | - | 起動時の言語選択 (Godot 4。D3D12 指定を --rendering-driver vulkan に切り替え。手動で確認) | `dl_RJ01704479` |
+| 586 | 2026 | DLsite 同人 | リノ&ハミー | WolfRPG | タイトル | `dl_RJ01705134` |
+| 587 | 2026 | DLsite 同人 | 痴女マゾ舐めプ傭兵"S" | - | タイトル (従来 Wine) | `dl_RJ01705199` |
+| 588 | 2026 | DLsite 同人 | 3D無限ぶっかけシミュ ～媚薬精液をすやすや魔女にぶっかけ！～ | Unity | タイトル | `dl_RJ01706267` |
+| 589 | 2026 | DLsite 同人 | ショタおねRPG 爆乳お姉さんたちと催〇でドスケベ三昧 爆乳(クソデカボイン)の桃源郷(パラダイス) | NW.js/Tyrano | 本編 (主人公の名前入力) | `dl_RJ01706991` |
+| 590 | 2026 | DLsite 同人 | 戦術バトルは不○火舞に任せなさい♪ | Electron | タイトル | `dl_RJ01706994` |
+| 591 | 2026 | DLsite 同人 | Alice In Distress RE | Electron | タイトル | `dl_RJ01707379` |
+| 592 | 2026 | DLsite 同人 | 感覚遮断落とし穴アニメシミュレーター | - | タイトル | `dl_RJ01707935` |
+| 593 | 2026 | DLsite 同人 | こんな安楽椅子探偵は嫌だ！ | YU-RIS | タイトル | `dl_RJ01708454` |
+| 594 | 2026 | DLsite 同人 | ひつじのやつ2 | - | タイトル | `dl_RJ01709084` |
+| 595 | 2026 | DLsite 同人 | あかりのコーデ | - | タイトル | `dl_RJ01710833` |
+| 596 | 2026 | DLsite 同人 | 化けきつねたいじ | Unity | 本編 (「はじめる」をクリック → 冒頭の文章。Unity 6、DXVK と mouse-in-pointer パッチ。手動で確認) | `dl_RJ01711994` |
+| 597 | 2026 | DLsite 同人 | 魔胚受胎 ～古代触手と異種交配の実験記録～ | Electron | 本編 (難易度選択。手動で確認) | `dl_RJ01712071` |
+| 598 | 2026 | DLsite 同人 | デカノモス | Unity | タイトル | `dl_RJ01714047` |
+| 599 | 2026 | DLsite 同人 | たりない天使さま | LiveMaker | タイトル | `dl_RJ01714826` |
+| 600 | 2026 | DLsite 同人 | 梨乃ねね ～子種を乞う村～ | - | タイトル (成人確認で「はい」) | `dl_RJ01715225` |
+| 601 | 2026 | DLsite 同人 | エッチになってく妹は俺のもの | WolfRPG | タイトル以降 (注意書き→ロード画面) | `dl_RJ01720064` |
+| 602 | 2026 | DLsite 同人 | 騎士見習いと村娘 | - | タイトル | `dl_RJ01720376` |
+| 603 | 2026 | DLsite 同人 | Moeのファンサービスリフト♡～つり出し | NW.js/Tyrano | タイトル | `dl_RJ01720493` |
+| 604 | 2026 | DLsite 同人 | ダーク・デザイア ～隷属おっぱい揉みゲーム～ | LiveMaker | 本編 (ゲーム画面) | `dl_RJ01720600` |
+| 605 | 2026 | DLsite 同人 | 魔法戦士 NANAMI 前編 | NW.js/Tyrano | タイトル | `dl_RJ01720958` |
+| 606 | 2026 | DLsite 同人 | むかしグラビアアイドルだった団地妻 | YU-RIS | タイトル | `dl_RJ01721024` |
+| 607 | 2026 | DLsite 同人 | 調教パンク2072 | Unity | 起動時の言語選択 (Unity、DXVK でロック待ちが解消) | `dl_RJ01721615` |
+| 608 | 2026 | DLsite 同人 | むぎゅっと☆搾精ナイトメア！ | NW.js/Tyrano | タイトル | `dl_RJ01722380` |
+| 609 | 2026 | DLsite 同人 | ポンコツ魔法使いセリスのHな冒険記 ～Hな呪いで精液を求める身体になった魔法使い～ | WolfRPG | タイトル | `dl_RJ01724124` |
+| 610 | 2026 | DLsite 同人 | 奴隷都市のリセル 18禁版 | - | タイトル | `dl_RJ01724237` |
+| 611 | 2026 | DLsite 同人 | 人妻のオナサポを受けて白濁生汁ピュッピュッピュッしなさい！ | Unity | タイトル | `dl_RJ01724681` |
+| 612 | 2026 | DLsite 同人 | 父と娘仲直りH旅行～夏休みは南の島のリゾートで!! | Unity | 本編 (オープニングの選択画面。Unity 6、mouse-in-pointer パッチでクリック可) | `dl_RJ01726603` |
+| 613 | 2026 | DLsite 同人 | 監禁部屋から逃げれない1 | NW.js/Tyrano | タイトル | `dl_RJ01727123` |
+| 614 | 2026 | DLsite 同人 | あの夏、誰も来ないバス停で。 | Unity | タイトル | `dl_RJ01728288` |
+| 615 | 2026 | DLsite 同人 | もんむすのペット 甘サド捕食系サキュバス編 | Unity | 本編 (はじめから → 会話。Unity 6、mouse-in-pointer パッチでクリック可) | `dl_RJ01728421` |
+| 616 | 2026 | DLsite 同人 | 小さな侵入者 | - | タイトル (Unreal、DXVK でロック待ちが解消) | `dl_RJ01728560` |
+| 617 | 2026 | DLsite 同人 | ドキドキ♡ガールズドッジ！ | Unity | タイトル | `dl_RJ01728583` |
+| 618 | 2026 | DLsite 同人 | 真依と秘密のマッサージ屋さん | - | タイトル → FreeMode (Unreal、DXVK で描画が詰まらない) | `dl_RJ01729003` |
+| 619 | 2026 | DLsite 同人 | 人狼さんはちんちんがお好き。 | WolfRPG | 本編 (マップと会話) | `dl_RJ01729227` |
+| 620 | 2026 | DLsite 同人 | すやすやまりちゃんシミュレーター | Unity | 本編 (ゲーム画面) (従来 Wine) | `dl_RJ01729974` |
+| 621 | 2026 | DLsite 同人 | 大魔法少女カサネ | NW.js/Tyrano | タイトル | `dl_RJ01730521` |
+| 622 | 2026 | DLsite 同人 | あなたと彼女の初えっち | Unity | タイトル | `dl_RJ01730784` |
+| 623 | 2026 | DLsite 同人 | 近所に住む(自称)女神のエルちゃんを、家に呼んだらついて来た件 | LiveMaker | タイトル (Electron: GPU を本体プロセスで・SwiftShader) | `dl_RJ01731003` |
+| 624 | 2026 | DLsite 同人 | ヤリステナイメスブター 世界を救った後の ボクの日常『性』活 | NW.js/Tyrano | タイトル | `dl_RJ01731048` |
+| 625 | 2026 | DLsite 同人 | Bondage Sandbox ep 1: Android in distress | - | 起動時のテーマ選択画面 (Unreal、DXVK でロック待ちが解消) | `dl_RJ01731343` |
+| 626 | 2026 | DLsite 同人 | Alto Recipeおまとめパック | WolfRPG | タイトル | `dl_RJ01731780` |
+| 627 | 2026 | DLsite 同人 | 灰払い傭兵記 | - | 本編 (初めから → 保存先の選択) | `dl_RJ01732086` |
+| 628 | 2026 | DLsite 同人 | セーター越しの乳首弄りでイカサレちゃう女の子 | Unity | 本編 (会話) | `dl_RJ01732951` |
+| 629 | 2026 | DLsite 同人 | 彼女をマッサージした後 | Unity | 本編 (H レベル画面) | `dl_RJ01733667` |
+| 630 | 2026 | DLsite 同人 | 私、絶対イキません！ | Unity | タイトル (従来 Wine) (従来 Wine) | `dl_RJ01734456` |
+| 631 | 2026 | DLsite 同人 | 【ver 1.0.6】転生の間へようこそ | Electron | 本編 (導入の説明画面) | `dl_RJ01735938` |
+| 632 | 2026 | DLsite 同人 | 巨乳美人お姉ちゃんは変態野郎なんかに絶対に負けない！ | Unity | タイトル | `dl_RJ01736920` |
+| 633 | 2026 | DLsite 同人 | 気弱な二人 | - | タイトル | `dl_RJ01739180` |
+| 634 | 2026 | DLsite 同人 | 【VR】精密少女模拟器 ～生理反应×极致自定义～ | - | 本編 (3D の部屋。体験版の残り時間が進む。Unity + DXVK、起動に数分。手動で確認) | `dl_RJ01739908` |
+| 635 | 2026 | DLsite 同人 | 社畜淫魔のノルマ生活 -快楽抽出シミュレーション- | Unity | タイトル | `dl_RJ01740259` |
+| 636 | 2026 | DLsite 同人 | 淫らに染めて ～叔母が堕ちるまで～ | NW.js/Tyrano | タイトル (NW.js に Chromium のソフトウェア描画の引数を付けて。手動で確認) | `dl_RJ01741863` |
+| 637 | 2026 | DLsite 同人 | 同じ階に住む美巨乳団地妻「改」 | Electron | タイトル | `dl_RJ01744242` |
+| 638 | 2026 | DLsite 同人 | 幻想の系譜 ～はじまりの巫女編～ | Unity | タイトル (Inno の Foo_Setup_0.2.3.exe を無人実行、ユーザー領域 AppData\\Local\\Programs へのインストール。手動で確認) | `dl_RJ01744611` |
+| 639 | 2026 | DLsite 同人 | 新人アイドル、枕営業します。～星川あゆの物語～ 体験版 | - | タイトル (Unreal Engine 5、最新 VC++ ランタイムを入れて llvmpipe で描画) | `dl_RJ01746276` |
+| 640 | 2026 | DLsite 同人 | 魔法少女ネム&モコ 悪墜ち魔法少女の誘惑 | RenPy | タイトル | `dl_RJ01746340` |
+| 641 | 2026 | DLsite 同人 | 女魔法使いセーラは俺から逃げられない！ ～便利なエロアイテムと孕むまでヤれる封鎖村～ | NW.js/Tyrano | 本編 (マップと会話) | `dl_RJ01746541` |
+| 642 | 2026 | DLsite 同人 | 巨乳美人のティふぁが変態プレイを受け続けて脱糞するまで | Unity | タイトル | `dl_RJ01746806` |
+| 643 | 2026 | DLsite 同人 | 原○カードクワルドトライアド Vol.2 | Electron | 本編 (マップと会話) | `dl_RJ01747016` |
+| 644 | 2026 | DLsite 同人 | Last12 - 勇者の恥ずかしい育児日記 - | NW.js/Tyrano | タイトル (自前で枠を描く NW.js のウィンドウ全体: win32u パッチ) | `dl_RJ357058` |
+| 645 | 2026 | DLsite 同人 | ドレスアップナイト -True Knight’s Refrain- | - | タイトル | `dl_RJ365650` |
+| 646 | 2026 | DLsite | 宿りし乙女の誓いと魔法 | AdvHD | タイトル (製品版 DRM: PlayDRM) | `dl_VJ01004594` |
+| 647 | 2026 | DLsite | Hakoniwa－ハコニワ－ | - | タイトル (製品版 DRM: PlayDRM) | `dl_VJ01005334` |
+| 648 | 2026 | DLsite | 【DLsite限定版】友恵の探偵物語 ～のぞき魔な私の天職～ | - | タイトル | `dl_VJ01005807` |
+| 649 | 2026 | DLsite | 姫と艶欲のインペリウム | Escude | タイトル (製品版 DRM: PlayDRM) | `dl_VJ01006026` |
+| 650 | 2026 | DLsite | 【限定版】モザイクの天使【オナサポボイスドラマ＆デジタル原画・設定資料集付き】 | SiglusEngine | タイトル | `dl_VJ01006176` |
+| 651 | 2026 | DLsite | 【限定版】モザイクの天使【デジタル原画・設定資料集付き】 | SiglusEngine | タイトル | `dl_VJ01006181` |
+| 652 | 2026 | DLsite | 娼姫レティシア ～今宵、王女は春を売る～ リマスター豪華特典版 | SiglusEngine | タイトル (製品版 DRM: PlayDRM) | `dl_VJ01006508` |
+| 653 | 2026 | DLsite | 背徳の母乳 ～そんなに出しちゃダメぇ～ | KiriKiri | タイトル (製品版 DRM: PlayDRM) | `dl_VJ01006612` |
+| 654 | 2026 | DLsite | サヤガタリ -妖刀の約束- | SiglusEngine | タイトル (製品版 DRM: PlayDRM) | `dl_VJ01006640` |
+| 655 | 2026 | DLsite | 【特典同梱版】FORTUNE×WORLD ～僕らがゲームを作る理由～ | SiglusEngine | 本編 (会話) (製品版 DRM: PlayDRM) | `dl_VJ01006708` |
+| 656 | 2026 | DLsite | 【通常版】FORTUNE×WORLD ～僕らがゲームを作る理由～ | SiglusEngine | 本編 (製品版 DRM: PlayDRM) | `dl_VJ01006709` |
+| 657 | 2026 | suezou | 養花師の背徳愛～純真天使は抱かれて色めく～ 【体験版】 | Softpal | タイトル | `s2026_amuse_craft_erotica_youkashi` |
+| 658 | 2026 | suezou | ご奉仕メイドはエッチなお姉さん ～俺だけの巨乳メイドにたっぷり甘やかされるめちゃエロご主人様ライフ～  - 体験版 - | - | タイトル (痕跡: enigmaprotector) | `s2026_anim_gohousi_maid` |
+| 659 | 2026 | suezou | 超狂指導日誌 体験版 | - | タイトル (BISHOP 起動ランチャーの「ゲーム開始」で設定 bsxx.ini を書いてから本体が起動。手動で確認) | `s2026_bishop_tks` |
+| 660 | 2026 | suezou | リビドーアバンちゅ～る TRIAL EDITION | AdvHD | タイトル | `s2026_ensemble_sweet_ribichu` |
+| 661 | 2026 | suezou | 闇夜のPARENTE 幻燐の姫将軍 Remastered 体験版 | - | 本編前のゲーム開始設定画面 (Inno の setup.exe を無人実行、Unity 6 + DXVK) | `s2026_eushully_parente` |
+| 662 | 2026 | suezou | s2026_lump_of_sugar_tayutama_zero | - | タイトル (ログにロック待ちの警告が出るが表示・動作) | `s2026_lump_of_sugar_tayutama_zero` |
+| 663 | 2026 | suezou | Jyosou Yuriarasi Trial | KiriKiri | タイトル (言語選択で日本語をクリック) | `s2026_no_strike_jyosou_yuriarashi` |
+| 664 | 2026 | suezou | 姉妹X催眠２ - MOTION EDITION - 体験版 | KiriKiri | タイトル | `s2026_poison_motion_sxs2_me` |
+| 665 | 2026 | suezou | 姉妹X催眠 - MOTION EDITION - 体験版 | KiriKiri | タイトル (従来 Wine) | `s2026_poison_motion_sxs_me` |
+| 666 | - | 手動 | 有閑夫人倶楽部 体験版 | AdvHD | 本編テキスト (icu シム) | `r1_advhd` |
+| 667 | - | 手動 | 遥かなるニライカナイ 体験版 | Artemis | 本編 + 音声 | `r1_artemis` |
+| 668 | - | 手動 | クダンノフォークロア 体験版 | BGI | 本編テキスト (独自Setup) | `r1_bgi_kudan` |
+| 669 | - | 手動 | 果つることなき未来ヨリ 体験版 | CatSystem2 | 本編テキスト | `r1_cs2_hatsumira` |
+| 670 | - | 手動 | 彼岸花の咲く夜に お試し版 | NScripter | 本編 (CreateInstall) | `r1_higanbana` |
+| 671 | - | 手動 | KAG3 紹介デモ | KiriKiri2 | 本編テキスト | `r1_kag3` |
+| 672 | - | 手動 | 先輩、好きです……押忍！ 体験版 | KiriKiri | 本編テキスト | `r1_krkr_apt306` |
+| 673 | - | 手動 | あいれぼ 体験版 | Majiro | 本編テキスト (独自インストーラ) | `r1_majiro` |
+| 674 | - | 手動 | Wind RP 体験版 | Musica | 本編テキスト | `r1_musica` |
+| 675 | - | 手動 | ナルキッソス SIDE 2nd | NScripter | 本編テキスト | `r1_naru2` |
+| 676 | - | 手動 | 天翼のアスクレイン 体験版 | QLIE | 本編テキスト | `r1_qlie` |
+| 677 | - | 手動 | 5 -ファイブ- 体験版 | RealLive | 本編テキスト (SFX) | `r1_reallive_five` |
+| 678 | - | 手動 | The Question | Ren'Py | 本編テキスト | `r1_renpy` |
+| 679 | - | 手動 | でか乳巫女と巨乳シスター 体験版 | SakanaGL | タイトル (Managed=N) | `r1_sakana` |
+| 680 | - | 手動 | うみねこのなく頃に咲 体験版 | PONScripter | 本編テキスト | `r1_saku` |
+| 681 | - | 手動 | プリマドール 体験版 | SiglusEngine | 本編テキスト | `r1_siglus_primadoll` |
+| 682 | - | 手動 | トイレの花子さん 体験版 | Softpal | 本編テキスト | `r1_softpal_hanako` |
+| 683 | - | 手動 | 転性魔王さま 体験版 | Softpal | 本編テキスト | `r1_softpal_tenmao` |
+| 684 | - | 手動 | トライアンソロジー 体験版 | NScripter | 本編 | `r1_trt` |
+| 685 | - | 手動 | 転生した世界で… 体験版 | TyranoScript | 本編テキスト | `r1_tyrano` |
+| 686 | - | 手動 | 旭光のマリアージュ 体験版 | Unity | 本編テキスト (vnbox Wine) | `r1_unity` |
+| 687 | - | 手動 | YU-RIS サンプル | YU-RIS | 演出/動画 | `r1_yuris` |
 
-<details><summary>弱い確認 (ロゴ・注意画面・起動ダイアログまで) 1 本</summary>
+<details><summary>弱い確認 (ロゴ・注意画面・起動ダイアログまで) 0 本</summary>
 
 | 年 | タイトル | 止まったところ | ID |
 |---|---|---|---|
-| 2026 | 不倫旅館 ～息子の友だちのママ～ | タイトルは表示 (DXVK) するが、クリックもキーも反応しない (Unity 6000.3。mouse-in-pointer パッチ後も同じ。同じ 6000.3 の闇夜のPARENTE はクリックできる。Windows.System.DispatcherQueue が無いことが疑わしい) | `dl_RJ01690707` |
 
 </details>
 <!-- TITLES:END -->
