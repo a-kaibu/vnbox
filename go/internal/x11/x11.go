@@ -93,6 +93,21 @@ func (d Display) Button(button int) {
 	d.press(button)
 }
 
+// KeyDown / KeyUp hold and release a key (skip with ctrl held, etc.).
+func (d Display) KeyDown(w Window, keysym string) {
+	d.xdo("windowfocus", w.ID)
+	d.xdo("keydown", keysym)
+}
+
+func (d Display) KeyUp(keysym string) { d.xdo("keyup", keysym) }
+
+// Type enters text (name entry and the like) into the focused window.
+func (d Display) Type(w Window, text string) {
+	d.xdo("windowfocus", w.ID)
+	time.Sleep(100 * time.Millisecond)
+	d.xdo("type", "--delay", "40", "--", text)
+}
+
 // Key focuses the window and sends an X keysym (e.g. "Return", "space", "ctrl").
 func (d Display) Key(w Window, keysym string) {
 	d.xdo("windowfocus", w.ID)

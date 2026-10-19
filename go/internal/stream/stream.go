@@ -18,6 +18,8 @@ import (
 	"os/exec"
 	"regexp"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"vnbox/internal/x11"
@@ -31,7 +33,13 @@ type Game struct {
 	Display string
 	Sink    string
 	FPS     int
+
+	mu   sync.Mutex
+	held map[string]*time.Timer // keys held down by the player, released automatically
 }
+
+// maxHold releases a held key the browser never let go of (closed tab, lost connection).
+const maxHold = 2 * time.Minute
 
 // Handler serves "", "video", "audio" and "input" relative to where it is mounted.
 func (g *Game) Handler() http.Handler {
@@ -159,11 +167,12 @@ func (g *Game) audio(w http.ResponseWriter, r *http.Request) {
 
 // Input is one browser event.
 type Input struct {
-	T      string `json:"t"` // "click" or "key"
+	T      string `json:"t"` // "click", "key", "keydown", "keyup" or "text"
 	X, Y   int
 	B      int    `json:"b"`
 	NoMove int    `json:"nomove"`
 	K      string `json:"k"`
+	S      string `json:"s"` // text for "text"
 }
 
 var keyMap = map[string]string{"Enter": "Return", " ": "space", "ArrowUp": "Up", "ArrowDown": "Down",
@@ -193,16 +202,53 @@ func (g *Game) input(w http.ResponseWriter, r *http.Request) {
 		} else {
 			g.disp().Click(win, ev.X, ev.Y, b)
 		}
-	case "key":
+	case "key", "keydown", "keyup":
 		k := ev.K
 		if m, ok := keyMap[k]; ok {
 			k = m
 		}
-		if keysymRe.MatchString(k) { // only plain keysyms reach xdotool
+		if !keysymRe.MatchString(k) { // only plain keysyms reach xdotool
+			return
+		}
+		switch ev.T {
+		case "key":
 			g.disp().Key(win, k)
+		case "keydown":
+			g.hold(win, k)
+		case "keyup":
+			g.release(k)
+		}
+	case "text":
+		if t := []rune(ev.S); len(t) > 0 && len(t) <= 64 && !strings.ContainsAny(ev.S, "\x00\r\n") {
+			g.disp().Type(win, ev.S)
 		}
 	default:
 		log.Printf("unknown input %q", ev.T)
+	}
+}
+
+func (g *Game) hold(win x11.Window, k string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.held == nil {
+		g.held = map[string]*time.Timer{}
+	}
+	if t, ok := g.held[k]; ok {
+		t.Reset(maxHold)
+		return
+	}
+	g.disp().KeyDown(win, k)
+	g.held[k] = time.AfterFunc(maxHold, func() { g.release(k) })
+}
+
+func (g *Game) release(k string) {
+	g.mu.Lock()
+	t, ok := g.held[k]
+	delete(g.held, k)
+	g.mu.Unlock()
+	if ok {
+		t.Stop()
+		g.disp().KeyUp(k)
 	}
 }
 

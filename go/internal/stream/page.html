@@ -1,27 +1,121 @@
-<!doctype html><html><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>vnbox stream</title><style>
-html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none}
-#v{width:100vw;height:100vh;object-fit:contain;display:block}
-#bar{position:fixed;right:8px;bottom:8px;display:flex;gap:6px}
-#bar button{font:14px sans-serif;padding:8px 12px;opacity:.6}
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>vnbox</title><style>
+html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none;overscroll-behavior:none;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#v{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;object-fit:contain;display:block}
+#fab{position:fixed;right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));z-index:3;
+  width:44px;height:44px;border-radius:50%;border:0;background:rgba(30,30,36,.55);color:#fff;font:20px/44px system-ui;opacity:.75}
+#bar{position:fixed;right:max(10px,env(safe-area-inset-right));bottom:calc(max(10px,env(safe-area-inset-bottom)) + 52px);z-index:3;
+  display:none;flex-direction:column;gap:6px;align-items:stretch}
+#bar.open{display:flex}
+@media (max-height:520px){#bar.open{display:grid;grid-template-columns:repeat(2,auto);bottom:max(10px,env(safe-area-inset-bottom));right:calc(max(10px,env(safe-area-inset-right)) + 52px)}
+  #bar button{padding:8px 12px}}
+#bar button{font:600 14px system-ui,sans-serif;padding:10px 14px;min-width:96px;border-radius:10px;border:1px solid rgba(255,255,255,.18);
+  background:rgba(30,30,36,.8);color:#fff;text-align:left}
+#bar button[aria-pressed="true"]{background:#e2557a;border-color:#e2557a}
+#bar a{grid-column:1/-1;color:#fff;font:13px system-ui;text-align:center;padding:6px;border-radius:8px;background:rgba(30,30,36,.8);text-decoration:none}
+.ripple{position:fixed;z-index:2;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;border:2px solid rgba(255,255,255,.8);
+  pointer-events:none;animation:rp .35s ease-out forwards}
+.ripple.r{border-color:#e2557a}
+@keyframes rp{from{transform:scale(.4);opacity:1}to{transform:scale(1.4);opacity:0}}
+#hint{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:3;background:rgba(0,0,0,.72);color:#fff;
+  font:13px/1.6 system-ui,sans-serif;padding:10px 14px;border-radius:10px;max-width:92vw;pointer-events:none;transition:opacity .4s}
+#hint.hide{opacity:0}
+#kbd{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:4;display:none;gap:6px}
+#kbd.open{display:flex}
+#kbd input{font:16px system-ui;padding:8px;border-radius:8px;border:0;width:min(60vw,320px)}
+#kbd button{font:600 15px system-ui;padding:8px 12px;border-radius:8px;border:0;background:#e2557a;color:#fff}
 </style></head><body>
-<img id="v" src="video"><audio id="a" preload="none"></audio>
-<div id="bar"><button data-k="Return">Enter</button><button data-k="Escape">Esc</button>
-<button data-k="ctrl">Skip</button><button data-b="3">右</button></div>
+<img id="v" src="video" alt=""><audio id="a" preload="none"></audio>
+<div id="hint" class="hide"></div>
+<button id="fab" aria-label="メニュー">☰</button>
+<div id="bar">
+  <button data-k="Return">⏎ 決定</button>
+  <button data-b="3">≡ メニュー (右クリック)</button>
+  <button data-w="4">↺ バックログ</button>
+  <button id="skip" aria-pressed="false">⏩ スキップ</button>
+  <button data-k="space">␣ スペース</button>
+  <button data-k="Escape">Esc</button>
+  <button id="type">⌨ 文字入力</button>
+  <button id="full">⛶ 全画面</button>
+  <a href="../../">← ライブラリ</a>
+</div>
+<div id="kbd"><input id="kt" maxlength="64" enterkeyhint="send" autocomplete="off"><button id="ks">送る</button></div>
 <script>
-const v=document.getElementById('v');
-function rel(e){const r=v.getBoundingClientRect(),W=v.naturalWidth,H=v.naturalHeight;
+const v=document.getElementById('v'),bar=document.getElementById('bar'),hint=document.getElementById('hint');
+// 画面上の位置 → ゲーム画面の座標 (レターボックス部分は null)
+function rel(cx,cy){const r=v.getBoundingClientRect(),W=v.naturalWidth,H=v.naturalHeight;if(!W)return null;
  const s=Math.min(r.width/W,r.height/H),ox=(r.width-W*s)/2,oy=(r.height-H*s)/2;
- return [Math.round((e.clientX-r.left-ox)/s),Math.round((e.clientY-r.top-oy)/s)];}
-function send(o){fetch('input',{method:'POST',body:JSON.stringify(o)});}
-// モバイルブラウザは操作起点でないと音を出せないので、最初のタップで音声ストリームを開始
+ const x=Math.round((cx-r.left-ox)/s),y=Math.round((cy-r.top-oy)/s);return x<0||y<0||x>=W||y>=H?null:[x,y];}
+function send(o){fetch('input',{method:'POST',body:JSON.stringify(o),keepalive:true});}
+function ripple(x,y,right){const d=document.createElement('div');d.className='ripple'+(right?' r':'');d.style.left=x+'px';d.style.top=y+'px';
+ document.body.appendChild(d);setTimeout(()=>d.remove(),400);}
+function click(cx,cy,b){const p=rel(cx,cy);if(!p)return;ripple(cx,cy,b===3);send({t:'click',x:p[0],y:p[1],b});}
+function wheel(cx,cy,b){const p=rel(cx,cy);send(p?{t:'click',x:p[0],y:p[1],b}:{t:'click',x:0,y:0,b,nomove:1});}
+// モバイルブラウザは操作起点でないと音を出せないので、最初の操作で音声ストリームを開始
 let audioOn=false;function startAudio(){if(audioOn)return;audioOn=true;const a=document.getElementById('a');a.src='audio';a.play().catch(()=>{audioOn=false;});}
 document.addEventListener('pointerdown',startAudio,{capture:true});
-v.addEventListener('pointerup',e=>{const [x,y]=rel(e);send({t:'click',x,y,b:e.button==2?3:1});});
+
+// ---- マウス ----
+v.addEventListener('pointerup',e=>{if(e.pointerType!=='touch')click(e.clientX,e.clientY,e.button==2?3:1);});
 v.addEventListener('contextmenu',e=>e.preventDefault());
-v.addEventListener('wheel',e=>{send({t:'click',x:0,y:0,b:e.deltaY<0?4:5,nomove:1});});
-document.addEventListener('keydown',e=>{send({t:'key',k:e.key});e.preventDefault();});
-document.querySelectorAll('#bar button').forEach(b=>b.onclick=ev=>{ev.stopPropagation();
- if(b.dataset.b)send({t:'click',x:0,y:0,b:+b.dataset.b,nomove:1});else send({t:'key',k:b.dataset.k});});
+v.addEventListener('wheel',e=>{wheel(e.clientX,e.clientY,e.deltaY<0?4:5);},{passive:true});
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
+ if(e.key==='Control'){if(!e.repeat)send({t:'keydown',k:'ctrl'});}else send({t:'key',k:e.key});e.preventDefault();});
+document.addEventListener('keyup',e=>{if(e.key==='Control')send({t:'keyup',k:'ctrl'});});
+
+// ---- タッチ ----
+// タップ = クリック / 長押し・2本指タップ = 右クリック (メニュー・ウィンドウ消し)
+// 下へスワイプ = ホイール上 (バックログ) / 上へスワイプ = ホイール下 (読み進め)。一定距離ごとに 1 段
+const touches=new Map();let gesture=null;
+v.addEventListener('touchstart',e=>{e.preventDefault();
+ for(const t of e.changedTouches)touches.set(t.identifier,{x:t.clientX,y:t.clientY});
+ if(touches.size===1){const t=e.changedTouches[0];
+   gesture={x:t.clientX,y:t.clientY,lastY:t.clientY,moved:false,two:false,long:false,
+     timer:setTimeout(()=>{if(gesture&&!gesture.moved){gesture.long=true;click(gesture.x,gesture.y,3);navigator.vibrate&&navigator.vibrate(15);}},550)};}
+ else if(gesture){gesture.two=true;clearTimeout(gesture.timer);}
+},{passive:false});
+v.addEventListener('touchmove',e=>{e.preventDefault();if(!gesture||gesture.two)return;const t=e.changedTouches[0];
+ if(Math.hypot(t.clientX-gesture.x,t.clientY-gesture.y)>14){gesture.moved=true;clearTimeout(gesture.timer);}
+ const step=48,dy=t.clientY-gesture.lastY;
+ if(Math.abs(dy)>=step){wheel(gesture.x,gesture.y,dy>0?4:5);gesture.lastY+=Math.sign(dy)*step;}
+},{passive:false});
+v.addEventListener('touchend',e=>{e.preventDefault();
+ for(const t of e.changedTouches)touches.delete(t.identifier);
+ if(!gesture||touches.size)return;clearTimeout(gesture.timer);
+ if(gesture.two)click(gesture.x,gesture.y,3);
+ else if(!gesture.moved&&!gesture.long)click(gesture.x,gesture.y,1);
+ gesture=null;},{passive:false});
+v.addEventListener('touchcancel',()=>{touches.clear();if(gesture)clearTimeout(gesture.timer);gesture=null;});
+
+// ---- メニュー ----
+const fab=document.getElementById('fab');
+fab.onclick=e=>{e.stopPropagation();bar.classList.toggle('open');};
+bar.querySelectorAll('button[data-k],button[data-b],button[data-w]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();
+ if(b.dataset.k)send({t:'key',k:b.dataset.k});
+ else if(b.dataset.b)send({t:'click',x:0,y:0,b:+b.dataset.b,nomove:1});
+ else{const r=v.getBoundingClientRect();wheel(r.left+r.width/2,r.top+r.height/2,+b.dataset.w);}});
+const skip=document.getElementById('skip');let skipping=false;
+function setSkip(on){skipping=on;skip.setAttribute('aria-pressed',on);send({t:on?'keydown':'keyup',k:'ctrl'});}
+skip.onclick=ev=>{ev.stopPropagation();setSkip(!skipping);};
+// スキップ中に裏へ回ったら離す (サーバ側も 2 分で自動的に離す)。押しっぱなしの間は 60 秒ごとに延長
+addEventListener('pagehide',()=>{if(skipping)send({t:'keyup',k:'ctrl'});});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&skipping)setSkip(false);});
+setInterval(()=>{if(skipping)send({t:'keydown',k:'ctrl'});},60000);
+const kbd=document.getElementById('kbd'),kt=document.getElementById('kt');
+document.getElementById('type').onclick=ev=>{ev.stopPropagation();kbd.classList.add('open');bar.classList.remove('open');kt.focus();};
+function sendText(){if(kt.value)send({t:'text',s:kt.value});kt.value='';kbd.classList.remove('open');}
+document.getElementById('ks').onclick=sendText;kt.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();sendText();}if(e.key==='Escape')kbd.classList.remove('open');};
+document.getElementById('full').onclick=async ev=>{ev.stopPropagation();
+ try{if(!document.fullscreenElement){await document.documentElement.requestFullscreen({navigationUI:'hide'});
+   try{await screen.orientation.lock('landscape');}catch(e){}}else await document.exitFullscreen();}catch(e){}
+ bar.classList.remove('open');};
+
+// 最初だけ操作方法を出す (タッチ端末)
+if(matchMedia('(pointer:coarse)').matches){let seen=false;try{seen=localStorage.getItem('vnbox.hint')}catch(e){}
+ if(!seen){hint.innerHTML='タップ: 進む・選ぶ　長押し / 2本指タップ: メニュー<br>下へスワイプ: バックログ　☰: スキップ・全画面など';
+  hint.classList.remove('hide');setTimeout(()=>hint.classList.add('hide'),6000);try{localStorage.setItem('vnbox.hint','1')}catch(e){}}}
 </script></body></html>
