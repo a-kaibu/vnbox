@@ -113,9 +113,9 @@ func (d Display) visible(id string) bool {
 	return false
 }
 
-// dialogKeys are tried in order until the dialog changes: the default button, the focused
-// button, then the usual mnemonics of Japanese installers: 次へ(N) インストール(I) はい(Y) 完了(F).
-var dialogKeys = []string{"Return", "space", "alt+n", "alt+i", "alt+y", "alt+f"}
+// dialogKeys are tried in order until the dialog changes: the default button, 次へ(N), clicks
+// on the usual button spots, the focused button, then インストール(I) はい(Y) 完了(F).
+var dialogKeys = []string{"Return", "alt+n", "click", "space", "alt+i", "alt+y", "alt+f"}
 
 // PressDialogs walks installer wizards and launcher dialogs: for the newest small window it
 // presses dialogKeys until the window shows a screen not seen before (a focus rectangle moving
@@ -176,21 +176,23 @@ func (d Display) PressDialogs(max, idle int, onStep func(i int, w Window)) int {
 		}
 		changed := false
 		for _, k := range dialogKeys {
-			d.Key(dlg, k)
-			time.Sleep(2 * time.Second)
-			if changed = progressed(); changed {
-				break
-			}
-		}
-		if !changed {
-			// keyboard ignored: click 次へ (bottom bar, left of キャンセル) or a centred OK
-			// 次へ in wizards, 起動 in launch-setting dialogs (QLIE etc.), a centred OK
-			for _, pt := range [][2]int{{dlg.W - 170, dlg.H - 22}, {dlg.W - 150, dlg.H - 14}, {dlg.W / 2, dlg.H - 25}} {
-				d.Click(dlg, pt[0], pt[1], 1)
+			if k != "click" {
+				d.Key(dlg, k)
 				time.Sleep(2 * time.Second)
-				if changed = progressed(); changed {
-					break
+				changed = progressed()
+			} else {
+				// keyboard ignored (or Space would only toggle a checkbox): click where
+				// wizards put 次へ, where launch-setting dialogs (QLIE) put 起動, a centred OK
+				for _, pt := range [][2]int{{dlg.W - 170, dlg.H - 22}, {dlg.W - 150, dlg.H - 14}, {dlg.W / 2, dlg.H - 25}} {
+					d.Click(dlg, pt[0], pt[1], 1)
+					time.Sleep(2 * time.Second)
+					if changed = progressed(); changed {
+						break
+					}
 				}
+			}
+			if changed {
+				break
 			}
 		}
 		if changed {

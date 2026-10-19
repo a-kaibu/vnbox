@@ -72,15 +72,19 @@ func Find(dir string) string {
 	return inst
 }
 
+// needsInstall: engines whose game exe refuses to start until the bundled setup ran
+// (BGI: BGIForInstalling.exe / installer.arc; ShiinaRio: RIO.INI next to SETUP.exe).
 func needsInstall(dir string) bool {
 	ents, _ := os.ReadDir(dir)
+	have := map[string]bool{}
 	for _, e := range ents {
 		n := strings.ToLower(e.Name())
+		have[n] = true
 		if strings.Contains(n, "forinstalling") || n == "installer.arc" {
 			return true
 		}
 	}
-	return false
+	return have["rio.ini"] && have["setup.exe"]
 }
 
 func find(dir string) string {

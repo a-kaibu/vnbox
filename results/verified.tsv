@@ -263,3 +263,6 @@ b2015_lump_of_sugar	b2015_lump_of_sugar	BGI/Ethornell	タイトル (BGI イン�
 b2021_bishop	b2021_bishop	-	タイトル (ランチャー startup.exe から起動)
 b2012_bishop	b2012_bishop	-	タイトル (ランチャー startup.exe から起動)
 b2008_bishop	b2008_bishop	-	タイトル (ランチャー startup.exe から起動)
+b2016_silkys_sakura	b2016_silkys_sakura	-	タイトル (メニュー start.exe ではなくゲーム本体を起動)
+b2014_silkys_plus	b2014_silkys_plus	-	タイトル (メニュー start.exe ではなくゲーム本体を起動)
+b2017_onomatope_raspberry	b2017_onomatope_raspberry	ShiinaRio	タイトル (Go 版: ShiinaRio の SETUP.exe を自動インストール)

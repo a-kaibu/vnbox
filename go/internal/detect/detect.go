@@ -259,7 +259,7 @@ func DetectSkip(root, skip string) Result {
 	return res
 }
 
-var notGame = regexp.MustCompile(`(?i)unins|setup|install|config|設定|launcher|crash|vc_?redist|dxsetup|directx|updater|readme|manual|support|インストール|getpin|pin\.exe|regist|認証|savefolder|セーブフォルダ`)
+var notGame = regexp.MustCompile(`(?i)unins|setup|install|config|設定|launcher|crash|vc_?redist|dxsetup|directx|updater|readme|manual|support|インストール|getpin|pin\.exe|regist|認証|savefolder|セーブフォルダ|(^|/)start\.exe$`)
 
 // launchers that must be started instead of the game exe (they write the launch settings)
 var launcher = regexp.MustCompile(`(?i)(^|/)startup\.exe$`)
