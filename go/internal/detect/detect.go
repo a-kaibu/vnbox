@@ -259,7 +259,7 @@ func DetectSkip(root, skip string) Result {
 	return res
 }
 
-var notGame = regexp.MustCompile(`(?i)unins|setup|install|config|設定|launcher|crash|vc_?redist|dxsetup|directx|updater|readme|manual|support|インストール`)
+var notGame = regexp.MustCompile(`(?i)unins|setup|install|config|設定|launcher|crash|vc_?redist|dxsetup|directx|updater|readme|manual|support|インストール|getpin|pin\.exe|regist|認証|savefolder|セーブフォルダ`)
 
 // MainExe picks the executable to launch: the largest one that does not look like a tool.
 func (r Result) MainExe() string {

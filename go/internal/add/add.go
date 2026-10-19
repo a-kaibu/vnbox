@@ -87,6 +87,11 @@ func Add(ctx context.Context, name, src string, o Options) (*pkg.Package, error)
 		if err != nil {
 			return nil, err
 		}
+		if install.Classify(inst) == install.GUI {
+			if staged, err := s.Stage(inst); err == nil {
+				inst = staged
+			}
+		}
 		if _, err := install.Run(ctx, s, inst, display, filepath.Join(wine.Root(), "results", "add-"+name), o.Log); err != nil {
 			fmt.Fprintf(o.Log, "installer: %v\n", err)
 		}

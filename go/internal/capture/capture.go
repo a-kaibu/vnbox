@@ -87,6 +87,27 @@ func Resume(name string, fl wine.Flavor) (*Session, error) {
 	return s, json.Unmarshal(b, &s.snap)
 }
 
+// Stage copies the installer's folder into the prefix (C:\_vnbox_src) and returns the new
+// path of the installer. Self-extractors often unpack next to themselves; staged there,
+// the result lands on drive C and is captured. The staged copy itself is not packaged.
+func (s *Session) Stage(installer string) (string, error) {
+	src := filepath.Dir(installer)
+	dst := filepath.Join(s.Prefix, "drive_c", "_vnbox_src")
+	if out, err := exec.Command("cp", "-a", src+"/.", dst+"/").CombinedOutput(); err != nil {
+		return "", fmt.Errorf("stage: %v: %s", err, out)
+	}
+	m, err := manifest(filepath.Join(s.Prefix, "drive_c"))
+	if err != nil {
+		return "", err
+	}
+	for p, e := range m {
+		if strings.HasPrefix(p, "_vnbox_src/") {
+			s.snap[p] = e
+		}
+	}
+	return filepath.Join(dst, filepath.Base(installer)), nil
+}
+
 // Env returns the Wine environment to run the installer in.
 func (s *Session) Env(display string) wine.Env {
 	return wine.Env{Flavor: s.Flavor, Prefix: s.Prefix, Display: display}

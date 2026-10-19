@@ -141,6 +141,13 @@ func (d Display) PressDialogs(max, idle int, onStep func(i int, w Window)) int {
 			continue
 		}
 		quiet = 0
+		// a dialog whose content changes by itself is showing progress: pressing Return
+		// there would hit its only button, キャンセル
+		h1 := d.ShotHash(dlg)
+		time.Sleep(2 * time.Second)
+		if d.visible(dlg.ID) && d.ShotHash(dlg) != h1 {
+			continue
+		}
 		n++
 		if onStep != nil {
 			onStep(n, dlg)
