@@ -2,10 +2,12 @@ package install
 
 import (
 	"bytes"
+	"compress/zlib"
 	"encoding/binary"
 	"os"
 	"path/filepath"
 	"testing"
+	"unicode/utf16"
 )
 
 // fakeISSetup builds a minimal PE whose overlay holds an InstallShield payload.
@@ -69,5 +71,55 @@ func TestExtractInstallShield(t *testing.T) {
 	os.WriteFile(plain, []byte("MZ not really"), 0o644)
 	if _, err := ExtractInstallShield(plain, t.TempDir()); err != ErrNotInstallShield {
 		t.Fatalf("plain exe: %v", err)
+	}
+}
+
+func TestExtractISSetupStream(t *testing.T) {
+	data := bytes.Repeat([]byte("MSI stream data "), 500)
+	var z bytes.Buffer
+	zw := zlib.NewWriter(&z)
+	zw.Write(data)
+	zw.Close()
+	name := "ゲーム.msi"
+	key := []byte(name)
+	for i := range key {
+		key[i] ^= []byte{0x13, 0x35, 0x86, 0x07}[i%4]
+	}
+	enc := make([]byte, z.Len())
+	for i, b := range z.Bytes() {
+		x := ^b ^ key[(i%1024)%len(key)]
+		enc[i] = x<<4 | x>>4
+	}
+	img := make([]byte, 0x200)
+	copy(img, "MZ")
+	binary.LittleEndian.PutUint32(img[0x3c:], 0x80)
+	copy(img[0x80:], "PE\x00\x00")
+	binary.LittleEndian.PutUint16(img[0x80+6:], 1)
+	binary.LittleEndian.PutUint32(img[0x80+24+16:], 0x100)
+	binary.LittleEndian.PutUint32(img[0x80+24+20:], 0x100)
+	var pe bytes.Buffer
+	pe.Write(img)
+	hdr := make([]byte, isHeaderLen)
+	copy(hdr, "ISSetupStream\x00")
+	binary.LittleEndian.PutUint16(hdr[14:], 1)
+	pe.Write(hdr)
+	u := utf16.Encode([]rune(name))
+	attr := make([]byte, 48)
+	binary.LittleEndian.PutUint32(attr[0:], uint32(2*len(u)))
+	binary.LittleEndian.PutUint32(attr[4:], 6)
+	binary.LittleEndian.PutUint32(attr[10:], uint32(len(enc)))
+	pe.Write(attr)
+	for _, c := range u {
+		binary.Write(&pe, binary.LittleEndian, c)
+	}
+	pe.Write(enc)
+	exe := filepath.Join(t.TempDir(), "setup.exe")
+	os.WriteFile(exe, pe.Bytes(), 0o644)
+	got, err := ExtractInstallShield(exe, t.TempDir())
+	if err != nil || len(got) != 1 || filepath.Base(got[0]) != name {
+		t.Fatalf("%v %v", got, err)
+	}
+	if b, _ := os.ReadFile(got[0]); !bytes.Equal(b, data) {
+		t.Fatal("content differs")
 	}
 }
