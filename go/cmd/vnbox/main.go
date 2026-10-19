@@ -195,6 +195,13 @@ func cmdAdd(ctx context.Context, args []string) error {
 	if unity6(filepath.Join(p.Dir, "files", filepath.FromSlash(l.Target))) && !slices.Contains(l.Winetricks, "vnbox-dxvk") {
 		l.Winetricks = append(l.Winetricks, "vnbox-dxvk")
 	}
+	// NW.js (RPG ツクール MV/MZ 等) も Chromium なので同じ: 一部の作品は GPU プロセス無しでは真っ黒のまま
+	// (淫らに染めて 体験版、RPG ツクール MZ)
+	if l.Args == "" {
+		if _, err := os.Stat(filepath.Join(gdir, "nw.dll")); err == nil {
+			l.Args = electronArgs
+		}
+	}
 	var drm []string
 	for _, t := range det.Tags {
 		// Electron (TyranoScript v5 等): GPU プロセスが Wine + GPU なしで起動できず WebGL が使えないので、
