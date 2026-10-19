@@ -1,0 +1,13 @@
+--- a/dlls/wined3d/directx.c
++++ b/dlls/wined3d/directx.c
+@@ -2382,7 +2382,9 @@
+ 
+     caps->DeviceType = (device_type == WINED3D_DEVICE_TYPE_HAL) ? WINED3D_DEVICE_TYPE_HAL : WINED3D_DEVICE_TYPE_REF;
+ 
+-    caps->Caps                     = 0;
++    /* vnbox: 実機のドライバは常に D3DCAPS_READ_SCANLINE を返す (GetRasterStatus は wined3d がエミュレートする)。
++     * BGI (Hello,good-bye 体験版など) はこれが無いと「必要不可欠な機能をサポートしていません」で起動しない */
++    caps->Caps                     = 0x00020000 /* D3DCAPS_READ_SCANLINE */;
+     caps->Caps2                    = WINED3DCAPS2_CANRENDERWINDOWED |
+                                      WINED3DCAPS2_FULLSCREENGAMMA |
+                                      WINED3DCAPS2_DYNAMICTEXTURES;

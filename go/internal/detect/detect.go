@@ -42,6 +42,7 @@ var fileSigs = []fileSig{
 	fs("QLIE", `^(.*\.pack|qlie.*)$`),
 	fs("Musica", `^(.*\.paz)$`),
 	fs("ShiinaRio", `^(.*\.war)$`), fs("EntisGLS", `^(.*\.noa|.*\.nos)$`), fs("Nitroplus", `^(.*\.npa)$`),
+	fs("Eushully AGE", `^(age\.exe|agerc\.dll|sys4ini\.bin|.*\.alf)$`),
 	fs("AliceSoft System4", `^(.*\.ain|.*\.ald|.*\.afa|system40\.exe)$`), fs("FVP", `^(.*\.hcb)$`),
 	fs("AdvWin32/WillPlus", `^(rio\.arc|advwin32\.exe)$`), fs("NeXAS", `^(.*\.pac)$`),
 	fs("Installer:InstallShield", `^(data1\.cab|data1\.hdr|.*\.hdr|ikernel\.ex_|setup\.inx|_setup\.dll)$`),

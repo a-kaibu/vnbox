@@ -71,12 +71,27 @@ func (d Display) Largest() (Window, bool) {
 // Click moves the pointer to (x, y) relative to the window and clicks button.
 func (d Display) Click(w Window, x, y, button int) {
 	d.xdo("mousemove", "--window", w.ID, strconv.Itoa(x), strconv.Itoa(y))
-	time.Sleep(50 * time.Millisecond)
-	d.xdo("click", strconv.Itoa(button))
+	time.Sleep(80 * time.Millisecond)
+	d.press(button)
+}
+
+// press holds the button for a moment: games that poll the mouse state once per frame
+// (Eushully AGE etc.) miss xdotool's instantaneous click.
+func (d Display) press(button int) {
+	b := strconv.Itoa(button)
+	d.xdo("mousedown", b)
+	time.Sleep(60 * time.Millisecond)
+	d.xdo("mouseup", b)
 }
 
 // Button clicks at the current pointer position (wheel = 4/5, right = 3).
-func (d Display) Button(button int) { d.xdo("click", strconv.Itoa(button)) }
+func (d Display) Button(button int) {
+	if button >= 4 { // wheel
+		d.xdo("click", strconv.Itoa(button))
+		return
+	}
+	d.press(button)
+}
 
 // Key focuses the window and sends an X keysym (e.g. "Return", "space", "ctrl").
 func (d Display) Key(w Window, keysym string) {

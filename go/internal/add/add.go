@@ -85,6 +85,18 @@ func Add(ctx context.Context, name, src string, o Options) (*pkg.Package, error)
 	if dir != "" {
 		inst = install.Find(dir)
 	}
+	// InstallShield bootstrappers: install the embedded .msi directly (some stall under Wine
+	// while unpacking it)
+	if strings.EqualFold(filepath.Ext(inst), ".exe") {
+		if files, err := install.ExtractInstallShield(inst, filepath.Join(work, "isx")); err == nil {
+			for _, f := range files {
+				if strings.EqualFold(filepath.Ext(f), ".msi") {
+					fmt.Fprintf(o.Log, "[%s] InstallShield payload: %s\n", name, filepath.Base(f))
+					inst = f
+				}
+			}
+		}
+	}
 	if inst != "" {
 		s, err := capture.Begin(name, o.Flavor)
 		if err != nil {

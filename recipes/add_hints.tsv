@@ -10,3 +10,4 @@ b2013_lumpofsugar	-click 640,286	BGI インストーラ「ゲームのインス�
 b2011_lumpofsugar	-click 300,340	BGI インストーラ「ゲームのインストール」
 b2019_sukerasparo	-click 660,223	BGI インストーラ「インストール」
 b2015_lump_of_sugar	-click 280,181	BGI インストーラ「ゲームのインストール」
+b2010_lumpofsugar	-click 157,408;307,216	BGI インストーラ「インストール」(要 wined3d READ_SCANLINE パッチ)

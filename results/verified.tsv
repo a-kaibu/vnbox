@@ -267,3 +267,5 @@ b2016_silkys_sakura	b2016_silkys_sakura	-	タイトル (メニュー start.exe �
 b2014_silkys_plus	b2014_silkys_plus	-	タイトル (メニュー start.exe ではなくゲーム本体を起動)
 b2017_onomatope_raspberry	b2017_onomatope_raspberry	ShiinaRio	タイトル (Go 版: ShiinaRio の SETUP.exe を自動インストール)
 b2010_waffle	b2010_waffle	-	タイトル (インストーラが Win10 非対応 → 従来 Wine (Win7) でインストール)
+b2010_lumpofsugar	Hello,good-bye 体験版	BGI/Ethornell	wined3d READ_SCANLINE パッチ + BGI インストーラ -click 157,408
+b2009_eushully	姫狩りダンジョンマイスター 体験版	AGE (Eushully)	InstallShield ペイロードを isx 展開 → MSI /qn
