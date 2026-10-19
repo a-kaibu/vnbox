@@ -1,0 +1,40 @@
+--- a/dlls/kernelbase/volume.c
++++ b/dlls/kernelbase/volume.c
+@@ -609,6 +609,17 @@
+ }
+ 
+ 
++/* vnbox: old installers multiply the free space out in 32 bits (or truncate the 64-bit value),
++ * so with e.g. 4.2 GB free they see 0.2 GB and refuse to install. Report at most the real free
++ * space, lowered so that its low 32 bits are just under 2 GB: 32-bit arithmetic (signed or not)
++ * then always sees about 2 GB, and 64-bit callers lose less than 4 GB. */
++static ULONGLONG vnbox_safe_free( ULONGLONG real )
++{
++    const ULONGLONG low = 0x80000000ull - 0x100000ull;  /* 2 GB - 1 MB */
++    if (real < low) return real;
++    return ((real - low) & ~0xffffffffull) + low;
++}
++
+ /***********************************************************************
+  *           GetDiskFreeSpaceExW   (kernelbase.@)
+  */
+@@ -631,9 +642,9 @@
+ 
+     units = info.SectorsPerAllocationUnit * info.BytesPerSector;
+     if (total) total->QuadPart = info.TotalAllocationUnits.QuadPart * units;
+-    if (totalfree) totalfree->QuadPart = info.AvailableAllocationUnits.QuadPart * units;
++    if (totalfree) totalfree->QuadPart = vnbox_safe_free( info.AvailableAllocationUnits.QuadPart * units );
+     /* FIXME: this one should take quotas into account */
+-    if (avail) avail->QuadPart = info.AvailableAllocationUnits.QuadPart * units;
++    if (avail) avail->QuadPart = vnbox_safe_free( info.AvailableAllocationUnits.QuadPart * units );
+     return TRUE;
+ }
+ 
+@@ -674,6 +685,7 @@
+     if (!set_ntstatus( status )) return FALSE;
+ 
+     units = info.SectorsPerAllocationUnit * info.BytesPerSector;
++    if (units) info.AvailableAllocationUnits.QuadPart = vnbox_safe_free( info.AvailableAllocationUnits.QuadPart * units ) / units;
+ 
+     if( GetVersion() & 0x80000000) {    /* win3.x, 9x, ME */
+         /* cap the size and available at 2GB as per specs */
