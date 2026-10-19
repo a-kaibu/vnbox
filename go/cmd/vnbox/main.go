@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -172,6 +173,13 @@ func cmdAdd(ctx context.Context, args []string) error {
 		return err
 	}
 	l, _ := p.Launch()
+	// BISHOP の起動ランチャー (startup.exe) は作品によって「ゲーム開始」で C++ 例外を出して終わる
+	// (隷従の制服 体験版)。startup.ini に書かれたゲーム本体を直接起動する
+	if *exe == "" {
+		if t := bishopGame(filepath.Join(p.Dir, "files", filepath.FromSlash(l.Target))); t != "" {
+			l.Target = path.Join(path.Dir(l.Target), t)
+		}
+	}
 	// gallery metadata: the title given and the engine of the installed game folder
 	l.Title = *title
 	gdir := filepath.Join(p.Dir, "files", filepath.Dir(filepath.FromSlash(l.Target)))
@@ -553,6 +561,42 @@ func cmdRegdiff(args []string) error {
 }
 
 // dotnetVerb reads <exe>.runtimeconfig.json and returns "vnbox-dotnet:<major>:<arch>[:desktop]", or "".
+// bishopGame returns the game exe named by the BISHOP launcher's startup.ini ([EXE] Boot= or
+// Demo=) when exe is that launcher and the file exists, else "".
+func bishopGame(exe string) string {
+	if !strings.EqualFold(filepath.Base(exe), "startup.exe") {
+		return ""
+	}
+	b, err := os.ReadFile(filepath.Join(filepath.Dir(exe), "startup.ini"))
+	if err != nil {
+		return ""
+	}
+	sect := ""
+	var found []string
+	for _, ln := range strings.Split(string(b), "\n") {
+		ln = strings.TrimSpace(ln)
+		if strings.HasPrefix(ln, "[") {
+			sect = strings.ToUpper(strings.Trim(ln, "[]"))
+			continue
+		}
+		k, v, ok := strings.Cut(ln, "=")
+		if !ok || sect != "EXE" || strings.HasPrefix(ln, ";") {
+			continue
+		}
+		k = strings.ToLower(strings.TrimSpace(k))
+		v = strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(v), ".\\"), "./")
+		if (k == "boot" || k == "demo") && v != "" && !strings.ContainsAny(v, "\\/") {
+			if _, err := os.Stat(filepath.Join(filepath.Dir(exe), v)); err == nil {
+				found = append(found, v)
+			}
+		}
+	}
+	if len(found) > 0 {
+		return found[0]
+	}
+	return ""
+}
+
 // unity6 reports whether the UnityPlayer.dll next to exe is from Unity 6 (version 6000.x).
 func unity6(exe string) bool {
 	ents, _ := os.ReadDir(filepath.Dir(exe))
