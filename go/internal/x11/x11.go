@@ -143,9 +143,13 @@ func (d Display) PressDialogs(max, idle int, onStep func(i int, w Window)) int {
 		quiet = 0
 		// a dialog whose content changes by itself is showing progress: pressing Return
 		// there would hit its only button, キャンセル
-		h1 := d.ShotHash(dlg)
-		time.Sleep(2 * time.Second)
-		if d.visible(dlg.ID) && d.ShotHash(dlg) != h1 {
+		// (progress bars can stand still for a few seconds, so watch for 6 seconds)
+		h1, moving := d.ShotHash(dlg), false
+		for j := 0; j < 3 && !moving; j++ {
+			time.Sleep(2 * time.Second)
+			moving = d.visible(dlg.ID) && d.ShotHash(dlg) != h1
+		}
+		if moving || !d.visible(dlg.ID) {
 			continue
 		}
 		n++
@@ -174,7 +178,8 @@ func (d Display) PressDialogs(max, idle int, onStep func(i int, w Window)) int {
 		}
 		if !changed {
 			// keyboard ignored: click 次へ (bottom bar, left of キャンセル) or a centred OK
-			for _, pt := range [][2]int{{dlg.W - 170, dlg.H - 22}, {dlg.W / 2, dlg.H - 25}} {
+			// 次へ in wizards, 起動 in launch-setting dialogs (QLIE etc.), a centred OK
+			for _, pt := range [][2]int{{dlg.W - 170, dlg.H - 22}, {dlg.W - 150, dlg.H - 14}, {dlg.W / 2, dlg.H - 25}} {
 				d.Click(dlg, pt[0], pt[1], 1)
 				time.Sleep(2 * time.Second)
 				if changed = progressed(); changed {

@@ -31,7 +31,7 @@ import (
 
 const usage = `vnbox — Windows ノベルゲームを Wine で動かしてブラウザ配信する
 
-  vnbox add <name> <配布物> [-exe 相対パス] [-upload]   zip/lzh/7z/rar/SFX/インストーラ/フォルダからパッケージを作る
+  vnbox add <name> <配布物> [-exe 相対パス] [-click x,y;...] [-no-upload]   zip/lzh/7z/rar/SFX/インストーラ/フォルダからパッケージを作る
   vnbox serve [-addr :8080] [-token T]                ポータル: 一覧から選んで起動・配信 (複数同時)
   vnbox play <name> [-addr :8080] [-token T]          1 本だけ起動して配信
   vnbox prepare <name>                                実行用 prefix を準備してパスを表示
@@ -138,13 +138,21 @@ func openStore(ctx context.Context) (*store.Store, error) {
 func cmdAdd(ctx context.Context, args []string) error {
 	c := newFlags("add")
 	exe := c.fs.String("exe", "", "起動 exe (ゲームフォルダからの相対パス)")
+	clickFlag := c.fs.String("click", "", "インストーラの最初の画面でクリックする座標 (例: 695,203;400,300)")
 	up := c.fs.Bool("upload", false, "S3 にも上げる (VNBOX_S3 が設定されていれば既定で上げる)")
 	noUp := c.fs.Bool("no-upload", false, "S3 に上げない")
 	pos := c.parse(args)
 	if len(pos) < 2 {
 		return errors.New("usage: vnbox add <name> <配布物>")
 	}
-	p, err := add.Add(ctx, pos[0], pos[1], add.Options{Flavor: c.Flavor(), Exe: *exe, Log: os.Stderr})
+	var clicks [][2]int
+	for _, pt := range strings.Split(*clickFlag, ";") {
+		var x, y int
+		if _, err := fmt.Sscanf(strings.TrimSpace(pt), "%d,%d", &x, &y); err == nil {
+			clicks = append(clicks, [2]int{x, y})
+		}
+	}
+	p, err := add.Add(ctx, pos[0], pos[1], add.Options{Flavor: c.Flavor(), Exe: *exe, Clicks: clicks, Log: os.Stderr})
 	if err != nil {
 		return err
 	}

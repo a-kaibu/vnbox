@@ -27,7 +27,8 @@ var ErrNoExecutable = errors.New("no executable in the archive (video-only distr
 // Options controls Add.
 type Options struct {
 	Flavor wine.Flavor
-	Exe    string // launch target to force (relative to the game folder or to C:\ for installers)
+	Exe    string   // launch target to force (relative to the game folder or to C:\ for installers)
+	Clicks [][2]int // clicks on the installer's first window before the dialog walker runs
 	Log    io.Writer
 }
 
@@ -92,7 +93,7 @@ func Add(ctx context.Context, name, src string, o Options) (*pkg.Package, error)
 				inst = staged
 			}
 		}
-		if _, err := install.Run(ctx, s, inst, display, filepath.Join(wine.Root(), "results", "add-"+name), o.Log); err != nil {
+		if _, err := install.Run(ctx, s, inst, display, filepath.Join(wine.Root(), "results", "add-"+name), o.Clicks, o.Log); err != nil {
 			fmt.Fprintf(o.Log, "installer: %v\n", err)
 		}
 		r, err := s.End()

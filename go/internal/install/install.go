@@ -55,6 +55,11 @@ func Find(dir string) string {
 		return inst
 	}
 	instDir := filepath.Dir(inst)
+	// BGI trials ship BGIForInstalling.exe / installer.arc: the game only starts once Setup.exe
+	// has written its install key, so Setup.exe is the real installer here
+	if needsInstall(instDir) {
+		return inst
+	}
 	if main := detect.Detect(dir).MainExe(); main != "" {
 		m := filepath.Join(dir, main)
 		if m != inst && filepath.Dir(m) == instDir {
@@ -65,6 +70,17 @@ func Find(dir string) string {
 		return ""
 	}
 	return inst
+}
+
+func needsInstall(dir string) bool {
+	ents, _ := os.ReadDir(dir)
+	for _, e := range ents {
+		n := strings.ToLower(e.Name())
+		if strings.Contains(n, "forinstalling") || n == "installer.arc" {
+			return true
+		}
+	}
+	return false
 }
 
 func find(dir string) string {
@@ -121,7 +137,7 @@ func Classify(path string) Kind {
 
 // Run installs path inside the capture session and returns the installer kind used.
 // Dialog screenshots go to shotDir when it is not empty.
-func Run(ctx context.Context, s *capture.Session, path, display, shotDir string, log io.Writer) (Kind, error) {
+func Run(ctx context.Context, s *capture.Session, path, display, shotDir string, clicks [][2]int, log io.Writer) (Kind, error) {
 	if err := wine.EnsureX(display); err != nil {
 		return "", err
 	}
@@ -170,7 +186,7 @@ func Run(ctx context.Context, s *capture.Session, path, display, shotDir string,
 		os.MkdirAll(out, 0o755)
 		err = exec.CommandContext(ctx, "unshield", "-d", out, "x", filepath.Join(dir, "data1.cab")).Run()
 	case GUI:
-		err = Drive(ctx, env, dir, exe, shotDir, log)
+		err = Drive(ctx, env, dir, exe, shotDir, clicks, log)
 	}
 	// the installer is done; whatever still runs (a launched game, a readme viewer, a
 	// dialog nobody answers) would keep wineserver alive forever
@@ -180,8 +196,10 @@ func Run(ctx context.Context, s *capture.Session, path, display, shotDir string,
 	return kind, err
 }
 
-// Drive starts exe and presses through its dialogs until none are left.
-func Drive(ctx context.Context, env wine.Env, dir, exe, shotDir string, log io.Writer) error {
+// Drive starts exe, performs the given clicks (relative to the newest window; for menus that
+// have no default button, e.g. an installer menu's インストール item) and then presses
+// through its dialogs until none are left.
+func Drive(ctx context.Context, env wine.Env, dir, exe, shotDir string, clicks [][2]int, log io.Writer) error {
 	c := env.Command(ctx, dir, exe)
 	if err := c.Start(); err != nil {
 		return err
@@ -192,6 +210,16 @@ func Drive(ctx context.Context, env wine.Env, dir, exe, shotDir string, log io.W
 		os.MkdirAll(shotDir, 0o755)
 	}
 	d := x11.Display(env.Display)
+	for _, c := range clicks {
+		ws := d.Windows()
+		if len(ws) == 0 {
+			break
+		}
+		w := ws[len(ws)-1]
+		fmt.Fprintf(log, "  click %d,%d on [%s]\n", c[0], c[1], w.Name)
+		d.Click(w, c[0], c[1], 1)
+		time.Sleep(5 * time.Second)
+	}
 	d.PressDialogs(80, 4, func(i int, w x11.Window) {
 		fmt.Fprintf(log, "  %02d [%s] %dx%d\n", i, w.Name, w.W, w.H)
 		if shotDir != "" {
@@ -217,7 +245,7 @@ func ExtractSFX(ctx context.Context, fl wine.Flavor, sfx, outDir, display string
 	}
 	env := wine.Env{Flavor: fl, Prefix: prefix, Display: display}
 	abs, _ := filepath.Abs(sfx)
-	if err := Drive(ctx, env, outDir, abs, "", log); err != nil {
+	if err := Drive(ctx, env, outDir, abs, "", nil, log); err != nil {
 		return err
 	}
 	prev := int64(-1)
