@@ -167,12 +167,24 @@ func Add(ctx context.Context, name, src string, o Options) (*pkg.Package, error)
 // addFolder packages a ready-to-run game folder under C:\Games\<name>.
 func addFolder(dir, dst, name string, o Options) (*pkg.Package, error) {
 	gdir := filepath.Join(dst, "files", "Games", name)
-	if err := os.MkdirAll(gdir, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(gdir), 0o755); err != nil {
 		return nil, err
 	}
-	if out, err := exec.Command("cp", "-a", dir+"/.", gdir+"/").CombinedOutput(); err != nil {
-		os.RemoveAll(dst)
-		return nil, fmt.Errorf("copy: %v: %s", err, out)
+	// our own unpacked copy (downloads/add-*) is deleted afterwards: move it instead of
+	// needing the game's size twice on disk
+	moved := false
+	if rel, err := filepath.Rel(filepath.Join(wine.Root(), "downloads"), dir); err == nil && strings.HasPrefix(rel, "add-") {
+		os.RemoveAll(gdir)
+		moved = os.Rename(dir, gdir) == nil
+	}
+	if !moved {
+		if err := os.MkdirAll(gdir, 0o755); err != nil {
+			return nil, err
+		}
+		if out, err := exec.Command("cp", "-a", dir+"/.", gdir+"/").CombinedOutput(); err != nil {
+			os.RemoveAll(dst)
+			return nil, fmt.Errorf("copy: %v: %s", err, out)
+		}
 	}
 	exe := o.Exe
 	if exe == "" {
