@@ -257,6 +257,7 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 | `wine-build/vnbox-wmreader-allocator-retry.patch` | winegstreamer: WM Reader が、アプリ側アロケータが未コミット (VFW_E_NOT_COMMITTED) のとき即座にストリーム終端扱いにしていた。少し待って再試行する | (同上の調査で見つけた不具合。単独で直ったタイトルは未確認) |
 | `wine-build/vnbox-quartz-videowindow-unlocked.patch` | quartz: フィルタグラフの `IVideoWindow` 各メソッドが、グラフのロックを持ったままレンダラのウィンドウを表示・非表示・移動していた。動画スレッドが `put_Visible` で UI スレッドへメッセージを送り、UI スレッドが `NotifyOwnerMessage` で同じロックを待つとデッドロックする。ロックはレンダラを探す間だけにした | スズノネセブン！ (Clochette 2008, CatSystem2): OP 動画のあと黒画面のまま → タイトルへ |
 | `wine-build/vnbox-win32u-own-frame-visible.patch` | win32u: タイトルバーを自分で描くウィンドウ (WM_NCCALCSIZE でクライアント領域を枠いっぱいに広げる Chromium / NW.js / Electron) でも、Wine は WM が枠を描く前提で上端のタイトルバー分を X ウィンドウから外していた (vnbox の WM は枠を描かない)。クライアント領域が想定の枠にかかるときはウィンドウ全体を見せる | RPG ツクール MZ (NW.js) 製の体験版多数: 上 30px が欠けて X 側 1280x720 / Wine 側 1280x750 → 全体が見える |
+| `wine-build/vnbox-win32u-mouse-in-pointer.patch` | win32u / user32: EnableMouseInPointer が未実装 (失敗を返す) だった。Unity 6 の入力システムはこれを呼んだ後、マウスを WM_POINTER でしか受け取らない。上流 (Wine 11.3 以降, MR 10120) と同じく、通常のマウスメッセージはそのまま配りつつ、その前に対応する WM_POINTER* を送り、GetPointerInfo でそのフレームを返す | 化けきつねたいじ 体験版 (Unity 6): 「はじめる」が押せない → 押せる |
 
 後から足したパッチ (kernelbase / ntdll / qasf / winegstreamer / wined3d) は、該当 DLL だけを再ビルドして `/opt/wine-vnbox` に差し替えた (元のファイルは `wine-build/orig-dlls/`)。Wine を作り直すときは `wine-build/` のパッチを全部当てて `--enable-archs=i386,x86_64` でビルドする。
 
@@ -629,7 +630,7 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 26. **既定のボタンが無いインストーラ**: 「インストール」「同意する」「次へ」を Enter で押せないものは `tools/clickbtn` (Wine 内で BM_CLICK) がラベルで探して押す。ボタンを自前で描く BGI のメニュー (子ウィンドウなし) は、ウィンドウクラスと大きさで位置を決め打ちする。押下は PostMessage (モーダルダイアログを開くと SendMessage が戻らない)。
 27. **prefix の hardlink**: 複製した prefix は base と hardlink を共有するので、`cp` で既存ファイルを上書きすると base まで書き換わる (DXVK や VC++ の DLL が base に入っていた)。`--remove-destination` で置き換え、winetricks の前は system32 等を自前のコピーにする。
 28. **起動ランチャー**: BISHOP の startup.exe は作品によって「ゲーム開始」で C++ 例外を出して終わる。startup.ini の `[EXE] Boot=/Demo=` を直接起動する。Eushully の InstallLauncher.exe は隣の Inno の setup.exe を無人で実行すれば済む。
-29. **Unity 6 (6000.x)**: wined3d では黒画面。DXVK で描画されるので `vnbox add` が UnityPlayer.dll の版を見て `vnbox-dxvk` を付ける。ただし入力が届かない作品がある (不倫旅館 体験版: マウスもキーボードも無反応)。Unity 6 は EnableMouseInPointer を呼ぶので WM_POINTER への変換を試作したが、この作品は通常のマウスメッセージに戻して処理しており効果がなかった。未解決。
+29. **Unity 6 (6000.x)**: wined3d では黒画面。DXVK で描画されるので `vnbox add` が UnityPlayer.dll の版を見て `vnbox-dxvk` を付ける。また Unity 6 の入力システムは EnableMouseInPointer を呼んだ後マウスを WM_POINTER でしか受け取らず、Wine 11.0 では何をクリックしても反応しなかった。通常のマウスメッセージを WM_POINTER に置き換えるだけでは駄目で、上流 (Wine 11.3 以降) と同じく両方を配る win32u パッチで直った。
 30. **VR 専用**: DLsite の「VR」作品には OpenXR ヘッドセットが無いと何も描かないものがある (対象外)。
 
 ## 次にやること
