@@ -672,3 +672,5 @@ s2017_marmalade_mashimaro	s2017_marmalade_mashimaro	-	タイトル
 dl_RJ01728288	あの夏、誰も来ないバス停で。	Unity	タイトル
 dl_RJ01734456	私、絶対イキません！	Unity	タイトル (従来 Wine) (従来 Wine)
 s2023_quince_soft_little_proncess_go	リトルプリンセスＧＯ！ 体験版	BGI/Ethornell	タイトル (独自インストーラメニュー: vnbox add -click 135,503 で「ゲームのインストール」。手動で確認)
+dl_RJ01731343	Bondage Sandbox ep 1: Android in distress	-	起動時のテーマ選択画面 (Unreal、DXVK でロック待ちが解消)
+s2026_lump_of_sugar_tayutama_zero	s2026_lump_of_sugar_tayutama_zero	-	タイトル (ログにロック待ちの警告が出るが表示・動作)
