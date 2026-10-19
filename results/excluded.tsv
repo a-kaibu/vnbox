@@ -15,3 +15,5 @@ dl_RJ01741015	VR 専用 (Meta Quest 等の OpenXR ヘッドセットが必要。
 dl_RJ01702800	HTML5 のブラウザゲーム (index.html。Windows の実行ファイルなし)
 dl_RJ01720685	HTML5 のブラウザゲームと Android APK (Windows の実行ファイルなし)
 dl_RJ01743502	GPU 必須: Unreal Engine 5.8 で D3D12 (SM6) のみ対応。D3D11/Vulkan は「プロジェクトが対応していない」で終了し、vkd3d-proton + 機能レベル上書きでもソフトウェア描画 (lavapipe) では起動処理が進まない
+s2019_parasol_renran_p	体験版のパッチのみ (本体 renran_trial.zip はミラーから削除済み: 404)
+dl_VJ01002074	音声作品の試聴データ (mp3 のみ。ゲームではない)
