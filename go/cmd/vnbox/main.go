@@ -178,6 +178,10 @@ func cmdAdd(ctx context.Context, args []string) error {
 	if e := det.Engine; l.Engine == "" && e != "" && e != "unknown" {
 		l.Engine = e
 	}
+	// .NET 5+ のアプリ (apphost): ランタイムを prefix に入れる
+	if v := dotnetVerb(filepath.Join(p.Dir, "files", filepath.FromSlash(l.Target))); v != "" && !slices.Contains(l.Winetricks, v) {
+		l.Winetricks = append(l.Winetricks, v)
+	}
 	var drm []string
 	for _, t := range det.Tags {
 		// Electron (TyranoScript v5 等): GPU プロセスが Wine + GPU なしで起動できず WebGL が使えないので、
@@ -186,6 +190,10 @@ func cmdAdd(ctx context.Context, args []string) error {
 			l.Args = electronArgs
 		}
 		// XAML Islands (C++/WinRT の Windows.UI.Xaml): Wine に実装が無いので何もしない代用品を入れる
+		// SharpDX の Direct3D 11 (MonoGame WindowsDX 等): wined3d では画面が単色のまま。DXVK (Vulkan) で描ける
+		if t == "Runtime:SharpDX11" && !slices.Contains(l.Winetricks, "vnbox-dxvk") {
+			l.Winetricks = append(l.Winetricks, "vnbox-dxvk")
+		}
 		if t == "Runtime:XamlIslands" && !slices.Contains(l.Winetricks, "vnbox-xamlstub") {
 			l.Winetricks = append(l.Winetricks, "vnbox-xamlstub")
 		}
@@ -533,6 +541,47 @@ func cmdRegdiff(args []string) error {
 		return regdiff.Show(args[1], bufio.NewWriter(os.Stdout))
 	}
 	return fmt.Errorf("unknown regdiff command %q", args[0])
+}
+
+// dotnetVerb reads <exe>.runtimeconfig.json and returns "vnbox-dotnet:<major>:<arch>[:desktop]", or "".
+func dotnetVerb(exe string) string {
+	b, err := os.ReadFile(strings.TrimSuffix(exe, filepath.Ext(exe)) + ".runtimeconfig.json")
+	if err != nil {
+		return ""
+	}
+	var rc struct {
+		RuntimeOptions struct {
+			Tfm        string `json:"tfm"`
+			Framework  struct{ Name, Version string }
+			Frameworks []struct{ Name, Version string }
+		} `json:"runtimeOptions"`
+	}
+	if json.Unmarshal(b, &rc) != nil {
+		return ""
+	}
+	fws := append(rc.RuntimeOptions.Frameworks, rc.RuntimeOptions.Framework)
+	major, desktop := "", false
+	for _, f := range fws {
+		if f.Version != "" && major == "" {
+			major, _, _ = strings.Cut(f.Version, ".")
+		}
+		desktop = desktop || f.Name == "Microsoft.WindowsDesktop.App"
+	}
+	if major == "" {
+		major = strings.TrimPrefix(strings.SplitN(rc.RuntimeOptions.Tfm, ".", 2)[0], "net")
+	}
+	if major == "" {
+		return ""
+	}
+	arch := "x86"
+	if detect.PEArch(exe) == "x64" {
+		arch = "x64"
+	}
+	v := "vnbox-dotnet:" + major + ":" + arch
+	if desktop {
+		v += ":desktop"
+	}
+	return v
 }
 
 const electronArgs = "--in-process-gpu --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist"

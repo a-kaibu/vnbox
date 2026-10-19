@@ -199,8 +199,10 @@ func (p *Package) Prepare(ctx context.Context, fl wine.Flavor, prefix string) er
 	for _, v := range l.Winetricks {
 		// "vnbox-<name>" は vnbox 自前の手順 (scripts/verbs/<name>.sh <prefix>)、それ以外は winetricks の verb
 		c := exec.CommandContext(ctx, "winetricks", "-q", v)
-		if name, ok := strings.CutPrefix(v, "vnbox-"); ok {
-			c = exec.CommandContext(ctx, "bash", filepath.Join(wine.Root(), "scripts", "verbs", name+".sh"), prefix)
+		if name, ok := strings.CutPrefix(v, "vnbox-"); ok { // vnbox-<名前>[:引数:...]
+			parts := strings.Split(name, ":")
+			args := append([]string{filepath.Join(wine.Root(), "scripts", "verbs", parts[0]+".sh"), prefix}, parts[1:]...)
+			c = exec.CommandContext(ctx, "bash", args...)
 		}
 		c.Env = env.Vars()
 		if out, err := c.CombinedOutput(); err != nil {

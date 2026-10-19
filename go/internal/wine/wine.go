@@ -99,7 +99,13 @@ func (e Env) Vars() []string {
 	}
 	set("WINEDEBUG", dbg)
 	if os.Getenv("WINEDLLOVERRIDES") == "" {
-		set("WINEDLLOVERRIDES", "mscoree,mshtml=;winemenubuilder.exe=d")
+		// mscoree を止めておくと Wine Mono の導入画面が出ない。ただし .NET (Core) を入れた prefix では
+		// IL だけの DLL を読むのに mscoree が要る (止めると System.Runtime.dll が読めない)
+		ov := "mscoree,mshtml=;winemenubuilder.exe=d"
+		if st, err := os.Stat(filepath.Join(e.Prefix, "drive_c", "Program Files", "dotnet")); err == nil && st.IsDir() {
+			ov = "mshtml=;winemenubuilder.exe=d"
+		}
+		set("WINEDLLOVERRIDES", ov)
 	}
 	if e.Display != "" {
 		set("DISPLAY", e.Display)

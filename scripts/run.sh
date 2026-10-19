@@ -19,6 +19,8 @@ D=$((100 + $(echo -n "$NAME" | cksum | cut -d' ' -f1) % 400)); for _ in $(seq 40
 export DISPLAY=:$D; echo ":$D" > "$OUT/display.txt"
 ensure_x; ensure_audio
 export WINEDEBUG=${RUN_DEBUG:-err+all,fixme-all}
+# .NET (Core) を入れた prefix では mscoree を止めない (IL だけの DLL が読めなくなる)
+[ -d "$WINEPREFIX/drive_c/Program Files/dotnet" ] && export WINEDLLOVERRIDES="mshtml=;winemenubuilder.exe=d"
 # パッケージの起動引数 (launch.sh が prefix に書いたもの) を、指定が無ければ使う
 [ -z "${ARGS:-}" ] && [ -s "$WINEPREFIX/.vnbox-args" ] && ARGS=$(cat "$WINEPREFIX/.vnbox-args")
 cd "$GDIR"
