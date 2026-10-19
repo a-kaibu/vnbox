@@ -1,0 +1,9 @@
+#id	add_options	memo
+b2020_sukerasomero	-click 695,203;307,216	BGI インストーラのメニュー「インストール」→「インストールの開始」
+b2012_waffle	run: click 303,371;398,490;520,341	FVP 解像度選択→OK→はい
+b2016_waffle	run: click 301,445;637,330	FVP 解像度選択→はい
+b2014_waffle	run: click 301,466;450,325	FVP 解像度選択→はい
+b2017_waffle	run: click 301,466;640,230	FVP 解像度選択→はい
+b2018_mirai	run: click 380,186	QLIE 起動設定の「起動」
+b2015_minato_carnival	run: click 380,186	QLIE 起動設定の「起動」
+b2013_lumpofsugar	-click 640,286	BGI インストーラ「ゲームのインストール」
