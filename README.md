@@ -253,6 +253,7 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 
 | `wine-build/vnbox-qasf-dmo-no-output-loop.patch` | qasf: DMO ラッパーが、出力なし (S_FALSE) なのに INCOMPLETE を立てる WMA デコーダで無限ループし、動画が始まらない | よめがみ (Alcot, 吉里吉里 WMV オープニング): 黒画面のまま → タイトルへ |
 | `wine-build/vnbox-wined3d-read-scanline.patch` | wined3d: `D3DCAPS9.Caps` が 0 だった。実機のドライバは必ず `D3DCAPS_READ_SCANLINE` を返す (GetRasterStatus は wined3d がエミュレートしている) | Hello,good-bye (Lump of Sugar 2010, BGI): 「ディスプレイアダプタが必要不可欠な機能をサポートしていません」→ インストーラもゲームも動作 |
+| `wine-build/vnbox-kernelbase-safe-disk-free.patch` | kernelbase: 空き容量を 32bit で掛け算する (または 64bit 値を切り捨てる) 古いインストーラが、空きが 4GB の倍数を少し超えると「容量不足」になる。実際の空き以下で、下位 32bit が 2GB-1MB になる値を `GetDiskFreeSpace(Ex)` が返す (64bit で正しく扱うアプリは最大 4GB 少なく見えるだけ) | よろず屋 (ShiinaRio 系インストーラ)、百千の定にかわたれし剋 (InstallShield の前段) |
 | `wine-build/vnbox-wmreader-allocator-retry.patch` | winegstreamer: WM Reader が、アプリ側アロケータが未コミット (VFW_E_NOT_COMMITTED) のとき即座にストリーム終端扱いにしていた。少し待って再試行する | (同上の調査で見つけた不具合。単独で直ったタイトルは未確認) |
 
 後から足したパッチ (kernelbase / ntdll / qasf / winegstreamer / wined3d) は、該当 DLL だけを再ビルドして `/opt/wine-vnbox` に差し替えた (元のファイルは `wine-build/orig-dlls/`)。Wine を作り直すときは `wine-build/` のパッチを全部当てて `--enable-archs=i386,x86_64` でビルドする。
@@ -613,6 +614,10 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 15. **ロケールを忘れた手動実行**: BGI は `GetSystemDefaultLangID` が日本語でないと何も言わずに終了する。手で wine を叩くときも `LANG=ja_JP.UTF-8` / `TZ=Asia/Tokyo` を付ける (vnbox はすべて自動で付ける)。
 16. **InstallShield**: 新しめの setup.exe (署名 "InstallShield" がオーバーレイにある版) は中身がファイル名由来の鍵で XOR + ニブル入替されている。Wine でブートストラッパを動かすより、取り出して MSI を直接入れる方が確実。
 17. **クリックの長さ**: Eushully AGE などフレームごとにマウス状態を見るゲームは、xdotool の一瞬のクリックを取りこぼす。配信の入力は「押して 60ms 待って離す」にした。
+18. **XAML Islands**: Cyberworks TinkerBell の新しい版 (せをはやみ。) は C++/WinRT で `Windows.UI.Xaml.Hosting.DesktopWindowXamlSource` と TextBox を作る (文字入力欄用)。Wine には Windows.UI.Xaml の実装が無く、未捕捉の例外 (c0000409) で落ちる。何もしない代用品 `xamlstub32.dll` を Windows SDK のメタデータから生成して prefix に登録すると先へ進む (`tools/xamlstub/`、`scripts/verbs/xamlstub.sh`。`vnbox add` が exe 内の文字列から判定して `winetricks=vnbox-xamlstub` を付ける)。vtable は x86 stdcall の引数バイト数まで正確でないとスタックが壊れるので、手書きでなく .winmd から生成している。入力欄は表示されない (名前入力などは既定値のまま)。
+19. **Electron 製 (TyranoScript v5 等)**: GPU プロセスが Wine + GPU なしで起動できず「Cannot initialize WebGL」。`--in-process-gpu --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist` で動く。`app.asar` があれば `vnbox add` が起動引数に付ける。
+20. **InstallShield 2010 以降**: setup.exe 末尾の `ISSetupStream` 形式 (属性 48 バイト + UTF-16 名、名前の UTF-8 から作る鍵で XOR + ニブル入替、その後 zlib) から MSI を取り出して `msiexec /qn` で入れる。旧形式 (`InstallShield`) と同じく Wine でブートストラッパを動かさない。
+21. **入れ子の自己解凍**: zip の中身が ZIP 自己解凍 exe 1 つだけ、という配布がある (スペルマン)。exe をゲームとして起動すると何も出ないので、もう一段展開する。
 11. **インストーラの自動操作**: MSI は `msiexec /qn`、それ以外 (CreateInstall / BGI / Majiro / CatSystem2 / InstallShield / 独自) は `wizard.sh` が小さいダイアログに Enter (効かなければ Space) を送り続けるだけで、今回の 8 種すべて完了した。WinRAR SFX は Linux 側の unrar で開けないことがあり、Wine で SFX 自体を動かして展開した。
 
 ## 次にやること
