@@ -21,7 +21,12 @@ one(){ # タブ区切りの空欄を詰めないよう cut で取り出す ("rea
   mkdir results/batch/$id.b6lock 2>/dev/null || return
   while [ "$(df --output=avail -B1G / | tail -1 | tr -d ' ')" -lt 6 ]; do sleep 30; done
   local D=$V/downloads/b6/$id; mkdir -p $D; local F=$D/$(basename "${url%%\?*}")
-  curl -sSL --retry 3 -m 3600 -A Mozilla/5.0 -o "$F" "$url" || { echo -e "$id\t-\tDL_FAIL\t\t\t$src\t$drm" >> $OUT; rm -rf $D; return; }
+  # 先読み (prefetch6.sh) 済みならそれを使う。取得中なら終わるのを待つ
+  local PF=$V/downloads/b6pre/$id
+  while [ -d $PF ] && [ ! -e $PF/.done ] && [ ! -e $PF/.fail ]; do sleep 10; done
+  if [ -e $PF/.done ]; then mv "$PF/$(basename "$F")" "$F"; rm -rf $PF
+  else rm -rf $PF; curl -sSL --retry 3 -m 3600 -A Mozilla/5.0 -o "$F" "$url" || { echo -e "$id\t-\tDL_FAIL\t\t\t$src\t$drm" >> $OUT; rm -rf $D; return; }
+  fi
   local PK=$V/packages/$id; rm -rf "$PK"
   local targs=(); [ -n "$title" ] && targs=(-title "$title")
   timeout 3600 bin/vnbox add $id "$F" -no-upload "${targs[@]}" > results/batch/b6_$id.add.log 2>&1
@@ -45,7 +50,7 @@ one(){ # タブ区切りの空欄を詰めないよう cut で取り出す ("rea
   done
   scripts/tools/sheet.sh results/batch/b6_$id.png $(for st in vnbox classic; do [ -d results/b6_${id}_$st ] && echo b6_${id}_$st; done)
   echo -e "$id\t$best\t$v\t$T\t$E\t$src\t$drm\t$marks" | tee -a $OUT
-  rm -rf "$PK"
+  rm -rf "$PK" "$V/downloads/b6pre/$id"
 }
 export -f one drm_scan; export V OUT PROBE
 mkdir -p results/batch downloads/b6
