@@ -17,6 +17,12 @@ ensure_x(){
     local n=${DISPLAY#:}; [ -f /tmp/.X$n-lock ] && ! kill -0 "$(tr -d ' ' </tmp/.X$n-lock)" 2>/dev/null && rm -f /tmp/.X$n-lock /tmp/.X11-unix/X$n
     Xvfb "$DISPLAY" -screen 0 ${XVFB_SIZE:-1920x1080}x24 -nolisten tcp >/dev/null 2>&1 &
     for i in $(seq 50); do xdpyinfo -display "$DISPLAY" >/dev/null 2>&1 && break; sleep 0.1; done
+    # 最小のウィンドウマネージャ (枠なし)。WM が居ないと Wine の最大化・全画面要求が実行されず、
+    # ゲームは 1920x1080 のつもりで描くのに X のウィンドウは小さいまま (右下が切れる / 1x1) になる
+    if [ "${VNBOX_WM:-openbox}" = openbox ] && command -v openbox >/dev/null; then
+      DISPLAY=$DISPLAY openbox --config-file "$VNBOX/scripts/wm/openbox-rc.xml" >/dev/null 2>&1 &
+      sleep 0.5
+    fi
   fi
 }
 ensure_audio(){

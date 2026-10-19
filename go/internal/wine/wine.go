@@ -215,11 +215,32 @@ func EnsureX(display string) error {
 	go c.Wait()
 	for i := 0; i < 50; i++ {
 		if xUp(display) {
+			startWM(display)
 			return nil
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
 	return errors.New("Xvfb did not start on " + display)
+}
+
+// startWM runs a minimal window manager (openbox without decorations) on the display.
+// Without one, Wine's requests to maximize or go fullscreen (_NET_WM_STATE) are never carried
+// out: the game draws for 1920x1080 while its X window stays smaller (cut off) or 1x1.
+// VNBOX_WM=none disables it.
+func startWM(display string) {
+	if os.Getenv("VNBOX_WM") == "none" {
+		return
+	}
+	bin, err := exec.LookPath("openbox")
+	if err != nil {
+		return
+	}
+	c := exec.Command(bin, "--config-file", filepath.Join(Root(), "scripts", "wm", "openbox-rc.xml"))
+	c.Env = append(os.Environ(), "DISPLAY="+display)
+	if c.Start() == nil {
+		go c.Wait()
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
 func xUp(display string) bool {
