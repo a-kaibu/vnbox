@@ -33,7 +33,7 @@ html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none
 #kbd input{font:16px system-ui;padding:8px;border-radius:8px;border:0;width:min(60vw,320px)}
 #kbd button{font:600 15px system-ui;padding:8px 12px;border-radius:8px;border:0;background:#e2557a;color:#fff}
 </style></head><body>
-<video id="vv" autoplay playsinline muted></video><img id="v" alt="" hidden><div id="pad"></div>
+<video id="vv" autoplay playsinline muted></video><div id="pad"></div>
 <div id="hint" class="hide"></div>
 <button id="fab" aria-label="メニュー">☰</button>
 <div id="bar">
@@ -50,10 +50,10 @@ html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none
 </div>
 <div id="kbd"><input id="kt" maxlength="64" enterkeyhint="send" autocomplete="off"><button id="ks">送る</button></div>
 <script>
-const vv=document.getElementById('vv'),img=document.getElementById('v'),pad=document.getElementById('pad'),bar=document.getElementById('bar'),hint=document.getElementById('hint'),stat=document.getElementById('stat');
+const vv=document.getElementById('vv'),pad=document.getElementById('pad'),bar=document.getElementById('bar'),hint=document.getElementById('hint'),stat=document.getElementById('stat');
 let mode='',dc=null,pc=null;
-// 表示中の映像 (WebRTC の video か、MJPEG の img)
-function media(){return mode==='mjpeg'?[img,img.naturalWidth,img.naturalHeight]:[vv,vv.videoWidth,vv.videoHeight];}
+// 表示中の映像と、その元の大きさ
+function media(){return [vv,vv.videoWidth,vv.videoHeight];}
 // 画面上の位置 → ゲーム画面の座標 (レターボックス部分は null)
 function rel(cx,cy){const [el,W,H]=media(),r=el.getBoundingClientRect();if(!W)return null;
  const s=Math.min(r.width/W,r.height/H),ox=(r.width-W*s)/2,oy=(r.height-H*s)/2;
@@ -65,7 +65,7 @@ function ripple(x,y,right){const d=document.createElement('div');d.className='ri
 function click(cx,cy,b){const p=rel(cx,cy);if(!p)return;ripple(cx,cy,b===3);send({t:'click',x:p[0],y:p[1],b});}
 function wheel(cx,cy,b){const p=rel(cx,cy);send(p?{t:'click',x:p[0],y:p[1],b}:{t:'click',x:0,y:0,b,nomove:1});}
 
-// ---- 映像: WebRTC (H.264、無ければ VP8) → 失敗したら MJPEG ----
+// ---- 映像と音声: WebRTC (H.264、無ければ VP8 + Opus) ----
 async function startRTC(){
  const cfg=await (await fetch('rtc-config')).json();
  pc=new RTCPeerConnection({iceServers:cfg.iceServers||[]});
@@ -86,17 +86,19 @@ async function startRTC(){
  mode='webrtc '+(codec==='h264'?'H.264':'VP8');
  pc.addEventListener('connectionstatechange',()=>{if(pc.connectionState==='failed')location.reload();});
 }
-function startMJPEG(){if(pc)try{pc.close()}catch(e){};pc=null;dc=null;mode='mjpeg';vv.hidden=true;img.hidden=false;img.src='video';}
-startRTC().catch(e=>{console.warn('WebRTC unavailable, using MJPEG:',e);startMJPEG();});
+// 繋がらなければ理由を出して 10 秒後にやり直す
+startRTC().catch(e=>{console.warn('WebRTC failed:',e);if(pc)try{pc.close()}catch(_){};pc=null;dc=null;
+ hint.textContent='接続できませんでした ('+e.message+')。10 秒後に再接続します';hint.classList.remove('hide');
+ setTimeout(()=>location.reload(),10000);});
 // 実際に受け取っている帯域をメニューに出す
 let lastBytes=0,lastT=0;
-setInterval(async()=>{if(!pc){stat.textContent=mode?'MJPEG (WebRTC 不可時の代替、音声なし)':'';return;}
+setInterval(async()=>{if(!pc){stat.textContent='';return;}
  let b=0;(await pc.getStats()).forEach(r=>{if(r.type==='inbound-rtp')b+=r.bytesReceived||0;});
  const t=performance.now();if(lastT)stat.textContent=mode+' · '+Math.round((b-lastBytes)*8/(t-lastT))+' kbps';lastBytes=b;lastT=t;},2000);
 
 // モバイルブラウザは操作起点でないと音を出せない: 最初の操作で video の消音を解除する
-// (音声は WebRTC の同じ接続の Opus トラック。MJPEG の代替は映像のみ)
-let audioOn=false;function startAudio(){if(audioOn||mode==='mjpeg')return;audioOn=true;
+// (音声は映像と同じ WebRTC 接続の Opus トラック)
+let audioOn=false;function startAudio(){if(audioOn)return;audioOn=true;
  vv.muted=false;vv.play().catch(()=>{audioOn=false;});}
 document.addEventListener('pointerdown',startAudio,{capture:true});
 

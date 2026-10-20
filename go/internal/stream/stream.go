@@ -1,11 +1,9 @@
-// Package stream serves one game window to a browser: video and audio over WebRTC (rtc.go;
-// the audio is an Opus track on the same connection), a silent MJPEG fallback over
-// multipart/x-mixed-replace (ffmpeg x11grab of the game window only) for browsers that
-// cannot connect, and input posted back as JSON and replayed with xdotool.
+// Package stream serves one game window to a browser over WebRTC (rtc.go): video and an
+// Opus audio track on one connection, and input sent back as JSON (data channel, or POST
+// when it is not open) and replayed with xdotool.
 package stream
 
 import (
-	"bytes"
 	"context"
 	_ "embed"
 	"encoding/json"
@@ -17,7 +15,6 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -42,14 +39,13 @@ type Game struct {
 // maxHold releases a held key the browser never let go of (closed tab, lost connection).
 const maxHold = 2 * time.Minute
 
-// Handler serves "", "video", "input", "rtc" and "rtc-config" relative to where it is mounted.
+// Handler serves "", "input", "rtc" and "rtc-config" relative to where it is mounted.
 func (g *Game) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Write(page)
 	})
-	mux.HandleFunc("GET /video", g.video)
 	mux.HandleFunc("POST /input", g.input)
 	mux.HandleFunc("POST /rtc", g.rtcOffer)
 	mux.HandleFunc("GET /rtc-config", g.rtcConfig)
@@ -57,77 +53,6 @@ func (g *Game) Handler() http.Handler {
 }
 
 func (g *Game) disp() x11.Display { return x11.Display(g.Display) }
-
-// waitWindow waits until the game shows a real window.
-func (g *Game) waitWindow(r *http.Request) (x11.Window, bool) {
-	for {
-		if w, ok := g.disp().Largest(); ok && w.Area() > 1 {
-			return w, true
-		}
-		select {
-		case <-r.Context().Done():
-			return x11.Window{}, false
-		case <-time.After(500 * time.Millisecond):
-		}
-	}
-}
-
-func (g *Game) video(w http.ResponseWriter, r *http.Request) {
-	win, ok := g.waitWindow(r)
-	if !ok {
-		return
-	}
-	fps := g.FPS
-	if fps <= 0 {
-		fps = 15
-	}
-	cmd := exec.CommandContext(r.Context(), "ffmpeg", "-v", "error", "-f", "x11grab", "-draw_mouse", "0",
-		"-framerate", strconv.Itoa(fps), "-video_size", fmt.Sprintf("%dx%d", win.W, win.H),
-		"-i", fmt.Sprintf("%s+%d,%d", g.Display, win.X, win.Y), "-f", "mjpeg", "-q:v", "5", "-")
-	cmd.Env = append(os.Environ(), "DISPLAY="+g.Display)
-	out, err := cmd.StdoutPipe()
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	if err := cmd.Start(); err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	defer cmd.Wait()
-	w.Header().Set("Content-Type", "multipart/x-mixed-replace; boundary=f")
-	w.Header().Set("Cache-Control", "no-store")
-	fl, _ := w.(http.Flusher)
-	var buf []byte
-	chunk := make([]byte, 64<<10)
-	for {
-		n, err := out.Read(chunk)
-		buf = append(buf, chunk[:n]...)
-		for { // cut JPEG frames at SOI / EOI markers
-			s := bytes.Index(buf, []byte{0xff, 0xd8})
-			if s < 0 {
-				break
-			}
-			e := bytes.Index(buf[s+2:], []byte{0xff, 0xd9})
-			if e < 0 {
-				break
-			}
-			frame := buf[s : s+2+e+2]
-			if _, werr := fmt.Fprintf(w, "--f\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n", len(frame)); werr != nil {
-				return
-			}
-			w.Write(frame)
-			w.Write([]byte("\r\n"))
-			if fl != nil {
-				fl.Flush()
-			}
-			buf = buf[s+2+e+2:]
-		}
-		if err != nil {
-			return
-		}
-	}
-}
 
 // Input is one browser event.
 type Input struct {

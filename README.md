@@ -58,7 +58,7 @@ scripts/play.sh --package packages/mygame 8080    # 配信開始 → ブラウ�
 
 ## ストリーミングの方式
 
-Go 版 (`vnbox serve` / `vnbox play`) は **WebRTC (H.264 + Opus)** で配信し、繋がらないときだけ MJPEG に切り替える。
+Go 版 (`vnbox serve` / `vnbox play`) は **WebRTC (H.264 + Opus)** だけで配信する。映像・音声・入力を 1 本の接続にまとめ、別の線 (MJPEG や HTTP の音声) は持たない。
 
 | 経路 | 方式 | 実装 |
 |---|---|---|
@@ -67,9 +67,9 @@ Go 版 (`vnbox serve` / `vnbox play`) は **WebRTC (H.264 + Opus)** で配信し
 | 音声 | ゲーム専用の PulseAudio null シンクの monitor を Opus 96kbps (20ms) にして WebRTC で送る。モバイルは最初のタップで消音を解除 | 同上 |
 | 入力 | WebRTC のデータチャネルで JSON を受け、表示倍率を逆算した座標で `xdotool` がそのウィンドウへ送る (データチャネルが無いときは `POST /input`)。タッチ操作は下記 | `stream.go` / `page.html` |
 | シグナリング | ページが offer を `POST rtc?codec=h264|vp8` に送り、ICE 収集を済ませた answer を返す 1 往復 (ポータルの認証の内側) | `rtc.go` |
-| 代替 | WebRTC が 12 秒以内に繋がらなければ MJPEG (`multipart/x-mixed-replace`) に切り替える (映像のみ。音声は WebRTC の同じ接続で送るので別の線は持たない) | `stream.go` `/video` |
+| 繋がらないとき | 12 秒以内に繋がらなければ理由を画面に出し、10 秒後に繋ぎ直す (下の「ネットワーク設定」を参照) | `page.html` |
 
-帯域の実測 (1280x720、同じ画面を同じ時間受信):
+帯域の実測 (1280x720、同じ画面を同じ時間受信。MJPEG は以前の方式で、今は使わない):
 
 | 画面 | MJPEG (15fps, q5) | WebRTC H.264 (30fps) |
 |---|---|---|
@@ -153,7 +153,7 @@ bin/vnbox detect <フォルダ> / extract <アーカイブ> <出力先> / regdif
 | `internal/add` | 配布物 1 つ → パッケージ |
 | `internal/pkg` | パッケージの読み書き、実行用 prefix の準備 |
 | `internal/store` | S3 (AWS SDK v2): パッケージとセーブの保存・取得・履歴 |
-| `internal/stream` | 配信: WebRTC (H.264 / VP8 + Opus、データチャネル入力、pion/webrtc) と代替の MJPEG (音声なし)、タッチ操作のページ |
+| `internal/stream` | 配信: WebRTC (H.264 / VP8 + Opus、データチャネル入力、pion/webrtc) 、タッチ操作のページ |
 | `internal/session` | 1 本のゲームの起動〜終了 (1x1 ウィンドウ時の Managed=N 再起動、定期・終了時のセーブ) |
 | `internal/meta` | 批評空間 (SQL フォーム) / VNDB (Kana API) からのメタデータ取得、タイトルの照合 (「体験版」等を除いて正規化)、カバー画像の保存 |
 | `internal/portal` | ギャラリー・詳細画面、サムネイル (プレイ中はライブ)、トークン認証 (一度 `?token=` で開くと Cookie)、複数セッションの管理 |

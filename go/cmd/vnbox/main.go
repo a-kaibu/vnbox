@@ -328,7 +328,7 @@ func cmdServe(ctx context.Context, args []string) error {
 	c := newFlags("serve")
 	addr := c.fs.String("addr", ":8080", "listen address")
 	tok := c.fs.String("token", "", "access token (or VNBOX_TOKEN)")
-	fps := c.fs.Int("fps", 15, "video frame rate of the MJPEG fallback (WebRTC uses at least 30)")
+	fps := c.fs.Int("fps", 30, "video frame rate (below 24 means 30)")
 	rtc := rtcFlags(c)
 	c.parse(args)
 	if err := rtc(); err != nil {
@@ -351,7 +351,7 @@ func cmdPlay(ctx context.Context, args []string) error {
 	c := newFlags("play")
 	addr := c.fs.String("addr", ":8080", "listen address")
 	tok := c.fs.String("token", "", "access token (or VNBOX_TOKEN)")
-	fps := c.fs.Int("fps", 15, "video frame rate of the MJPEG fallback (WebRTC uses at least 30)")
+	fps := c.fs.Int("fps", 30, "video frame rate (below 24 means 30)")
 	rtc := rtcFlags(c)
 	pos := c.parse(args)
 	if len(pos) < 1 {
