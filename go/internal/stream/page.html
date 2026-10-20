@@ -33,7 +33,7 @@ html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none
 #kbd input{font:16px system-ui;padding:8px;border-radius:8px;border:0;width:min(60vw,320px)}
 #kbd button{font:600 15px system-ui;padding:8px 12px;border-radius:8px;border:0;background:#e2557a;color:#fff}
 </style></head><body>
-<video id="vv" autoplay playsinline muted></video><img id="v" alt="" hidden><audio id="a" preload="none"></audio><div id="pad"></div>
+<video id="vv" autoplay playsinline muted></video><img id="v" alt="" hidden><div id="pad"></div>
 <div id="hint" class="hide"></div>
 <button id="fab" aria-label="メニュー">☰</button>
 <div id="bar">
@@ -90,14 +90,14 @@ function startMJPEG(){if(pc)try{pc.close()}catch(e){};pc=null;dc=null;mode='mjpe
 startRTC().catch(e=>{console.warn('WebRTC unavailable, using MJPEG:',e);startMJPEG();});
 // 実際に受け取っている帯域をメニューに出す
 let lastBytes=0,lastT=0;
-setInterval(async()=>{if(!pc){stat.textContent=mode?'MJPEG (WebRTC 不可時の代替)':'';return;}
+setInterval(async()=>{if(!pc){stat.textContent=mode?'MJPEG (WebRTC 不可時の代替、音声なし)':'';return;}
  let b=0;(await pc.getStats()).forEach(r=>{if(r.type==='inbound-rtp')b+=r.bytesReceived||0;});
  const t=performance.now();if(lastT)stat.textContent=mode+' · '+Math.round((b-lastBytes)*8/(t-lastT))+' kbps';lastBytes=b;lastT=t;},2000);
 
-// モバイルブラウザは操作起点でないと音を出せない: 最初の操作で音を出す (WebRTC は video の消音解除、MJPEG は音声ストリーム)
-let audioOn=false;function startAudio(){if(audioOn)return;audioOn=true;
- if(mode!=='mjpeg'){vv.muted=false;vv.play().catch(()=>{audioOn=false;});return;}
- const a=document.getElementById('a');a.src='audio';a.play().catch(()=>{audioOn=false;});}
+// モバイルブラウザは操作起点でないと音を出せない: 最初の操作で video の消音を解除する
+// (音声は WebRTC の同じ接続の Opus トラック。MJPEG の代替は映像のみ)
+let audioOn=false;function startAudio(){if(audioOn||mode==='mjpeg')return;audioOn=true;
+ vv.muted=false;vv.play().catch(()=>{audioOn=false;});}
 document.addEventListener('pointerdown',startAudio,{capture:true});
 
 // ---- マウス ----

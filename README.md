@@ -67,7 +67,7 @@ Go 版 (`vnbox serve` / `vnbox play`) は **WebRTC (H.264 + Opus)** で配信し
 | 音声 | ゲーム専用の PulseAudio null シンクの monitor を Opus 96kbps (20ms) にして WebRTC で送る。モバイルは最初のタップで消音を解除 | 同上 |
 | 入力 | WebRTC のデータチャネルで JSON を受け、表示倍率を逆算した座標で `xdotool` がそのウィンドウへ送る (データチャネルが無いときは `POST /input`)。タッチ操作は下記 | `stream.go` / `page.html` |
 | シグナリング | ページが offer を `POST rtc?codec=h264|vp8` に送り、ICE 収集を済ませた answer を返す 1 往復 (ポータルの認証の内側) | `rtc.go` |
-| 代替 | WebRTC が 12 秒以内に繋がらなければ MJPEG (`multipart/x-mixed-replace`) + Opus/WebM に切り替える | `stream.go` `/video` `/audio` |
+| 代替 | WebRTC が 12 秒以内に繋がらなければ MJPEG (`multipart/x-mixed-replace`) に切り替える (映像のみ。音声は WebRTC の同じ接続で送るので別の線は持たない) | `stream.go` `/video` |
 
 帯域の実測 (1280x720、同じ画面を同じ時間受信):
 
@@ -153,7 +153,7 @@ bin/vnbox detect <フォルダ> / extract <アーカイブ> <出力先> / regdif
 | `internal/add` | 配布物 1 つ → パッケージ |
 | `internal/pkg` | パッケージの読み書き、実行用 prefix の準備 |
 | `internal/store` | S3 (AWS SDK v2): パッケージとセーブの保存・取得・履歴 |
-| `internal/stream` | 配信: WebRTC (H.264 / VP8 + Opus、データチャネル入力、pion/webrtc) と代替の MJPEG / Opus-WebM、タッチ操作のページ |
+| `internal/stream` | 配信: WebRTC (H.264 / VP8 + Opus、データチャネル入力、pion/webrtc) と代替の MJPEG (音声なし)、タッチ操作のページ |
 | `internal/session` | 1 本のゲームの起動〜終了 (1x1 ウィンドウ時の Managed=N 再起動、定期・終了時のセーブ) |
 | `internal/meta` | 批評空間 (SQL フォーム) / VNDB (Kana API) からのメタデータ取得、タイトルの照合 (「体験版」等を除いて正規化)、カバー画像の保存 |
 | `internal/portal` | ギャラリー・詳細画面、サムネイル (プレイ中はライブ)、トークン認証 (一度 `?token=` で開くと Cookie)、複数セッションの管理 |
@@ -272,22 +272,22 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 ## 動作確認の集計
 
 <!-- STATS:BEGIN -->
-**タイトル画面以降まで目視で確認できたもの: 687 本** (一覧は下の「起動確認済みタイトル一覧」)。
+**タイトル画面以降まで目視で確認できたもの: 690 本** (一覧は下の「起動確認済みタイトル一覧」)。
 - 第1〜3弾: 102 本 (第1弾 22 本 + suezou ミラー 80 本)
 - 第4弾 (2026-10-19): suezou ミラーから新たに 108 本、ムジナ 1 本、未解決分の解消 59 本
-- 第6弾 (2026-10-19〜20、Go 版 `vnbox add` でバッチ): 候補 423 本 (suezou 240 / DLsite 183) から **416 本** (suezou 239 / DLsite 177)。対象外 7 本、弱い確認 0 本、未確定 0 本
+- 第6弾 (2026-10-19〜20、Go 版 `vnbox add` でバッチ): 候補 423 本 (suezou 240 / DLsite 183) から **419 本** (suezou 240 / DLsite 179)。対象外 4 本、弱い確認 0 本、未確定 0 本
 
-対象外 (`results/excluded.tsv`、計 18 本) は理由付き: 配布物が紹介動画・音声・HTML5 のみ、配布ファイルの破損や削除、VR 専用、GPU 必須 (D3D12 SM6 専用の UE 5.8)。
+対象外 (`results/excluded.tsv`、計 15 本) は理由付き: 配布物が紹介動画・音声・HTML5 のみ、配布ファイルの破損や削除、VR 専用、GPU 必須 (D3D12 SM6 専用の UE 5.8)。
 弱い確認 (0 本): 
 
-第6弾の DLsite 分の製品版 DRM (作品ページの表記): なし 122 / PlayDRM 51 / ソフト電池 2 / シリアル番号 2 (体験版にはどれも入っていない)
+第6弾の DLsite 分の製品版 DRM (作品ページの表記): なし 124 / PlayDRM 51 / ソフト電池 2 / シリアル番号 2 (体験版にはどれも入っていない)
 
 第6弾のエンジン別 (`vnbox add` の判定):
 
 | エンジン | 本数 |
 |---|---|
 | 判定外 (独自エンジン等) | 126 |
-| KiriKiri | 71 |
+| KiriKiri | 72 |
 | Unity | 39 |
 | NW.js/Tyrano | 30 |
 | NeXAS | 20 |
@@ -308,6 +308,7 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 | Kaguya | 3 |
 | ShiinaRio | 3 |
 | EntisGLS | 3 |
+| HTML5 | 2 |
 | Majiro | 1 |
 | RenPy | 1 |
 | AliceSoft System4 | 1 |

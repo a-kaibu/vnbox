@@ -1,7 +1,7 @@
-// Package stream serves one game window to a browser:
-// video as MJPEG over multipart/x-mixed-replace (ffmpeg x11grab of the game window only),
-// audio as Opus/WebM from the game's own PulseAudio sink, and input posted back as JSON
-// and replayed with xdotool.
+// Package stream serves one game window to a browser: video and audio over WebRTC (rtc.go;
+// the audio is an Opus track on the same connection), a silent MJPEG fallback over
+// multipart/x-mixed-replace (ffmpeg x11grab of the game window only) for browsers that
+// cannot connect, and input posted back as JSON and replayed with xdotool.
 package stream
 
 import (
@@ -42,7 +42,7 @@ type Game struct {
 // maxHold releases a held key the browser never let go of (closed tab, lost connection).
 const maxHold = 2 * time.Minute
 
-// Handler serves "", "video", "audio" and "input" relative to where it is mounted.
+// Handler serves "", "video", "input", "rtc" and "rtc-config" relative to where it is mounted.
 func (g *Game) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +50,6 @@ func (g *Game) Handler() http.Handler {
 		w.Write(page)
 	})
 	mux.HandleFunc("GET /video", g.video)
-	mux.HandleFunc("GET /audio", g.audio)
 	mux.HandleFunc("POST /input", g.input)
 	mux.HandleFunc("POST /rtc", g.rtcOffer)
 	mux.HandleFunc("GET /rtc-config", g.rtcConfig)
@@ -123,44 +122,6 @@ func (g *Game) video(w http.ResponseWriter, r *http.Request) {
 				fl.Flush()
 			}
 			buf = buf[s+2+e+2:]
-		}
-		if err != nil {
-			return
-		}
-	}
-}
-
-func (g *Game) audio(w http.ResponseWriter, r *http.Request) {
-	if g.Sink == "" {
-		http.NotFound(w, r)
-		return
-	}
-	cmd := exec.CommandContext(r.Context(), "ffmpeg", "-v", "error", "-f", "pulse", "-fragment_size", "1024",
-		"-i", g.Sink+".monitor", "-ac", "2", "-c:a", "libopus", "-b:a", "96k", "-application", "audio",
-		"-f", "webm", "-cluster_time_limit", "100", "-")
-	out, err := cmd.StdoutPipe()
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	if err := cmd.Start(); err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	defer cmd.Wait()
-	w.Header().Set("Content-Type", "audio/webm")
-	w.Header().Set("Cache-Control", "no-store")
-	fl, _ := w.(http.Flusher)
-	buf := make([]byte, 4096)
-	for {
-		n, err := out.Read(buf)
-		if n > 0 {
-			if _, werr := w.Write(buf[:n]); werr != nil {
-				return
-			}
-			if fl != nil {
-				fl.Flush()
-			}
 		}
 		if err != nil {
 			return

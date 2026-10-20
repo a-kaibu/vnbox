@@ -12,5 +12,5 @@ b2023_poison	配布物が紹介動画のみ (実行ファイルなし)
 b2019_lass_pixy	配布ファイル自体が破損 (zip 内 data.xp3 の CRC 不一致。2 回取得して同一。同じ作品は b2020_lass_pixy で動作確認済み)
 dl_VJ01002150	配布物が紹介動画のみ (実行ファイルなし)
 dl_RJ01741015	VR 専用 (Meta Quest 等の OpenXR ヘッドセットが必要。デスクトップには何も描かない)
-dl_RJ01743502	GPU 必須: Unreal Engine 5.8 で D3D12 (SM6) のみ対応。D3D11/Vulkan は「プロジェクトが対応していない」で終了し、vkd3d-proton + 機能レベル上書きでもソフトウェア描画 (lavapipe) では起動処理が進まない
+dl_RJ01743502	GPU 必須: Unreal Engine 5.8 で D3D12 (SM6) のみ対応。D3D11/Vulkan は「プロジェクトが対応していない」で終了する。vkd3d-proton 2.14.1 + 機能レベル 12_2 / SM 6.6 の上書きで 1 フレーム目までは進むが、lavapipe (Mesa 25.2 / 26.2 とも) は fragment shader barycentric が無いため vkd3d-proton がメッシュシェーダを無効にし、ゲームが作るメッシュシェーダの PSO が vkCreateGraphicsPipelines で落ちる (検証レイヤで VUID-VkGraphicsPipelineCreateInfo-None-07826 / stage-02091 を確認)。ソフトウェア描画では不可
 dl_VJ01002074	音声作品の試聴データ (mp3 のみ。ゲームではない)
