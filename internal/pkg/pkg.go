@@ -2,7 +2,7 @@
 // Windows system (files under C:\ and registry fragments) plus how to launch it.
 //
 //	packages/<name>/
-//	  launch.ini        [launch] target=<path under C:\> args= renderer= winetricks= title= engine= network=on
+//	  launch.ini        [launch] target=<path under C:\> args= renderer= winetricks= title= engine= network=on managed=n
 //	  thumb.jpg         optional gallery thumbnail (taken while the game runs)
 //	  files/            copied into drive_c
 //	  system.reg.frag   HKLM changes
@@ -43,6 +43,7 @@ type Launch struct {
 	Engine     string // detected engine, shown in the gallery
 	DRM        string // DRM / protector found in the files (DRM:*, Protect:* tags of detect), comma separated
 	Network    bool   // network=on: the game may use the network (it runs without one otherwise)
+	Unmanaged  bool   // managed=n: Wine manages the game's windows itself (X11 Driver\Managed=N)
 }
 
 // IsHTML reports whether the target is a web page (an HTML5 game): it runs in a native
@@ -118,6 +119,8 @@ func ParseLaunch(r io.Reader) (Launch, error) {
 			l.DRM = v
 		case "network":
 			l.Network = v == "on" || v == "1" || v == "yes"
+		case "managed":
+			l.Unmanaged = strings.EqualFold(v, "n") || v == "off" || v == "no"
 		}
 	}
 	return l, sc.Err()
@@ -143,6 +146,9 @@ func WriteLaunch(dir string, l Launch) error {
 	}
 	if l.Network {
 		s += "network=on\n"
+	}
+	if l.Unmanaged {
+		s += "managed=n\n"
 	}
 	return os.WriteFile(filepath.Join(dir, "launch.ini"), []byte(s), 0o644)
 }
@@ -201,10 +207,15 @@ func (p *Package) Prepare(ctx context.Context, fl wine.Flavor, prefix, display s
 		return fmt.Errorf("copy files: %w", err)
 	}
 	env := wine.Env{Flavor: fl, Prefix: prefix, Display: display}
-	if l.Renderer != "" || len(l.Winetricks) > 0 {
+	if l.Renderer != "" || len(l.Winetricks) > 0 || l.Unmanaged {
 		if err := wine.EnsureX(env.Display); err != nil {
 			return err
 		}
+	}
+	// games that draw black under the window manager but fine when Wine manages the window
+	// (SakanaGL); others get this only when a 1x1 window is seen (session)
+	if l.Unmanaged {
+		env.RegAdd(ctx, `HKCU\Software\Wine\X11 Driver`, "Managed", "", "N")
 	}
 	if l.Renderer != "" {
 		env.RegAdd(ctx, `HKCU\Software\Wine\Direct3D`, "renderer", "", l.Renderer)

@@ -49,6 +49,13 @@ func Find(dir string) string {
 					return filepath.Join(dir, r.Exes[0].Path)
 				}
 			}
+			// a single big exe of no known engine is the game packed into its own installer
+			// (あいれぼ: a 330 MB launcher whose インストール button unpacks the game)
+			if len(r.Exes) == 1 {
+				if st, err := os.Stat(filepath.Join(dir, r.Exes[0].Path)); err == nil && st.Size() >= 64<<20 {
+					return filepath.Join(dir, r.Exes[0].Path)
+				}
+			}
 		}
 		return ""
 	}
@@ -106,14 +113,15 @@ func bgiDataBelow(dir string) bool {
 
 var setupVersion = regexp.MustCompile(`[_ -](setup|install)[_ -]v?\d+(\.\d+)*$`)
 
-// isInstallerName: setup.exe, install*.exe, Foo_Install.exe, Foo-setup.exe, インストール/セットアップ (not uninstallers)
+// isInstallerName: setup.exe, install*.exe, Foo_Install.exe, Foo-setup.exe, インストール/インストーラ/セットアップ (not uninstallers)
 func isInstallerName(name string) bool {
 	n := strings.ToLower(name)
 	if !strings.HasSuffix(n, ".exe") || strings.Contains(n, "uninst") {
 		return false
 	}
 	base := strings.TrimSuffix(n, ".exe")
-	if base == "setup" || strings.HasPrefix(base, "install") || strings.Contains(name, "インストール") || strings.Contains(name, "セットアップ") {
+	// インストー: インストール / インストーラ (Starless体験版２インストーラ.exe)
+	if base == "setup" || strings.HasPrefix(base, "install") || strings.Contains(name, "インストー") || strings.Contains(name, "セットアップ") {
 		return true
 	}
 	for _, suf := range []string{"_install", "-install", " install", "_setup", "-setup", " setup"} {

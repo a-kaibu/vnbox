@@ -256,6 +256,11 @@ func addPackage(ctx context.Context, name, src string, o addOptions) (*pkg.Packa
 	if unreal4(filepath.Join(p.Dir, "files", filepath.FromSlash(l.Target))) && !slices.Contains(l.Winetricks, "vnbox-dxvk") {
 		l.Winetricks = append(l.Winetricks, "vnbox-dxvk")
 	}
+	// SakanaGL: WM (openbox) がウィンドウを管理すると全面が黒いまま。Wine 自身に管理させると描ける
+	// (でか乳巫女と巨乳シスター)
+	if l.Engine == "SakanaGL" {
+		l.Unmanaged = true
+	}
 	// Godot 4: プロジェクトが Direct3D 12 を指定していると、Wine 内蔵の vkd3d が DXIL を読めずに落ちる
 	// (魔王なのにスライムしか作れない 体験版)。Vulkan (lavapipe) で描かせる
 	if l.Args == "" && godot4(filepath.Join(p.Dir, "files", filepath.FromSlash(l.Target))) {

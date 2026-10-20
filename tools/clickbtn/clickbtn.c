@@ -36,6 +36,7 @@ struct find { int best; HWND button; HWND top; };
 static const struct layout { const wchar_t *cls; int w, h, x1, y1, x2, y2; const char *what; } layouts[] = {
     {L"BGI - Main window", 500, 324, 398, 27, 398, 293, "BGI installer menu"},  /* インストール / インストーラの終了 */
     {L"BGI - Main window", 960, 540, 278, 320, 278, 473, "BGI installer menu (960x540)"},  /* ゲームのインストール / インストーラーの終了 (学☆王) */
+    {L"BGI - Main window", 800, 450, 655, 224, 690, 410, "BGI installer menu (800x450)"},  /* インストール / インストーラの終了 (クダンノフォークロア) */
 };
 
 static void click_at(HWND h, int x, int y)
