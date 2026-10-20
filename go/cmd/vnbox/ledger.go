@@ -79,6 +79,9 @@ func ledgerRecord(args []string) error {
 			continue
 		}
 		have[id] = true
+		if !strings.HasSuffix(l, "\n") { // a last line without a newline
+			l += "\n"
+		}
 		lines = append(lines, l)
 	}
 	for _, id := range ids {

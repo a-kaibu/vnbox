@@ -47,14 +47,9 @@ func VCRun(ctx context.Context, env wine.Env) error {
 		reg := fmt.Sprintf("REGEDIT4\n\n[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\%s]\n"+
 			"\"Installed\"=dword:00000001\n\"Major\"=dword:%08x\n\"Minor\"=dword:%08x\n\"Bld\"=dword:%08x\n\"Rbld\"=dword:%08x\n"+
 			"\"Version\"=\"v%d.%d.%d.%02d\"\n", arch, v[0], v[1], v[2], v[3], v[0], v[1], v[2], v[3])
-		// x86 in a 64-bit prefix: the 32-bit view (WOW6432Node), where 32-bit games look
+		// x86 in a 64-bit prefix goes to the 32-bit view (WOW6432Node), where 32-bit games look
 		wow := arch == "x86" && d64 != ""
-		if wow {
-			err = importReg32(ctx, env, reg)
-		} else {
-			err = env.ImportReg(ctx, reg, false)
-		}
-		if err != nil {
+		if err := env.ImportReg(ctx, reg, !wow, wow); err != nil {
 			return err
 		}
 	}
@@ -64,18 +59,6 @@ func VCRun(ctx context.Context, env wine.Env) error {
 		}
 	}
 	return nil
-}
-
-// importReg32 imports a .reg file into the 32-bit registry view only.
-func importReg32(ctx context.Context, env wine.Env, text string) error {
-	dir := filepath.Join(env.Prefix, "drive_c", "vnbox")
-	os.MkdirAll(dir, 0o755)
-	f := filepath.Join(dir, "import32.reg")
-	if err := os.WriteFile(f, []byte(strings.ReplaceAll(text, "\n", "\r\n")), 0o644); err != nil {
-		return err
-	}
-	defer os.Remove(f)
-	return env.Run(ctx, nil, `C:\windows\syswow64\regedit.exe`, "/S", `C:\vnbox\import32.reg`)
 }
 
 func fetchVCRun(ctx context.Context, arch, dir string) error {
@@ -226,7 +209,7 @@ func XamlStub(ctx context.Context, env wine.Env) error {
 		fmt.Fprintf(&reg, "\n[HKEY_LOCAL_MACHINE\\Software\\Microsoft\\WindowsRuntime\\ActivatableClassId\\%s]\n"+
 			"\"DllPath\"=\"C:\\\\vnbox\\\\xamlstub32.dll\"\n\"ActivationType\"=dword:00000000\n", c)
 	}
-	return env.ImportReg(ctx, reg.String(), true)
+	return env.ImportReg(ctx, reg.String(), true, true)
 }
 
 func buildXamlStub(ctx context.Context, dll string) error {

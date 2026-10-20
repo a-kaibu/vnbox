@@ -15,7 +15,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"vnbox/internal/wine"
@@ -24,6 +26,10 @@ import (
 // Apply installs one verb ("icu", "dotnet:8:x64:desktop" ...) into env's prefix.
 func Apply(ctx context.Context, env wine.Env, verb string) error {
 	name, rest, _ := strings.Cut(verb, ":")
+	// parallel checks (vnbox verify -j) share the downloads and generated files under runtime/
+	mu := verbLock(name)
+	mu.Lock()
+	defer mu.Unlock()
 	var args []string
 	if rest != "" {
 		args = strings.Split(rest, ":")
@@ -50,6 +56,20 @@ func Apply(ctx context.Context, env wine.Env, verb string) error {
 	}
 	env.Wait()
 	return nil
+}
+
+var (
+	locksMu sync.Mutex
+	locks   = map[string]*sync.Mutex{}
+)
+
+func verbLock(name string) *sync.Mutex {
+	locksMu.Lock()
+	defer locksMu.Unlock()
+	if locks[name] == nil {
+		locks[name] = &sync.Mutex{}
+	}
+	return locks[name]
 }
 
 // cache is the directory for downloaded and generated files of a verb.
@@ -276,6 +296,9 @@ func DXVK(ctx context.Context, env wine.Env) error {
 		}
 	}
 	d := filepath.Dir(dirs[len(dirs)-1])
+	if want := filepath.Join(wine.Root(), "downloads", "dxvk", "dxvk-"+DXVKVersion); slices.Contains(dirs, filepath.Join(want, "x32")) {
+		d = want // names sort as text (dxvk-2.10 < dxvk-2.7): prefer the known version
+	}
 	d64, d32 := sysDirs(env)
 	if d64 != "" {
 		if err := copyInto(filepath.Join(d, "x64", "*.dll"), d64); err != nil {

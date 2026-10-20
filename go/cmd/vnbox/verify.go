@@ -97,6 +97,7 @@ func cmdVerify(ctx context.Context, args []string) error {
 		}
 	}
 	os.MkdirAll(filepath.Dir(o.out), 0o755)
+	os.MkdirAll(filepath.Join(wine.Root(), "results", "batch"), 0o755) // logs and contact sheets
 	var mu sync.Mutex
 	sem := make(chan struct{}, max(1, *jobs))
 	var wg sync.WaitGroup
@@ -104,6 +105,7 @@ func cmdVerify(ctx context.Context, args []string) error {
 		if len(r) < 2 || done[r[0]] || ctx.Err() != nil {
 			continue
 		}
+		done[r[0]] = true                       // a title listed twice is checked once
 		r = append(r, make([]string, 6)...)[:6] // id url title source drm mb
 		sem <- struct{}{}
 		wg.Add(1)
@@ -156,9 +158,8 @@ func verifyOne(ctx context.Context, r []string, o verifyOptions) []string {
 	os.RemoveAll(dl)
 	if err != nil {
 		fmt.Fprintln(logf, "add:", err)
-		msg := firstLineOf(err.Error())
 		os.RemoveAll(pkg.Dir(id))
-		return line("-", "NG:package("+msg+")", "", "", "")
+		return line("-", "NG:package("+probe.Short(err.Error())+")", "", "", "")
 	}
 	if !o.keep {
 		defer os.RemoveAll(p.Dir)
@@ -168,16 +169,16 @@ func verifyOne(ctx context.Context, r []string, o verifyOptions) []string {
 			l.Winetricks = append(l.Winetricks, v)
 		}
 	}
-	pkg.WriteLaunch(p.Dir, l)
+	if err := pkg.WriteLaunch(p.Dir, l); err != nil {
+		fmt.Fprintln(logf, "launch.ini:", err)
+		return line("-", "NG:package("+probe.Short(err.Error())+")", l.Target, l.Engine, "")
+	}
 	marks := drmScan(filepath.Join(p.Dir, "files"))
-	verdict, best := "NG", ""
+	verdict, best := "NG", "-"
 	var runs []string
 	for _, fl := range []wine.Flavor{wine.Vnbox, wine.Classic} {
 		run := "v_" + id + "_" + string(fl)
-		prefix := filepath.Join(wine.Root(), "prefixes", "run-"+run)
-		os.RemoveAll(prefix)
-		res, err := probe.Run(ctx, id, probe.Options{Flavor: fl, Prefix: prefix, Run: run, Input: o.input, Wait: o.wait, Log: logf})
-		os.RemoveAll(prefix)
+		res, err := probe.Run(ctx, id, probe.Options{Flavor: fl, Run: run, Input: o.input, Wait: o.wait, Log: logf})
 		if err != nil {
 			fmt.Fprintln(logf, "probe:", err)
 			continue
@@ -192,14 +193,6 @@ func verifyOne(ctx context.Context, r []string, o verifyOptions) []string {
 		fmt.Fprintln(logf, "sheet:", err)
 	}
 	return line(best, verdict, l.Target, l.Engine, marks)
-}
-
-func firstLineOf(s string) string {
-	s, _, _ = strings.Cut(s, "\n")
-	if len(s) > 70 {
-		s = s[:70]
-	}
-	return s
 }
 
 // waitDisk waits until the file system has at least min bytes free (titles are checked in

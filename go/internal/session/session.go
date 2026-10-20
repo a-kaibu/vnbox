@@ -29,11 +29,10 @@ type Options struct {
 	Log          io.Writer
 
 	// for vnbox probe (dynamic checks): another prefix than prefixes/run-<name>, where Wine's
-	// output goes (default results/play-<name>.log), WINEDEBUG, and no Managed=N restart
-	Prefix    string
-	WineLog   string
-	Debug     string
-	NoManaged bool
+	// output goes (default results/play-<name>.log) and WINEDEBUG
+	Prefix  string
+	WineLog string
+	Debug   string
 }
 
 // Session is a running game.
@@ -87,14 +86,25 @@ func Start(ctx context.Context, name string, o Options) (*Session, error) {
 	if o.Prefix != "" {
 		s.Prefix = o.Prefix
 	}
+	if s.opt.WineLog == "" {
+		s.opt.WineLog = filepath.Join(wine.Root(), "results", "play-"+name+".log")
+	}
+	if f, err := os.Create(s.opt.WineLog); err == nil { // a fresh log per session; the Managed=N restart appends
+		f.Close()
+	}
 	s.env = wine.Env{Flavor: fl, Prefix: s.Prefix, Display: s.Display, Sink: s.Sink, Debug: o.Debug}
 	if err := wine.EnsureX(s.Display); err != nil {
+		wine.StopX(s.Display)
 		return nil, err
 	}
 	if err := wine.EnsureAudio(s.Sink); err != nil {
+		wine.StopX(s.Display)
 		return nil, err
 	}
 	if err := p.Prepare(ctx, fl, s.Prefix, s.Display); err != nil {
+		s.env.Kill()
+		wine.StopX(s.Display)
+		wine.RemoveSink(s.Sink)
 		return nil, fmt.Errorf("prepare: %w", err)
 	}
 	if o.Store != nil {
@@ -124,11 +134,7 @@ func (s *Session) start(ctx context.Context) (chan error, error) {
 	if s.launch.IsHTML() {
 		c = wine.BrowserCommand(ctx, s.env, filepath.Join(dir, exe))
 	}
-	logPath := s.opt.WineLog
-	if logPath == "" {
-		logPath = filepath.Join(wine.Root(), "results", "play-"+s.Name+".log")
-	}
-	lf, _ := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	lf, _ := os.OpenFile(s.opt.WineLog, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	c.Stdout, c.Stderr = lf, lf
 	if err := c.Start(); err != nil {
 		return nil, err
@@ -148,7 +154,7 @@ func (s *Session) run(ctx context.Context) {
 	}
 	// Games that leave fullscreen to the window manager keep a 1x1 X window without one.
 	// Let Wine manage the windows itself (X11 Driver\Managed=N) and start again.
-	if !s.opt.NoManaged && !s.launch.IsHTML() && s.wait1x1(ctx) {
+	if !s.launch.IsHTML() && s.wait1x1(ctx) {
 		fmt.Fprintf(s.opt.Log, "[%s] 1x1 window -> restarting with Managed=N\n", s.Name)
 		s.env.Kill()
 		<-exited

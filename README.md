@@ -74,7 +74,7 @@ bin/vnbox stop-all                                  # 動いているゲーム�
 動作確認も `vnbox` で行う (play と同じ起動の仕方で動かすので、通ったものはそのまま遊べる。手順は [VERIFICATION.md](VERIFICATION.md)):
 
 ```bash
-bin/vnbox probe mygame -input "shot:t30 pass:5 sleep:10 shot:a" -wait 30s   # 起動 → 操作列 → スクショ・判定 (results/mygame/)
+bin/vnbox probe mygame -input "shot:t30 pass:5 sleep:10 shot:a" -wait 30s   # 使い捨ての prefix で起動 → 操作列 → スクショ・判定 (results/mygame/)。遊ぶ用の prefix とセーブには触らない
 bin/vnbox candidates suezou downloads/suezou/links.tsv            # 候補集め (suezou ミラー / DLsite の体験版一覧 → 未試行分の抽出)
 bin/vnbox candidates dlsite pro 20 downloads/dlsite/pro.tsv
 bin/vnbox candidates pick downloads/batch7.tsv -suezou 100 -pro 50 -maniax 50

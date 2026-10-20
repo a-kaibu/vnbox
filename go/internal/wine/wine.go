@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -153,9 +154,14 @@ func (e Env) Reg(ctx context.Context, args ...string) error {
 	return e.Run(ctx, nil, append([]string{"reg"}, args...)...)
 }
 
-// ImportReg imports a .reg file's text (REGEDIT4) with regedit. wow32 also imports it into
-// the 32-bit view of a 64-bit prefix (syswow64\regedit.exe), where 32-bit programs look.
-func (e Env) ImportReg(ctx context.Context, text string, wow32 bool) error {
+// ImportReg imports a .reg file's text (REGEDIT4) with regedit: into the native view and/or,
+// in a 64-bit prefix, the 32-bit view (syswow64\regedit.exe, WOW6432Node) where 32-bit
+// programs look. In a 32-bit prefix the native view is the only one.
+func (e Env) ImportReg(ctx context.Context, text string, native, wow32 bool) error {
+	win64 := e.Flavor == Vnbox || e.Win64 || IsWin64(e.Prefix)
+	if !win64 {
+		native, wow32 = true, false
+	}
 	dir := filepath.Join(e.Prefix, "drive_c", "vnbox")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -165,10 +171,12 @@ func (e Env) ImportReg(ctx context.Context, text string, wow32 bool) error {
 		return err
 	}
 	defer os.Remove(f)
-	if err := e.Run(ctx, nil, "regedit", "/S", `C:\vnbox\import.reg`); err != nil {
-		return err
+	if native {
+		if err := e.Run(ctx, nil, "regedit", "/S", `C:\vnbox\import.reg`); err != nil {
+			return err
+		}
 	}
-	if wow32 && (e.Flavor == Vnbox || e.Win64 || IsWin64(e.Prefix)) {
+	if wow32 {
 		return e.Run(ctx, nil, `C:\windows\syswow64\regedit.exe`, "/S", `C:\vnbox\import.reg`)
 	}
 	return nil
@@ -205,17 +213,29 @@ func DisplayFor(name string) string {
 // FreeDisplay returns a display number for name that no other X server uses, starting
 // from DisplayFor(name) and probing upwards. Sessions must not share a display, or two
 // games would be captured and controlled together.
+//
+// A display handed out stays reserved in this process until StopX, so that two games
+// started at the same moment (vnbox verify -j, the portal) do not both pick it before
+// either X server has created its lock file.
 func FreeDisplay(name string) string {
 	var n int
 	fmt.Sscanf(DisplayFor(name), ":%d", &n)
+	displayMu.Lock()
+	defer displayMu.Unlock()
 	for i := 0; i < 400; i++ {
-		d := 100 + (n-100+i)%400
-		if _, err := os.Stat(fmt.Sprintf("/tmp/.X%d-lock", d)); err != nil {
-			return fmt.Sprintf(":%d", d)
+		d := fmt.Sprintf(":%d", 100+(n-100+i)%400)
+		if _, err := os.Stat("/tmp/.X" + d[1:] + "-lock"); err != nil && !reserved[d] {
+			reserved[d] = true
+			return d
 		}
 	}
 	return DisplayFor(name)
 }
+
+var (
+	displayMu sync.Mutex
+	reserved  = map[string]bool{}
+)
 
 // SinkFor returns a stable PulseAudio sink name for a name.
 func SinkFor(name string) string {
@@ -276,18 +296,24 @@ func startWM(display string) {
 	}
 }
 
-// StopX stops the X server on display (and with it the window manager), if one runs.
+// StopX stops the X server on display (and with it the window manager), if one runs,
+// and frees the display number.
 func StopX(display string) {
+	displayMu.Lock()
+	delete(reserved, display)
+	displayMu.Unlock()
 	b, err := os.ReadFile("/tmp/.X" + strings.TrimPrefix(display, ":") + "-lock")
 	if err != nil {
 		return
 	}
 	var pid int
 	fmt.Sscan(strings.TrimSpace(string(b)), &pid)
-	if pid > 0 {
-		if p, err := os.FindProcess(pid); err == nil {
-			p.Signal(os.Interrupt)
-		}
+	// a stale lock may name a pid that now belongs to another program
+	if comm, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid)); pid <= 0 || err != nil || strings.TrimSpace(string(comm)) != "Xvfb" {
+		return
+	}
+	if p, err := os.FindProcess(pid); err == nil {
+		p.Signal(os.Interrupt)
 	}
 }
 
@@ -333,6 +359,8 @@ func RemoveSink(sink string) {
 // Tool returns runtime/tools/<name>.exe, compiling tools/<name>/<name>.c (32-bit, MinGW) when
 // the executable is missing or older than its source.
 func Tool(name string) (string, error) {
+	toolMu.Lock()
+	defer toolMu.Unlock()
 	exe := filepath.Join(Root(), "runtime", "tools", name+".exe")
 	src := filepath.Join(Root(), "tools", name, name+".c")
 	xs, err := os.Stat(exe)
@@ -340,11 +368,14 @@ func Tool(name string) (string, error) {
 		return exe, nil
 	}
 	os.MkdirAll(filepath.Dir(exe), 0o755)
-	if out, err := exec.Command("i686-w64-mingw32-gcc", "-O1", "-finput-charset=UTF-8", "-o", exe, src, "-luser32").CombinedOutput(); err != nil {
+	tmp := exe + ".tmp"
+	if out, err := exec.Command("i686-w64-mingw32-gcc", "-O1", "-finput-charset=UTF-8", "-o", tmp, src, "-luser32").CombinedOutput(); err != nil {
 		return "", fmt.Errorf("build %s: %v: %s", name, err, out)
 	}
-	return exe, nil
+	return exe, os.Rename(tmp, exe) // a running copy (another game's probe) keeps its old file
 }
+
+var toolMu sync.Mutex
 
 // ClonePrefix copies a base prefix using hard links, so a new prefix costs a few MB.
 // The registry and the user profile are real copies because Wine rewrites them.

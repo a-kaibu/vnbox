@@ -11,7 +11,7 @@ vnbox で実際に体験版を動かして確かめた結果。「動作」= タ
 - 一括確認: `vnbox verify <一覧> -j 3` が DL → `vnbox add` → `vnbox probe` (自前 Wine で NG なら従来 Wine でもう一度) → 最後の 2 枚の一覧画像 (`results/batch/v_<id>.png`) → 結果 TSV (`id, 通った Wine, 判定, 起動 exe, エンジン, 出典, 製品版 DRM, 配布物の DRM 痕跡`)。
 - 一次判定 (`probe` が出す OK / NG:<理由>): ゲームのウィンドウが最後まで残っている、Wine のクライアント領域より X のウィンドウが小さくない (画面が切れていない)、Wine がクラッシュを報告していない、最後のスクショが 400x300 相当以上で中央 80% にコントラストがある (真っ黒・真っ白でない)。
 - **全件の一覧画像を目視**して、タイトル画面以降まで出ているものだけを `vnbox ledger record` で台帳に記録する。NG のものはスクショとログ (`results/v_<id>_<wine>/`) を見て、操作列 (`-input`) や `-verbs` / `-click` を変えて `vnbox verify` し直すか、パッケージを直して `vnbox probe` する。
-- 1 本だけ確かめる: `vnbox probe <name> -input "shot:t25 pass:5 sleep:10 shot:a" -wait 25s` → `results/<name>/` にスクショ。操作列は click:x,y / key:K / sleep:N / shot:名前 / pass:N (起動ダイアログを既定ボタンで抜ける)。
+- 1 本だけ確かめる (使い捨ての prefix `prefixes/probe-<name>` で動かし、終わったら消す): `vnbox probe <name> -input "shot:t25 pass:5 sleep:10 shot:a" -wait 25s` → `results/<name>/` にスクショ。操作列は click:x,y / key:K / sleep:N / shot:名前 / pass:N (起動ダイアログを既定ボタンで抜ける)。
 
 第1〜6弾は、当時のシェルスクリプト (`run.sh` / `batch6.sh` など。Wine を直接起動していた) で確かめた。今は上の `vnbox` のコマンドに置き換えて削除した。
 

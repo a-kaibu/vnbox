@@ -256,7 +256,7 @@ func pickCandidates(ctx context.Context, args []string) error {
 	}
 	rnd := rand.New(rand.NewSource(*seed))
 	dl := filepath.Join(wine.Root(), "downloads")
-	slug := func(u string) string { return u[:strings.LastIndex(u, "/")] }
+	slug := func(u string) string { return u[:max(0, strings.LastIndex(u, "/"))] } // the work folder of a URL
 	// work folders tried before: every URL in the other lists of downloads/suezou and in the verify lists
 	used := map[string]bool{}
 	lists, _ := filepath.Glob(filepath.Join(dl, "suezou", "*.tsv"))

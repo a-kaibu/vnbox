@@ -251,6 +251,11 @@ func addPackage(ctx context.Context, name, src string, o addOptions) (*pkg.Packa
 	if unity6(filepath.Join(p.Dir, "files", filepath.FromSlash(l.Target))) && !slices.Contains(l.Winetricks, "vnbox-dxvk") {
 		l.Winetricks = append(l.Winetricks, "vnbox-dxvk")
 	}
+	// Unreal Engine 4 の Direct3D 11 描画は wined3d だとロック待ちで止まる (真依と秘密のマッサージ屋さん、
+	// 小さな侵入者、Bondage Sandbox)。DXVK だと描ける。UE5 は wined3d のままで動いた (新人アイドル、枕営業します。)
+	if unreal4(filepath.Join(p.Dir, "files", filepath.FromSlash(l.Target))) && !slices.Contains(l.Winetricks, "vnbox-dxvk") {
+		l.Winetricks = append(l.Winetricks, "vnbox-dxvk")
+	}
 	// Godot 4: プロジェクトが Direct3D 12 を指定していると、Wine 内蔵の vkd3d が DXIL を読めずに落ちる
 	// (魔王なのにスライムしか作れない 体験版)。Vulkan (lavapipe) で描かせる
 	if l.Args == "" && godot4(filepath.Join(p.Dir, "files", filepath.FromSlash(l.Target))) {
@@ -695,6 +700,21 @@ func iniValue(text, section, key string) string {
 func godot4(exe string) bool {
 	b, err := os.ReadFile(exe)
 	return err == nil && bytes.Contains(b, []byte("Godot Engine")) && bytes.Contains(b, []byte("--rendering-driver"))
+}
+
+// unreal4 reports whether exe is an Unreal Engine 4 game: the <project>-Win64-Shipping.exe
+// itself, or the small launcher next to <project>/Binaries/Win64/<project>-Win64-Shipping.exe.
+func unreal4(exe string) bool {
+	ship := []string{exe}
+	if !strings.HasSuffix(strings.ToLower(exe), "-shipping.exe") {
+		ship, _ = filepath.Glob(filepath.Join(filepath.Dir(exe), "*", "Binaries", "Win64", "*-Shipping.exe"))
+	}
+	for _, f := range ship {
+		if b, err := os.ReadFile(f); err == nil && bytes.Contains(b, []byte("++UE4+Release-4.")) {
+			return true
+		}
+	}
+	return false
 }
 
 // unity6 reports whether the UnityPlayer.dll next to exe is from Unity 6 (version 6000.x).

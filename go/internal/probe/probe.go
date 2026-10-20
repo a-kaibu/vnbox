@@ -33,7 +33,7 @@ const DefaultInput = "click:400,300 key:Return click:400,300 key:Return click:40
 // Options configure a probe.
 type Options struct {
 	Flavor wine.Flavor
-	Prefix string        // default prefixes/run-<name>
+	Prefix string        // prefix to run in; by default a new prefixes/probe-<run>, removed afterwards
 	Run    string        // results/<Run>/ (default the package name)
 	Input  string        // operations, see Run
 	Wait   time.Duration // after starting, before the first screenshot (default 20s)
@@ -77,11 +77,18 @@ func Run(ctx context.Context, name string, o Options) (*Result, error) {
 	if err := os.MkdirAll(r.Dir, 0o755); err != nil {
 		return nil, err
 	}
+	// never the player's prefix (prefixes/run-<name>): the probe clicks through the game and
+	// would change the saves
+	if o.Prefix == "" {
+		o.Prefix = filepath.Join(wine.Root(), "prefixes", "probe-"+o.Run)
+		os.RemoveAll(o.Prefix)
+		defer os.RemoveAll(o.Prefix)
+	}
 	s, err := session.Start(ctx, name, session.Options{Flavor: o.Flavor, Prefix: o.Prefix, Log: o.Log,
 		WineLog: filepath.Join(r.Dir, "wine.log"), Debug: "err+all,fixme-all"})
 	if err != nil {
 		os.WriteFile(filepath.Join(r.Dir, "summary.txt"), []byte("start failed: "+err.Error()+"\n"), 0o644)
-		r.Verdict = "NG:start(" + firstLine(err.Error()) + ")"
+		r.Verdict = "NG:start(" + Short(err.Error()) + ")"
 		return r, nil
 	}
 	defer s.Stop()
@@ -123,10 +130,12 @@ func Run(ctx context.Context, name string, o Options) (*Result, error) {
 	return r, nil
 }
 
-func firstLine(s string) string {
+// Short is the first line of an error message, at most 70 characters, for one TSV cell.
+func Short(s string) string {
 	s, _, _ = strings.Cut(s, "\n")
-	if len(s) > 70 {
-		s = s[:70]
+	s = strings.ReplaceAll(s, "\t", " ")
+	if r := []rune(s); len(r) > 70 {
+		s = string(r[:70])
 	}
 	return s
 }
