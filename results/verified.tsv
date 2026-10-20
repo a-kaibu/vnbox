@@ -3,7 +3,7 @@ r1_naru2	ナルキッソス SIDE 2nd	NScripter	本編テキスト
 r1_trt	トライアンソロジー 体験版	NScripter	本編
 r1_higanbana	彼岸花の咲く夜に お試し版	NScripter	本編 (CreateInstall)
 r1_saku	うみねこのなく頃に咲 体験版	PONScripter	本編テキスト
-r1_kag3	KAG3 紹介デモ	KiriKiri2	本編テキスト
+r1_kag3	KAG3 紹介デモ	KiriKiri2	本編テキスト (配布物の Config.tjs の config_version を "3.32 stable rev. 2" に直す必要あり。Wine とは無関係)
 r1_krkr_apt306	先輩、好きです……押忍！ 体験版	KiriKiri	本編テキスト
 r1_yuris	YU-RIS サンプル	YU-RIS	演出/動画
 r1_bgi_kudan	クダンノフォークロア 体験版	BGI	本編テキスト (独自Setup)
@@ -176,7 +176,7 @@ b2008_smee	晴れハレはーれむ 体験版Ver1.00	-	タイトル
 b2010_kaguya	キラリ☆南国小麦色　体験版	-	タイトル
 b2013_anim	息子の友達に堕とされて　体験版	YU-RIS	タイトル
 b2012_parasol	恋妹SWEET☆DAYS 体験版	KiriKiri	タイトル
-b2006_interheart	『オイラは番台２』体験版	-	タイトル
+b2006_interheart	『オイラは番台２』体験版	-	タイトル (全画面 640x480。X の解像度は変えられないので画面の左上に描画)
 b2014_escude	Re;Lord ～ヘルフォルトの魔女とぬいぐるみ～ - 体験版 Ver.	Escude	タイトル
 b2025_unisonshift	小日向柚月と初夜したいっ！　【体験版】	Softpal	タイトル
 b2022_hending	リンパにATATA! ～メス牡蠣ミルクどぴゅらっしゅ♡～	KiriKiri	タイトル

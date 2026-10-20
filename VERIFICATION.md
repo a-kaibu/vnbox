@@ -15,6 +15,20 @@ vnbox で実際に体験版を動かして確かめた結果。「動作」= タ
 
 第1〜6弾は、当時のシェルスクリプト (`run.sh` / `batch6.sh` など。Wine を直接起動していた) で確かめた。今は上の `vnbox` のコマンドに置き換えて削除した。
 
+## Go 版 (sandbox 込み) で全件確認し直し (2026-10-20〜21)
+
+第1〜6弾で確認した 690 本を、上の手順 (`vnbox verify results/batch/recheck_all.tsv`) で配布元からの DL からやり直した。ゲームとインストーラは bubblewrap の中 (ネットワークなし、他のゲーム・パッケージ・資格情報は見えない) で動かした。結果は `results/batch/summary_go.tsv` (再試行分は `summary_ng*.tsv` / `summary_clicked.tsv` / `summary_clicks.tsv` をまとめたもの)。
+
+- **689 本がタイトル画面以降まで動作** (一覧画像を全件目視)。残り 1 本 (KAG3 紹介デモ) は以前と同じく配布物の `Config.tjs` を直す必要がある (Wine とは無関係)。
+- 1 回目の一括確認では 669 本 OK / 21 本 NG。NG はどれも Wine や sandbox が原因ではなく、vnbox 側の判定・自動操作の不具合だったので直した:
+  - 60 秒のロック待ちのログを「固まった」と判定していた (QLIE / BGI の 3 本): 判定から外した
+  - 名前が「インストーラ」の exe、BGI の 800x450 のインストールメニュー、LiberalInstaller の独自ボタン (`TLSFlatButton`) を扱えなかった
+  - 1 つの大きな exe の作品をインストーラとして扱った結果、何もインストールされず失敗していた: 何も入らなければフォルダのまま登録する
+  - BGI のメニューを 2 回目に押す位置が作品によってはアンインストールだった (ダイヤミック・デイズ): インストール後はメニューを閉じる
+  - ウィンドウ名が空のゲーム (雪音の仇討ち物語) を「落ちた」と判定していた
+  - SakanaGL の黒画面 (Managed=N を自動で付ける)、起動待ちが足りない作品の操作列
+- 一次判定が OK でも目視で違ったもの (インストーラ画面のまま・ランチャーのまま・確認ダイアログのまま) は、上の修正の後の版でやり直して通ることを確認した。
+
 ## 機能の確認
 
 - パッケージ化: zip 版・WinRAR 自己解凍版・Inno Setup 版・LiberalInstaller 版を `vnbox add` で追加して起動。
@@ -119,7 +133,7 @@ vnbox で実際に体験版を動かして確かめた結果。「動作」= タ
 | 1 | 2006 | suezou | その横顔を見つめてしまう ～a profile完全版～ web体験版 | KiriKiri | タイトル | `b2006_akabeesoft` |
 | 2 | 2006 | suezou | b2006_alcot | - | タイトル (再試行・パッチ済み Wine) | `b2006_alcot` |
 | 3 | 2006 | suezou | EXTRAVAGANZA～蟲愛でる少女～体験版 | - | タイトル | `b2006_blackcyc` |
-| 4 | 2006 | suezou | 『オイラは番台２』体験版 | - | タイトル | `b2006_interheart` |
+| 4 | 2006 | suezou | 『オイラは番台２』体験版 | - | タイトル (全画面 640x480。X の解像度は変えられないので画面の左上に描画) | `b2006_interheart` |
 | 5 | 2006 | suezou | 淫皇覇伝アマツ（体験版） | Kaguya | タイトル | `b2006_kaguya` |
 | 6 | 2006 | suezou | とらぶるっ！ | - | タイトル | `b2006_lilim` |
 | 7 | 2006 | suezou | いつか、届く、あの空に。【体験版】 | BGI/Ethornell | タイトル→環境設定 | `b2006_lumpofsugar` |
@@ -789,7 +803,7 @@ vnbox で実際に体験版を動かして確かめた結果。「動作」= タ
 | 671 | - | 手動 | クダンノフォークロア 体験版 | BGI | 本編テキスト (独自Setup) | `r1_bgi_kudan` |
 | 672 | - | 手動 | 果つることなき未来ヨリ 体験版 | CatSystem2 | 本編テキスト | `r1_cs2_hatsumira` |
 | 673 | - | 手動 | 彼岸花の咲く夜に お試し版 | NScripter | 本編 (CreateInstall) | `r1_higanbana` |
-| 674 | - | 手動 | KAG3 紹介デモ | KiriKiri2 | 本編テキスト | `r1_kag3` |
+| 674 | - | 手動 | KAG3 紹介デモ | KiriKiri2 | 本編テキスト (配布物の Config.tjs の config_version を "3.32 stable rev. 2" に直す必要あり。Wine とは無関係) | `r1_kag3` |
 | 675 | - | 手動 | 先輩、好きです……押忍！ 体験版 | KiriKiri | 本編テキスト | `r1_krkr_apt306` |
 | 676 | - | 手動 | あいれぼ 体験版 | Majiro | 本編テキスト (独自インストーラ) | `r1_majiro` |
 | 677 | - | 手動 | Wind RP 体験版 | Musica | 本編テキスト | `r1_musica` |
