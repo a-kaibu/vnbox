@@ -18,8 +18,10 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q fonts-ipafont-gothic fonts-ipafont-mincho p7zip-full
-          pip install -q "moto[server]"
-          echo "MOTO_SERVER=$(command -v moto_server)" >> "$GITHUB_ENV"
+          # a venv of its own: the runner's system boto3 / pyOpenSSL clash with moto's
+          python3 -m venv "$RUNNER_TEMP/moto"
+          "$RUNNER_TEMP/moto/bin/pip" install -q "moto[server]"
+          echo "MOTO_SERVER=$RUNNER_TEMP/moto/bin/moto_server" >> "$GITHUB_ENV"
       - name: gofmt
         run: |
           out=$(gofmt -l cmd internal)
