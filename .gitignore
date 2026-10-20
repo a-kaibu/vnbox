@@ -28,3 +28,4 @@ vnbox-tools.tar.gz
 __pycache__/
 /results/batch/summary_go.tsv
 /results/batch/summary_clicked.tsv
+/results/batch/summary_clicks.tsv
