@@ -173,8 +173,9 @@ func (s *Session) run(ctx context.Context) {
 		case <-first:
 			s.thumb(ctx)
 		case <-exited:
-			// the launcher may have exited after spawning the game: keep going while Wine has windows
-			if _, ok := x11.Display(s.Display).Largest(); ok {
+			// a launcher (BISHOP's startup.exe ...) exits right after starting the game, whose
+			// window can take a while to appear: keep going while Wine shows windows
+			if s.waitWindow(ctx, 60*time.Second) {
 				exited = make(chan error) // never fires; stop on Stop() or when windows disappear
 				go s.watchWindows(ctx)
 				continue
@@ -191,16 +192,36 @@ func (s *Session) run(ctx context.Context) {
 	}
 }
 
+// watchWindows ends the session once Wine has shown no window for 15 seconds (a game
+// switching windows or screen modes has none for a moment).
 func (s *Session) watchWindows(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(5 * time.Second):
-			if _, ok := x11.Display(s.Display).Largest(); !ok {
+			if !s.waitWindow(ctx, 15*time.Second) {
 				s.cancel()
 				return
 			}
+		}
+	}
+}
+
+// waitWindow reports whether a window shows up on the game's display within d.
+func (s *Session) waitWindow(ctx context.Context, d time.Duration) bool {
+	end := time.Now().Add(d)
+	for {
+		if _, ok := x11.Display(s.Display).Largest(); ok {
+			return true
+		}
+		if time.Now().After(end) {
+			return false
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(2 * time.Second):
 		}
 	}
 }
