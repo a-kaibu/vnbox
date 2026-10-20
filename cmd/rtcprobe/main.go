@@ -4,6 +4,8 @@
 //	rtcprobe -url 'http://host:8080/g/<name>/' -cookie 'vnbox=<token>' -codec h264 -sec 10 -out /tmp/probe
 //
 // It writes <out>.h264 (or .ivf) and <out>.ogg, and prints the bytes received.
+// -lossy N claims heavy packet loss in receiver reports for the first N seconds (then none),
+// to watch the server lower the video rate and raise it again.
 package main
 
 import (
@@ -18,6 +20,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pion/interceptor"
+	"github.com/pion/rtcp"
 	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v4"
 	"github.com/pion/webrtc/v4/pkg/media/ivfwriter"
@@ -32,8 +36,15 @@ func main() {
 	sec := flag.Int("sec", 10, "seconds to record")
 	out := flag.String("out", "probe", "output file prefix")
 	click := flag.String("click", "", "x,y to click over the data channel after 3 s")
+	lossy := flag.Int("lossy", 0, "seconds to report 30% packet loss (adaptive bitrate test)")
 	flag.Parse()
-	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{})
+	newPC := webrtc.NewPeerConnection
+	if *lossy > 0 { // without pion's own receiver reports: this probe sends them (lossy, then clean)
+		m := &webrtc.MediaEngine{}
+		m.RegisterDefaultCodecs()
+		newPC = webrtc.NewAPI(webrtc.WithMediaEngine(m), webrtc.WithInterceptorRegistry(&interceptor.Registry{})).NewPeerConnection
+	}
+	pc, err := newPC(webrtc.Configuration{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,7 +52,11 @@ func main() {
 	pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly})
 	dc, _ := pc.CreateDataChannel("input", nil)
 	var vbytes, abytes, frames atomic.Int64
+	var videoSSRC atomic.Uint32
 	pc.OnTrack(func(t *webrtc.TrackRemote, _ *webrtc.RTPReceiver) {
+		if t.Kind() == webrtc.RTPCodecTypeVideo {
+			videoSSRC.Store(uint32(t.SSRC()))
+		}
 		if t.Kind() == webrtc.RTPCodecTypeAudio {
 			w, _ := oggwriter.New(*out+".ogg", 48000, 2)
 			defer w.Close()
@@ -118,6 +133,13 @@ func main() {
 	var lastV int64
 	for i := 0; i < *sec; i++ {
 		time.Sleep(time.Second)
+		if ssrc := videoSSRC.Load(); ssrc != 0 {
+			lost := uint8(0)
+			if i < *lossy {
+				lost = 77 // 30%
+			}
+			pc.WriteRTCP([]rtcp.Packet{&rtcp.ReceiverReport{Reports: []rtcp.ReceptionReport{{SSRC: ssrc, FractionLost: lost}}}})
+		}
 		v := vbytes.Load()
 		fmt.Printf("t=%2ds video %6.0f kbps  audio %4.0f kbps  frames %d\n", i+1, float64(v-lastV)*8/1000, float64(abytes.Load())*8/1000/float64(i+1), frames.Load())
 		lastV = v

@@ -44,7 +44,7 @@ const usage = `vnbox — Windows ノベルゲームを Wine で動かしてブ�
   vnbox meta <name> [-title T] [-engine E] [-thumb 画像]  ギャラリー表示用のタイトル・エンジン・サムネイルを設定
   vnbox meta <name> -fetch [-id egs:N|vndb:vN] | meta -all   批評空間 (届かなければ VNDB) からブランド・発売日・点数・タグ・あらすじ・カバーを取得
   vnbox meta-search <キーワード>                        批評空間/VNDB の候補 ID を一覧
-  vnbox serve [-addr :8080] [-token T]                ポータル: ギャラリーから選んで起動・配信 (複数同時)
+  vnbox serve [-addr :8080] [-token T | -users F]     ポータル: ギャラリーから選んで起動・配信 (複数同時)。-users は「名前 トークン」の行で、人ごとにセッションとセーブを分ける
   vnbox play <name> [-addr :8080] [-token T]          1 本だけ起動して配信
   vnbox mkbase [-win64] [dir]                         ベース prefix を作る (最初に一度。-wine classic なら 32bit / -win64 で 64bit)
   vnbox prepare <name> [-prefix dir]                  実行用 prefix を準備してパスを表示
@@ -346,9 +346,14 @@ func rtcFlags(c common) func() error {
 	port := c.fs.Int("rtc-port", 0, "WebRTC: 1 つの UDP+TCP ポートに映像・音声をまとめる (ポート開放/転送する場合。0 = 任意の UDP)")
 	pub := c.fs.String("public-ip", os.Getenv("VNBOX_PUBLIC_IP"), "WebRTC: 外から見えるアドレス (NAT 越し。カンマ区切り)")
 	ice := c.fs.String("ice", os.Getenv("VNBOX_ICE"), "WebRTC: STUN/TURN (例 stun:stun.l.google.com:19302,turn:user:pass@turn.example.com:3478)")
-	kbps := c.fs.Int("bitrate", 3000, "WebRTC: 映像の上限 kbit/s")
+	kbps := c.fs.Int("bitrate", 3000, "WebRTC: 映像の上限 kbit/s (視聴者の回線に合わせてここから下げる)")
+	enc := c.fs.String("encoder", envOr("VNBOX_ENCODER", "auto"), "H.264 エンコーダ: auto (GPU が使えれば VAAPI / NVENC) / vaapi / nvenc / x264")
 	return func() error {
-		cfg := stream.RTCConfig{Port: *port, Bitrate: *kbps}
+		e, ok := stream.ParseEncoder(*enc)
+		if !ok {
+			return fmt.Errorf("-encoder: %q is not auto, vaapi, nvenc or x264", *enc)
+		}
+		cfg := stream.RTCConfig{Port: *port, Bitrate: *kbps, Encoder: e}
 		for _, s := range strings.Split(*pub, ",") {
 			if s = strings.TrimSpace(s); s != "" {
 				cfg.PublicIPs = append(cfg.PublicIPs, s)
@@ -371,6 +376,7 @@ func cmdServe(ctx context.Context, args []string) error {
 	c := newFlags("serve")
 	addr := c.fs.String("addr", ":8080", "listen address")
 	tok := c.fs.String("token", "", "access token (or VNBOX_TOKEN)")
+	usersFile := c.fs.String("users", "", "players and their tokens, one \"name token\" per line: each has their own sessions and saves")
 	fps := c.fs.Int("fps", 30, "video frame rate (below 24 means 30)")
 	rtc := rtcFlags(c)
 	c.parse(args)
@@ -380,6 +386,15 @@ func cmdServe(ctx context.Context, args []string) error {
 	opt, err := sessionOptions(ctx, c, *fps)
 	if err != nil {
 		return err
+	}
+	if *usersFile != "" {
+		users, err := readUsers(*usersFile)
+		if err != nil {
+			return err
+		}
+		p := portal.NewUsers(users, opt)
+		log.Printf("portal on http://%s/ for %d players (open it with ?token=<the player's token>)", hostAddr(*addr), len(users))
+		return listen(ctx, *addr, p.Handler(), p.Shutdown)
 	}
 	t := token(*tok)
 	if t == "" {
@@ -418,6 +433,41 @@ func cmdPlay(ctx context.Context, args []string) error {
 	pctx, cancel := context.WithCancel(ctx)
 	go func() { <-s.Done(); cancel() }() // quitting the game ends the command
 	return listen(pctx, *addr, p.Handler(), p.Shutdown)
+}
+
+var userNameRe = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
+
+// readUsers reads "name token" lines (# comments) into token → name.
+func readUsers(path string) (map[string]string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	users := map[string]string{}
+	for i, l := range strings.Split(string(b), "\n") {
+		f := strings.Fields(l)
+		if len(f) == 0 || strings.HasPrefix(f[0], "#") {
+			continue
+		}
+		if len(f) != 2 || !userNameRe.MatchString(f[0]) || len(f[1]) < 8 {
+			return nil, fmt.Errorf("%s:%d: want \"name token\" (name: letters, digits, _.-; token: 8+ characters)", path, i+1)
+		}
+		if _, dup := users[f[1]]; dup {
+			return nil, fmt.Errorf("%s:%d: token used twice", path, i+1)
+		}
+		users[f[1]] = f[0]
+	}
+	if len(users) == 0 {
+		return nil, fmt.Errorf("%s: no players", path)
+	}
+	return users, nil
+}
+
+func envOr(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
 }
 
 func hostAddr(addr string) string {

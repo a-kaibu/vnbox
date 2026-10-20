@@ -17,6 +17,7 @@ import (
 
 	"vnbox/internal/meta"
 	"vnbox/internal/pkg"
+	"vnbox/internal/session"
 	"vnbox/internal/stream"
 	"vnbox/internal/wine"
 )
@@ -68,7 +69,8 @@ type liveShot struct {
 // cacheDir keeps metadata and thumbnails of packages that are only in the store.
 func cacheDir() string { return filepath.Join(wine.Root(), "runtime", "gallery") }
 
-func (s *Server) games(ctx context.Context) []Game {
+// games lists the gallery for a player: their running sessions and their saves.
+func (s *Server) games(ctx context.Context, player string) []Game {
 	m := map[string]*Game{}
 	get := func(n string) *Game {
 		if m[n] == nil {
@@ -99,7 +101,7 @@ func (s *Server) games(ctx context.Context) []Game {
 	if s.Opt.Store != nil {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
-		if l, err := s.Opt.Store.List(ctx); err == nil {
+		if l, err := s.Opt.Store.For(player).List(ctx); err == nil {
 			var remote []*Game
 			for _, p := range l.Packages {
 				g := get(p.Name)
@@ -115,8 +117,9 @@ func (s *Server) games(ctx context.Context) []Game {
 		}
 	}
 	s.mu.Lock()
-	for n, ss := range s.sessions {
-		if ss.Running() {
+	for _, ss := range s.sessions {
+		if ss.Running() && ss.User == player {
+			n := ss.Name
 			g := get(n)
 			g.Running = true
 			g.Thumb = "thumb/" + n + "?live=1"
@@ -193,7 +196,7 @@ func (s *Server) remoteMeta(ctx context.Context, games []*Game) {
 
 func (s *Server) index(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	games := s.games(r.Context())
+	games := s.games(r.Context(), user(r))
 	running := 0
 	for _, g := range games {
 		if g.Running {
@@ -205,7 +208,7 @@ func (s *Server) index(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) apiGames(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(s.games(r.Context()))
+	json.NewEncoder(w).Encode(s.games(r.Context(), user(r)))
 }
 
 // thumb serves a game's picture: a live frame while it runs, else the package thumbnail,
@@ -216,7 +219,7 @@ func (s *Server) thumb(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad name", 400)
 		return
 	}
-	if b := s.liveFrame(r.Context(), name); b != nil {
+	if b := s.liveFrame(r, name); b != nil {
 		w.Header().Set("Content-Type", "image/jpeg")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Write(b)
@@ -296,7 +299,7 @@ func (s *Server) serveCover(w http.ResponseWriter, r *http.Request, name string)
 // detail shows one game: cover, metadata, story, links and the last screen.
 func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	for _, g := range s.games(r.Context()) {
+	for _, g := range s.games(r.Context(), user(r)) {
 		if g.Name == name {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			detailTmpl.Execute(w, g)
@@ -307,10 +310,11 @@ func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
 }
 
 // liveFrame returns a fresh frame of a running game (at most one capture per 2 seconds).
-func (s *Server) liveFrame(ctx context.Context, name string) []byte {
+func (s *Server) liveFrame(r *http.Request, name string) []byte {
+	key := session.Key(user(r), name)
 	s.mu.Lock()
-	ss := s.sessions[name]
-	ls := s.live[name]
+	ss := s.sessions[key]
+	ls := s.live[key]
 	s.mu.Unlock()
 	if ss == nil || !ss.Running() {
 		return nil
@@ -318,12 +322,12 @@ func (s *Server) liveFrame(ctx context.Context, name string) []byte {
 	if time.Since(ls.at) < 2*time.Second && ls.jpeg != nil {
 		return ls.jpeg
 	}
-	b, err := stream.Snapshot(ctx, ss.Display, 480)
+	b, err := stream.Snapshot(r.Context(), ss.Display, 480)
 	if err != nil {
 		return ls.jpeg
 	}
 	s.mu.Lock()
-	s.live[name] = liveShot{b, time.Now()}
+	s.live[key] = liveShot{b, time.Now()}
 	s.mu.Unlock()
 	return b
 }

@@ -254,7 +254,7 @@ func (s *Store) List(ctx context.Context) (ListResult, error) {
 func (s *Store) SaveHistory(ctx context.Context, name string) ([]string, error) {
 	var out []string
 	err := s.walk(ctx, s.key("saves", s.cfg.User, name)+"/", func(o types.Object) {
-		if k := strings.TrimSuffix(path.Base(*o.Key), ".tar.zst"); k != "latest" {
+		if k, ok := strings.CutSuffix(path.Base(*o.Key), ".tar.zst"); ok && k != "latest" { // not lock.json
 			out = append(out, k)
 		}
 	})

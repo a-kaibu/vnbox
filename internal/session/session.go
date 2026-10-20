@@ -5,11 +5,13 @@ package session
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +30,11 @@ type Options struct {
 	FPS          int
 	Log          io.Writer
 
+	// User is the player on a server shared by several people: the session, its prefix
+	// (prefixes/users/<user>/run-<name>) and its saves (saves/<user>/ in the store) are theirs.
+	// Empty means the store's own user (VNBOX_USER) and prefixes/run-<name>.
+	User string
+
 	// for vnbox probe (dynamic checks): another prefix than prefixes/run-<name>, where Wine's
 	// output goes (default results/play-<name>.log) and WINEDEBUG
 	Prefix  string
@@ -38,6 +45,7 @@ type Options struct {
 // Session is a running game.
 type Session struct {
 	Name    string
+	User    string
 	Prefix  string
 	Display string
 	Sink    string
@@ -47,6 +55,8 @@ type Session struct {
 	env    wine.Env
 	launch pkg.Launch
 
+	lockOwner string // the claim on the save in the store (Store.Lock)
+
 	mu      sync.Mutex
 	running bool
 	done    chan struct{}
@@ -55,6 +65,22 @@ type Session struct {
 
 // Prefix returns the prefix path used for a package.
 func Prefix(name string) string { return filepath.Join(wine.Root(), "prefixes", "run-"+name) }
+
+// UserPrefix returns the prefix of a package for a player ("" = the default one).
+func UserPrefix(user, name string) string {
+	if user == "" {
+		return Prefix(name)
+	}
+	return filepath.Join(wine.Root(), "prefixes", "users", user, "run-"+name)
+}
+
+// Key names a session uniquely on a server: the game, and the player when there are several.
+func Key(user, name string) string {
+	if user == "" {
+		return name
+	}
+	return user + "/" + name
+}
 
 // Start launches the package. The package is pulled from the store if it is not local.
 func Start(ctx context.Context, name string, o Options) (*Session, error) {
@@ -82,31 +108,51 @@ func Start(ctx context.Context, name string, o Options) (*Session, error) {
 		return nil, err
 	}
 	fl := l.WineFlavor(o.Flavor)
-	s := &Session{Name: name, Prefix: Prefix(name), Display: wine.FreeDisplay(name), Sink: wine.SinkFor(name), opt: o, launch: l}
+	if o.Store != nil {
+		o.Store = o.Store.For(o.User)
+	}
+	key := strings.ReplaceAll(Key(o.User, name), "/", "-")
+	s := &Session{Name: name, User: o.User, Prefix: UserPrefix(o.User, name), Display: wine.FreeDisplay(key),
+		Sink: wine.SinkFor(key), opt: o, launch: l}
 	if o.Prefix != "" {
 		s.Prefix = o.Prefix
 	}
 	if s.opt.WineLog == "" {
-		s.opt.WineLog = filepath.Join(wine.Root(), "results", "play-"+name+".log")
+		s.opt.WineLog = filepath.Join(wine.Root(), "results", "play-"+key+".log")
+	}
+	// one player, one game, one server at a time: claim the save in the store
+	if o.Store != nil {
+		host, _ := os.Hostname()
+		s.lockOwner = fmt.Sprintf("%s/%d/%s", host, os.Getpid(), key)
+		if err := o.Store.Lock(ctx, name, s.lockOwner, s.lockTTL()); err != nil {
+			var le *store.LockedError
+			if errors.As(err, &le) {
+				wine.StopX(s.Display) // the display number was reserved
+				return nil, err
+			}
+			fmt.Fprintf(o.Log, "[%s] save lock: %v\n", name, err)
+		}
 	}
 	if f, err := os.Create(s.opt.WineLog); err == nil { // a fresh log per session; the Managed=N restart appends
 		f.Close()
 	}
 	// the game runs sandboxed (wine/sandbox.go); the prefix preparation before it does not
 	s.env = wine.Env{Flavor: fl, Prefix: s.Prefix, Display: s.Display, Sink: s.Sink, Debug: o.Debug, Sandbox: true, Network: l.Network}
-	if err := wine.EnsureX(s.Display); err != nil {
-		wine.StopX(s.Display)
-		return nil, err
-	}
-	if err := wine.EnsureAudio(s.Sink); err != nil {
-		wine.StopX(s.Display)
-		return nil, err
-	}
-	if err := p.Prepare(ctx, fl, s.Prefix, s.Display); err != nil {
+	fail := func(err error) (*Session, error) {
 		s.env.Kill()
 		wine.StopX(s.Display)
 		wine.RemoveSink(s.Sink)
-		return nil, fmt.Errorf("prepare: %w", err)
+		s.unlock()
+		return nil, err
+	}
+	if err := wine.EnsureX(s.Display); err != nil {
+		return fail(err)
+	}
+	if err := wine.EnsureAudio(s.Sink); err != nil {
+		return fail(err)
+	}
+	if err := p.Prepare(ctx, fl, s.Prefix, s.Display); err != nil {
+		return fail(fmt.Errorf("prepare: %w", err))
 	}
 	if o.Store != nil {
 		s.env.Kill()
@@ -186,6 +232,9 @@ func (s *Session) run(ctx context.Context) {
 		case <-tick.C:
 			s.thumb(ctx)
 			s.save(ctx, false)
+			if s.opt.Store != nil { // still playing: extend the claim on the save
+				s.opt.Store.Lock(ctx, s.Name, s.lockOwner, s.lockTTL())
+			}
 		case <-ctx.Done():
 			s.finish()
 			return
@@ -247,6 +296,7 @@ func (s *Session) finish() {
 	s.env.Kill()
 	s.env.Wait()
 	s.save(context.Background(), true)
+	s.unlock()
 	// the display and the sink belong to this run only (the next start picks free ones)
 	wine.StopX(s.Display)
 	wine.RemoveSink(s.Sink)
@@ -287,6 +337,17 @@ func (s *Session) thumb(ctx context.Context) {
 	p := filepath.Join(pkg.Dir(s.Name), pkg.ThumbFile)
 	if os.WriteFile(p+".tmp", b, 0o644) == nil {
 		os.Rename(p+".tmp", p)
+	}
+}
+
+// lockTTL is how long a claim on the save holds without renewal (renewed at every save).
+func (s *Session) lockTTL() time.Duration { return max(15*time.Minute, 3*s.opt.SaveInterval) }
+
+func (s *Session) unlock() {
+	if s.opt.Store != nil && s.lockOwner != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		s.opt.Store.Unlock(ctx, s.Name, s.lockOwner)
 	}
 }
 
