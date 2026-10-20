@@ -6,6 +6,8 @@
  * ボタンを自前で描くインストーラ (子ウィンドウが無い) は、ウィンドウクラスと大きさで決め打ちした位置をクリックする。
  * 1 回目はインストール、2 回目以降 (インストール後にメニューへ戻ったとき) はウィンドウを閉じる
  * (終了ボタンの位置は作品ごとに違い、同じ大きさのメニューでもそこがアンインストールのことがある: ダイヤミック・デイズ)。
+ * clickbtn.exe -installed: 呼び出し側のクリックでインストール済み。自前描画のメニューは 1 回目から閉じる
+ *   (メニューのインストール位置は作品ごとに違い、別の作品の位置がアンインストールのことがある: ダイヤミック・デイズ)。
  * clickbtn.exe -list: 表示中のトップレベルウィンドウと子ウィンドウ (クラス名・文字列) を出すだけ (調査用)。 */
 #include <windows.h>
 #include <wchar.h>
@@ -52,6 +54,8 @@ static void click_at(HWND h, int x, int y)
     mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
 }
 
+static BOOL installed;
+
 static BOOL CALLBACK layout_cb(HWND h, LPARAM l)
 {
     wchar_t cls[64], marker[MAX_PATH];
@@ -65,7 +69,7 @@ static BOOL CALLBACK layout_cb(HWND h, LPARAM l)
         GetTempPathW(MAX_PATH, marker);
         wcscat(marker, L"vnbox-clickbtn-");
         wcscat(marker, L->cls);
-        BOOL again = GetFileAttributesW(marker) != INVALID_FILE_ATTRIBUTES;
+        BOOL again = installed || GetFileAttributesW(marker) != INVALID_FILE_ATTRIBUTES;
         if (again) PostMessageW(h, WM_CLOSE, 0, 0);
         else click_at(h, L->x, L->y);
         CloseHandle(CreateFileW(marker, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0, NULL));
@@ -126,6 +130,7 @@ int main(int argc, char **argv)
 {
     struct find f = {1000, NULL, NULL};
     if (argc > 1 && !strcmp(argv[1], "-list")) { EnumWindows(list_top, 0); return 0; }
+    installed = argc > 1 && !strcmp(argv[1], "-installed");
     EnumWindows(top_cb, (LPARAM)&f);
     if (!f.button) {
         int done = 0;

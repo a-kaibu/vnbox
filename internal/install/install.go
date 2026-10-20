@@ -307,7 +307,7 @@ func Drive(ctx context.Context, env wine.Env, dir, exe, shotDir string, clicks [
 		if shotDir != "" {
 			d.Shot(filepath.Join(shotDir, fmt.Sprintf("wiz_%02d.png", i)), w)
 		}
-	}, func() bool { return PressButton(ctx, env, log) })
+	}, func() bool { return PressButton(ctx, env, len(clicks) > 0, log) })
 	return nil
 }
 
@@ -358,8 +358,10 @@ func dirSize(dir string) int64 {
 
 // PressButton clicks the most likely "go on" button (インストール, 同意する, 次へ, OK, 完了 ...)
 // of the frontmost window through runtime/tools/clickbtn.exe, built from tools/clickbtn on
-// first use. It reports whether a button was clicked.
-func PressButton(ctx context.Context, env wine.Env, log io.Writer) bool {
+// first use. With installed set (the given clicks already started the installation), a
+// self-drawn installer menu is closed instead of clicked. It reports whether a button was
+// clicked.
+func PressButton(ctx context.Context, env wine.Env, installed bool, log io.Writer) bool {
 	exe, err := wine.Tool("clickbtn")
 	if err != nil {
 		fmt.Fprintf(log, "  %v\n", err)
@@ -367,7 +369,11 @@ func PressButton(ctx context.Context, env wine.Env, log io.Writer) bool {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	c := env.Command(ctx, "", exe)
+	args := []string{exe}
+	if installed {
+		args = append(args, "-installed")
+	}
+	c := env.Command(ctx, "", args...)
 	c.Stderr = nil
 	// wine may leave a process (wineserver, explorer) holding the output pipe open:
 	// stop waiting for it shortly after clickbtn itself has exited
