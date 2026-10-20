@@ -85,7 +85,6 @@ bin/vnbox ledger md                                 # VERIFICATION.md の集計�
 
 - 共通の `-wine vnbox|classic` (既定 vnbox、環境変数 `VNBOX_FLAVOR`) で Wine を選ぶ。データの置き場所は `$VNBOX` (既定 `/home/user/vnbox`)。
 - **認証**: `-token` (または `VNBOX_TOKEN`) を付けると、トークンを知らない人は一覧も配信も操作もできない (一度 `?token=` で開くと Cookie)。トークン無しで起動すると警告を出す。HTTPS は持たないので、外に出すときは VPN の内側に置く。
-- **複数人**: `vnbox serve -users config/users.tsv` (1 行に「名前 トークン」)。トークンごとに利用者を分け、セッション・prefix (`prefixes/users/<名前>/run-<ゲーム>`)・S3 のセーブ (`saves/<名前>/`)・ギャラリーの「プレイ中」「セーブあり」が人ごとになる。同じ人が別のサーバで同じゲームを同時に遊んでセーブを上書きしないよう、プレイ中は S3 に `saves/<名前>/<ゲーム>/lock.json` を置く (定期セーブのたびに延長し、15 分更新が無ければ切れたとみなす。起動しようとすると「already playing on …」で断る)。
 - **sandbox**: 配布物の exe (ゲーム、インストーラ、自己解凍) は bubblewrap (`bwrap`) の中で動かす。ネットワークなし (オンライン認証が要るゲームは launch.ini に `network=on`)、ファイルは読み取り専用で `/home` `/root` `/tmp` `/run` を隠し、見えるのは自分の prefix・X ディスプレイ・音声のソケット・wineserver だけ。AWS の鍵やトークンは環境変数から外す。prefix の準備 (verb / winetricks) は信頼できる処理なので外で動かす。`VNBOX_SANDBOX=0` で無効 (bwrap が無いときも無効)。
 - **インストーラの扱い**: MSI は `msiexec /qn`、Inno は `/VERYSILENT`、NSIS は `/S`。InstallShield は setup.exe に埋め込まれた MSI を Wine を使わずに取り出して入れる。それ以外 (CreateInstall / BGI / 独自) はダイアログの既定ボタンを押し続け、「インストール」「同意する」「次へ」などはラベルで探して押す (`tools/clickbtn`)。WinRAR 自己解凍は空の作業フォルダで Wine に展開させる。
 - **起動 exe の推定が外れたら** `packages/<name>/launch.ini` の `target=` を直す (C:\ からの相対パス)。`args=`、`renderer=` (gl/vulkan)、`winetricks=` (winetricks の verb、または `vnbox-<名前>` で vnbox 自前の手順: icu / msfonts / dxvk / vcrun / dotnet:<版>:<x64|x86>[:desktop] / xamlstub、`internal/verbs`) も書ける。エンジンに応じて `vnbox add` が自動で付けるもの: Unity 6 → DXVK、NW.js / Electron → Chromium の GPU 回避引数、Godot 4 → Vulkan、XAML Islands → 代用品 DLL など。
@@ -100,7 +99,7 @@ Go 版 (`vnbox serve` / `vnbox play`) は **WebRTC (H.264 + Opus)** だけで配
 |---|---|---|
 | 映像 | ゲームウィンドウの矩形だけを `ffmpeg -f x11grab` で取り込み、H.264 (constrained baseline, zerolatency, 30fps, 上限 3Mbps) にして WebRTC で送る。H.264 を復号できないブラウザには VP8。エンコーダはゲームごとに 1 つで、見ている人全員に配る (誰も見ていなければ 20 秒後に止める) | `internal/stream/rtc.go` |
 | エンコーダ | `-encoder auto` (既定) は GPU のエンコーダ (VAAPI: Intel / AMD、NVENC: NVIDIA) を起動時に短く試しエンコードし、使えればそれを、だめなら libx264 (CRF 23) を使う。どれを使ったかはログに出る。`-encoder vaapi|nvenc|x264` で固定 (環境変数 `VNBOX_ENCODER`)。sandbox の中のゲームにも `/dev/dri` を見せる | `encoder.go` |
-| ビットレート | 視聴者ごとに、ブラウザの RTCP 受信レポート (パケット損失率) と REMB (帯域の推定) から上限の 100 / 66 / 40 / 23 / 13% のどれかを決める。損失 8% 超が 2 回続けば 1 段下げ、損失 2% 未満が 10 秒続けば 1 段上げる。エンコーダは視聴者全員で共有なので、いちばん遅い視聴者に合わせてエンコーダを起動し直す (2 秒に 1 回まで)。`rtcprobe -lossy N` で確認: 損失を申告している間に 3000 → 390 kbit/s まで下がり、止めると 10 秒ごとに 1 段ずつ 3000 まで戻った | `abr.go` |
+| ビットレート | ブラウザの RTCP 受信レポート (パケット損失率) と REMB (帯域の推定) から、上限の 100 / 66 / 40 / 23 / 13% のどれかを選ぶ。損失 8% 超が 2 回続けば 1 段下げ、損失 2% 未満が 10 秒続けば 1 段上げ、変わったらエンコーダを起動し直す。`rtcprobe -lossy N` で確認: 損失を申告している間に 3000 → 390 kbit/s まで下がり、止めると 10 秒ごとに 1 段ずつ 3000 まで戻った | `abr.go` |
 | キーフレーム | 定期は 10 秒ごと。新しい視聴者が来たときと、視聴者がパケット欠落を知らせたとき (PLI / FIR) にエンコーダを起動し直して即座にキーフレームを出す (3 秒に 1 回まで) | 同上 |
 | 音声 | ゲーム専用の PulseAudio null シンクの monitor を Opus 96kbps (20ms) にして WebRTC で送る。モバイルは最初のタップで消音を解除 | 同上 |
 | 入力 | WebRTC のデータチャネルで JSON を受け、表示倍率を逆算した座標で `xdotool` がそのウィンドウへ送る (データチャネルが無いときは `POST /input`)。タッチ操作は下記 | `stream.go` / `page.html` |
@@ -143,7 +142,7 @@ H.264 は前の画面との差分だけを送るので、止まっている時�
 # 環境変数、または config/store.conf (ひな形は config/store.conf.example)
 VNBOX_S3=s3://my-bucket/vnbox
 S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com   # AWS S3 なら不要
-VNBOX_USER=yashikota                                     # セーブの持ち主 (serve -users のときは利用者ごと)
+VNBOX_USER=yashikota                                     # セーブの持ち主 (S3 上の saves/<この名前>/)
 SAVE_INTERVAL=300                                        # プレイ中にセーブを上げる間隔 (秒)
 # 認証は AWS 標準: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_PROFILE
 ```
@@ -169,12 +168,12 @@ SAVE_INTERVAL=300                                        # プレイ中にセー
 | `internal/capture` | インストール前後の差分をパッケージ化 |
 | `internal/add` | 配布物 1 つ → パッケージ |
 | `internal/pkg` | パッケージの読み書き、実行用 prefix の準備 |
-| `internal/store` | S3 (AWS SDK v2): パッケージとセーブの保存・取得・履歴、利用者ごとのセーブとプレイ中のロック |
+| `internal/store` | S3 (AWS SDK v2): パッケージとセーブの保存・取得・履歴 |
 | `internal/stream` | 配信: WebRTC (H.264 / VP8 + Opus、データチャネル入力、pion/webrtc)、ビットレートの自動調整 (`abr.go`)、エンコーダの選択 (`encoder.go`)、タッチ操作のページ |
 | `internal/probe` | 動作確認 (`vnbox probe` / `verify`): play と同じセッションで起動 → 操作列 → スクショ → 判定 |
 | `internal/session` | 1 本のゲームの起動〜終了 (1x1 ウィンドウ時の Managed=N 再起動、定期・終了時のセーブ) |
 | `internal/meta` | 批評空間 (SQL フォーム) / VNDB (Kana API) からのメタデータ取得、タイトルの照合 (「体験版」等を除いて正規化)、カバー画像の保存 |
-| `internal/portal` | ギャラリー・詳細画面、サムネイル (プレイ中はライブ)、トークン認証 (複数の利用者)、複数セッションの管理 |
+| `internal/portal` | ギャラリー・詳細画面、サムネイル (プレイ中はライブ)、トークン認証、複数セッションの管理 |
 | `internal/x11` | X ウィンドウの列挙・入力 (xdotool)、インストーラのダイアログ自動操作 |
 
 ## ギャラリーとメタデータ
@@ -234,7 +233,7 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 
 ## 次にやること
 
-- 本物の S3 / R2 で `vnbox store` と複数人のロックを通しで確認 (S3 互換のテストサーバ moto では確認済み)。
+- 本物の S3 / R2 で `vnbox store` を通しで確認 (S3 互換のテストサーバ moto では確認済み)。
 - GPU のある環境で VAAPI / NVENC での配信を実地で確認 (この開発環境には GPU が無く、libx264 に戻るところまでしか確かめていない)。
 - 批評空間に届く環境 (国内の自宅サーバ等) で `vnbox meta -all` を実データで確認し、照合の外れ方を見る。
 - GPU のある自宅サーバで動画のフレームレートを再計測。

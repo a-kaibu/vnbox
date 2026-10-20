@@ -2,11 +2,10 @@ package stream
 
 import "time"
 
-// Adaptive bitrate. Every viewer's browser sends RTCP receiver reports (the fraction of
-// packets lost since the last report, about once a second) and, when it estimates the
-// bandwidth, REMB. Each viewer gets a rate on a ladder below the configured ceiling: down a
-// step after two lossy reports in a row, up a step after 10 seconds without loss. The encoder
-// is shared by everyone watching the game, so it runs at the lowest viewer's rate.
+// Adaptive bitrate. The viewer's browser sends RTCP receiver reports (the fraction of packets
+// lost since the last report, about once a second) and, when it estimates the bandwidth, REMB.
+// The video rate moves on a ladder below the configured ceiling: down a step after two lossy
+// reports in a row, up a step after 10 seconds without loss, never above the browser's estimate.
 
 // ladder are the rates as fractions of the ceiling (-bitrate, 3000 kbit/s by default).
 var ladder = []float64{1, 0.66, 0.4, 0.23, 0.13}
@@ -17,7 +16,7 @@ const (
 	upAfter       = 10 * time.Second // clean time before trying the next step up
 )
 
-// rateCtl is the rate of one viewer.
+// rateCtl decides the video rate.
 type rateCtl struct {
 	ceiling    int // kbit/s
 	step       int // index into ladder
@@ -62,7 +61,7 @@ func (c *rateCtl) estimate(bps float32, now time.Time) bool {
 	return c.kbps() != before
 }
 
-// kbps is the rate for this viewer: its ladder step, never above the browser's estimate
+// kbps is the rate: the ladder step, never above the browser's estimate
 // (with some headroom for audio and packet overhead), never below the lowest step.
 func (c *rateCtl) kbps() int {
 	r := int(float64(c.ceiling) * ladder[c.step])

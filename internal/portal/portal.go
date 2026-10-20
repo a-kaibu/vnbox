@@ -15,43 +15,17 @@ import (
 
 // Server holds the running sessions.
 type Server struct {
-	// Users maps access tokens to players. Each player has their own sessions, prefixes and
-	// saves. A token mapped to "" is the store's own user (VNBOX_USER). No tokens at all
-	// disables authentication (only for trusted networks).
-	Users map[string]string
+	Token string // empty disables authentication (only for trusted networks)
 	Opt   session.Options
 
 	mu       sync.Mutex
-	sessions map[string]*session.Session // by session.Key(user, name)
-	live     map[string]liveShot         // recent frames of running games for the gallery
+	sessions map[string]*session.Session
+	live     map[string]liveShot // recent frames of running games for the gallery
 }
 
-// New returns a portal for one player with one token ("" = no authentication).
+// New returns a portal.
 func New(token string, opt session.Options) *Server {
-	users := map[string]string{}
-	if token != "" {
-		users[token] = ""
-	}
-	return NewUsers(users, opt)
-}
-
-// NewUsers returns a portal for several players (token → player name).
-func NewUsers(users map[string]string, opt session.Options) *Server {
-	return &Server{Users: users, Opt: opt, sessions: map[string]*session.Session{}, live: map[string]liveShot{}}
-}
-
-type userKey struct{}
-
-// user is the player of the request.
-func user(r *http.Request) string {
-	u, _ := r.Context().Value(userKey{}).(string)
-	return u
-}
-
-func (s *Server) session(r *http.Request, name string) *session.Session {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.sessions[session.Key(user(r), name)]
+	return &Server{Token: token, Opt: opt, sessions: map[string]*session.Session{}, live: map[string]liveShot{}}
 }
 
 var nameRe = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
@@ -70,26 +44,14 @@ func (s *Server) Handler() http.Handler {
 	return s.auth(mux)
 }
 
-// auth accepts a token once as ?token=... and then as a cookie, and tells the handlers whose
-// it is.
+// auth accepts the token once as ?token=... and then as a cookie.
 func (s *Server) auth(next http.Handler) http.Handler {
-	if len(s.Users) == 0 {
+	if s.Token == "" {
 		return next
 	}
-	lookup := func(v string) (string, bool) {
-		for t, u := range s.Users {
-			if subtle.ConstantTimeCompare([]byte(v), []byte(t)) == 1 {
-				return u, true
-			}
-		}
-		return "", false
-	}
+	ok := func(v string) bool { return subtle.ConstantTimeCompare([]byte(v), []byte(s.Token)) == 1 }
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if t := r.URL.Query().Get("token"); t != "" {
-			if _, ok := lookup(t); !ok {
-				http.Error(w, "unauthorized: unknown token", http.StatusUnauthorized)
-				return
-			}
+		if t := r.URL.Query().Get("token"); t != "" && ok(t) {
 			http.SetCookie(w, &http.Cookie{Name: "vnbox", Value: t, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: 30 * 86400})
 			u := *r.URL
 			q := u.Query()
@@ -98,11 +60,9 @@ func (s *Server) auth(next http.Handler) http.Handler {
 			http.Redirect(w, r, u.String(), http.StatusSeeOther)
 			return
 		}
-		if c, err := r.Cookie("vnbox"); err == nil {
-			if u, ok := lookup(c.Value); ok {
-				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userKey{}, u)))
-				return
-			}
+		if c, err := r.Cookie("vnbox"); err == nil && ok(c.Value) {
+			next.ServeHTTP(w, r)
+			return
 		}
 		http.Error(w, "unauthorized: open the URL with ?token=...", http.StatusUnauthorized)
 	})
@@ -114,19 +74,19 @@ func (s *Server) start(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad name", 400)
 		return
 	}
-	ss := s.session(r, name)
+	s.mu.Lock()
+	ss := s.sessions[name]
+	s.mu.Unlock()
 	if ss == nil || !ss.Running() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 		defer cancel()
-		opt := s.Opt
-		opt.User = user(r)
 		var err error
-		if ss, err = session.Start(ctx, name, opt); err != nil {
+		if ss, err = session.Start(ctx, name, s.Opt); err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 		s.mu.Lock()
-		s.sessions[session.Key(opt.User, name)] = ss
+		s.sessions[name] = ss
 		s.mu.Unlock()
 	}
 	http.Redirect(w, r, "../g/"+name+"/", http.StatusSeeOther)
@@ -135,8 +95,8 @@ func (s *Server) start(w http.ResponseWriter, r *http.Request) {
 func (s *Server) stop(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	s.mu.Lock()
-	ss := s.sessions[session.Key(user(r), name)]
-	delete(s.sessions, session.Key(user(r), name))
+	ss := s.sessions[name]
+	delete(s.sessions, name)
 	s.mu.Unlock()
 	if ss != nil {
 		ss.Stop()
@@ -146,7 +106,9 @@ func (s *Server) stop(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) game(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	ss := s.session(r, name)
+	s.mu.Lock()
+	ss := s.sessions[name]
+	s.mu.Unlock()
 	if ss == nil || !ss.Running() {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
@@ -173,6 +135,6 @@ func (s *Server) Shutdown() {
 // Adopt registers an already started session (used by `vnbox play`).
 func (s *Server) Adopt(ss *session.Session) {
 	s.mu.Lock()
-	s.sessions[session.Key(ss.User, ss.Name)] = ss
+	s.sessions[ss.Name] = ss
 	s.mu.Unlock()
 }

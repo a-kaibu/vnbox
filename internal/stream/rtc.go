@@ -126,24 +126,19 @@ type hub struct {
 	idle     *time.Timer
 	kick     chan struct{} // restart the encoder now so the next frame is a keyframe
 	lastKick time.Time
-	viewers  map[*rateCtl]bool // the rate each viewer's connection allows
-	rate     int               // the encoder's rate (kbit/s): the lowest viewer's
-	rateAt   time.Time
+	ctl      *rateCtl // the video rate the viewer's connection allows (abr.go)
+	rate     int      // the rate the encoder runs at (kbit/s)
 }
 
-// retarget sets the encoder rate to the slowest viewer's (h.mu held) and restarts the encoder
-// when it changed: x264's rate cannot be changed while it runs. A rate goes down at most
-// every 2 s; the viewers' controllers already wait 10 s before going up.
-func (h *hub) retarget(ceiling int) {
-	r := ceiling
-	for v := range h.viewers {
-		r = min(r, v.kbps())
-	}
-	if r == h.rate || time.Since(h.rateAt) < 2*time.Second {
+// retarget restarts the encoder when the rate changed (h.mu held): x264's rate cannot be
+// changed while it runs.
+func (h *hub) retarget() {
+	r := h.ctl.kbps()
+	if r == h.rate {
 		return
 	}
-	log.Printf("rtc %s: video %d → %d kbit/s (%d viewers)", h.g.Display, h.rate, r, len(h.viewers))
-	h.rate, h.rateAt = r, time.Now()
+	log.Printf("rtc %s: video %d → %d kbit/s", h.g.Display, h.rate, r)
+	h.rate = r
 	h.lastKick = time.Now()
 	select {
 	case h.kick <- struct{}{}:
@@ -151,12 +146,10 @@ func (h *hub) retarget(ceiling int) {
 	}
 }
 
-func (h *hub) currentRate(ceiling int) int {
+func (h *hub) currentRate() int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.rate == 0 {
-		h.rate = ceiling
-	}
+	h.rate = h.ctl.kbps()
 	return h.rate
 }
 
@@ -190,7 +183,8 @@ func (g *Game) hub(codec string) *hub {
 	}
 	v, _ := webrtc.NewTrackLocalStaticSample(webrtc.RTPCodecCapability{MimeType: mime}, "video", "vnbox")
 	a, _ := webrtc.NewTrackLocalStaticSample(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus}, "audio", "vnbox")
-	h := &hub{g: g, codec: codec, video: v, audio: a, kick: make(chan struct{}, 1), viewers: map[*rateCtl]bool{}}
+	_, cfg := api()
+	h := &hub{g: g, codec: codec, video: v, audio: a, kick: make(chan struct{}, 1), ctl: newRateCtl(cfg.Bitrate, time.Now())}
 	g.hubs[codec] = h
 	return h
 }
@@ -214,6 +208,7 @@ func (h *hub) join() {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	h.cancel = cancel
+	h.ctl = newRateCtl(h.ctl.ceiling, time.Now()) // a new connection starts at the ceiling again
 	go h.runVideo(ctx)
 	if h.g.Sink != "" {
 		go h.runAudio(ctx)
@@ -277,7 +272,7 @@ func (h *hub) encode(ctx context.Context, win x11.Window) error {
 	if fps < 24 {
 		fps = 30 // WebRTC only sends what changed, so a higher rate costs little on still screens
 	}
-	kbps := h.currentRate(cfg.Bitrate)
+	kbps := h.currentRate()
 	rate := strconv.Itoa(kbps) + "k"
 	args := []string{"-v", "error", "-f", "x11grab", "-draw_mouse", "0", "-framerate", strconv.Itoa(fps),
 		"-video_size", fmt.Sprintf("%dx%d", win.W, win.H), "-i", fmt.Sprintf("%s+%d,%d", h.g.Display, win.X, win.Y)}
@@ -435,7 +430,6 @@ func (g *Game) rtcOffer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h := g.hub(codec)
-	ctl := newRateCtl(cfg.Bitrate, time.Now()) // this viewer's rate
 	for _, t := range []*webrtc.TrackLocalStaticSample{h.video, h.audio} {
 		sender, err := pc.AddTrack(t)
 		if err != nil {
@@ -460,15 +454,15 @@ func (g *Game) rtcOffer(w http.ResponseWriter, r *http.Request) {
 					case *rtcp.ReceiverReport:
 						for _, rr := range p.Reports {
 							h.mu.Lock()
-							if ctl.loss(float64(rr.FractionLost)/256, time.Now()) && h.viewers[ctl] {
-								h.retarget(cfg.Bitrate)
+							if h.ctl.loss(float64(rr.FractionLost)/256, time.Now()) {
+								h.retarget()
 							}
 							h.mu.Unlock()
 						}
 					case *rtcp.ReceiverEstimatedMaximumBitrate:
 						h.mu.Lock()
-						if ctl.estimate(p.Bitrate, time.Now()) && h.viewers[ctl] {
-							h.retarget(cfg.Bitrate)
+						if h.ctl.estimate(p.Bitrate, time.Now()) {
+							h.retarget()
 						}
 						h.mu.Unlock()
 					}
@@ -491,10 +485,6 @@ func (g *Game) rtcOffer(w http.ResponseWriter, r *http.Request) {
 		defer mu.Unlock()
 		if joined {
 			joined = false
-			h.mu.Lock()
-			delete(h.viewers, ctl)
-			h.retarget(cfg.Bitrate) // the slowest viewer may have gone
-			h.mu.Unlock()
 			h.leave()
 		}
 	}
@@ -504,9 +494,6 @@ func (g *Game) rtcOffer(w http.ResponseWriter, r *http.Request) {
 			mu.Lock()
 			if !joined {
 				joined = true
-				h.mu.Lock()
-				h.viewers[ctl] = true
-				h.mu.Unlock()
 				h.join()
 			}
 			mu.Unlock()
