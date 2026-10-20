@@ -154,9 +154,10 @@ func Add(ctx context.Context, name, src string, o Options) (*pkg.Package, error)
 			os.RemoveAll(dst)
 			return Add(ctx, name, src, Options{Flavor: wine.Vnbox, Exe: o.Exe, Clicks: o.Clicks, Log: o.Log, noRetry: true})
 		}
-		// nothing was installed: the "installer" was the game itself (or a launcher of it)
-		if l, _ := p.Launch(); l.Target == "" && r.Files == 0 && dir != "" {
-			fmt.Fprintf(o.Log, "[%s] installer produced nothing; packaging the folder as is\n", name)
+		// no program was installed: the "installer" was the game itself (or a launcher of it),
+		// which may have written its settings while it ran (a big single-exe game)
+		if l, _ := p.Launch(); l.Target == "" && dir != "" && (r.Files == 0 || o.Exe == "") {
+			fmt.Fprintf(o.Log, "[%s] installer installed no program; packaging the folder as is\n", name)
 			os.RemoveAll(dst)
 			return addFolder(dir, dst, name, o)
 		}
