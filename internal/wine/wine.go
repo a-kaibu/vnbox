@@ -62,10 +62,13 @@ func (f Flavor) BasePrefix(x64 bool) string {
 type Env struct {
 	Flavor  Flavor
 	Prefix  string
-	Display string // ":123"
-	Sink    string // PulseAudio sink name, optional
-	Debug   string // WINEDEBUG, default "-all"
-	Win64   bool   // create a 64-bit prefix (WINEARCH=win64) even with the classic Wine
+	Display string   // ":123"
+	Sink    string   // PulseAudio sink name, optional
+	Debug   string   // WINEDEBUG, default "-all"
+	Win64   bool     // create a 64-bit prefix (WINEARCH=win64) even with the classic Wine
+	Sandbox bool     // run the program under bubblewrap (sandbox.go): for the game and its installer
+	Network bool     // with Sandbox: keep the network (games that need online activation)
+	Binds   []string // with Sandbox: more folders the program may read and write (an installer's own folder)
 }
 
 // Vars returns the process environment for wine.
@@ -127,10 +130,7 @@ func (e Env) bin(name string) string {
 
 // Command builds a wine command running exe (a path) with dir as working directory.
 func (e Env) Command(ctx context.Context, dir string, args ...string) *exec.Cmd {
-	c := exec.CommandContext(ctx, e.bin("wine"), args...)
-	c.Dir = dir
-	c.Env = e.Vars()
-	return c
+	return e.command(ctx, dir, e.bin("wine"), args...)
 }
 
 // Run runs wine with args and waits; output is discarded unless out is set.
@@ -419,10 +419,7 @@ func Browser() string {
 func BrowserCommand(ctx context.Context, e Env, page string) *exec.Cmd {
 	profile := filepath.Join(e.Prefix, "drive_c", "users", "Public", "vnbox-browser")
 	os.MkdirAll(profile, 0o755)
-	c := exec.CommandContext(ctx, Browser(), "--no-sandbox", "--test-type", "--no-first-run",
+	return e.command(ctx, filepath.Dir(page), Browser(), "--no-sandbox", "--test-type", "--no-first-run",
 		"--user-data-dir="+profile, "--app=file://"+page, "--window-position=0,0", "--window-size=1280,720",
 		"--autoplay-policy=no-user-gesture-required", "--disable-features=Translate", "--lang=ja")
-	c.Dir = filepath.Dir(page)
-	c.Env = e.Vars()
-	return c
 }

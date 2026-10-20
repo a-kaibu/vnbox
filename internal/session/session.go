@@ -92,7 +92,8 @@ func Start(ctx context.Context, name string, o Options) (*Session, error) {
 	if f, err := os.Create(s.opt.WineLog); err == nil { // a fresh log per session; the Managed=N restart appends
 		f.Close()
 	}
-	s.env = wine.Env{Flavor: fl, Prefix: s.Prefix, Display: s.Display, Sink: s.Sink, Debug: o.Debug}
+	// the game runs sandboxed (wine/sandbox.go); the prefix preparation before it does not
+	s.env = wine.Env{Flavor: fl, Prefix: s.Prefix, Display: s.Display, Sink: s.Sink, Debug: o.Debug, Sandbox: true, Network: l.Network}
 	if err := wine.EnsureX(s.Display); err != nil {
 		wine.StopX(s.Display)
 		return nil, err

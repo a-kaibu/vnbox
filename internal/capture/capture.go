@@ -114,9 +114,10 @@ func (s *Session) Stage(installer string) (string, error) {
 	return filepath.Join(dst, filepath.Base(installer)), nil
 }
 
-// Env returns the Wine environment to run the installer in.
+// Env returns the Wine environment to run the installer in (sandboxed: it is a program from
+// the distribution).
 func (s *Session) Env(display string) wine.Env {
-	return wine.Env{Flavor: s.Flavor, Prefix: s.Prefix, Display: display}
+	return wine.Env{Flavor: s.Flavor, Prefix: s.Prefix, Display: display, Sandbox: true}
 }
 
 // temporary files, logs and Wine's own bookkeeping are never part of a package

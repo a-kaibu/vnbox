@@ -16,12 +16,14 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"vnbox/internal/base"
+	"vnbox/internal/extract"
 	"vnbox/internal/pkg"
 	"vnbox/internal/probe"
 	"vnbox/internal/wine"
@@ -83,7 +85,9 @@ func cmdVerify(ctx context.Context, args []string) error {
 	keep := c.fs.Bool("keep", false, "keep the packages")
 	pos := c.parse(args)
 	if len(pos) < 1 {
-		return errors.New("usage: vnbox verify <list.tsv> [-j 3] [-out results/batch/summary.tsv] (list: id, url, title, source, DRM, MB)")
+		return errors.New("usage: vnbox verify <list.tsv> [-j 3] [-out results/batch/summary.tsv]\n" +
+			"  list columns: id, url, title, source, retail DRM, MB, and optionally per title: operations,\n" +
+			"  verbs (space separated), installer clicks (x,y;x,y), start exe, start arguments, wait seconds")
 	}
 	o := verifyOptions{out: *out, input: *input, wait: *wait, verbs: strings.Fields(*vb), clicks: parseClicks(*click), keep: *keep}
 	rows, err := readTSV(pos[0])
@@ -105,8 +109,8 @@ func cmdVerify(ctx context.Context, args []string) error {
 		if len(r) < 2 || done[r[0]] || ctx.Err() != nil {
 			continue
 		}
-		done[r[0]] = true                       // a title listed twice is checked once
-		r = append(r, make([]string, 6)...)[:6] // id url title source drm mb
+		done[r[0]] = true // a title listed twice is checked once
+		r = append(r, make([]string, len(listColumns))...)[:len(listColumns)]
 		sem <- struct{}{}
 		wg.Add(1)
 		go func() {
@@ -137,10 +141,23 @@ func parseClicks(s string) [][2]int {
 	return clicks
 }
 
+// listColumns are the columns of a verify list. The first six come from vnbox candidates; the
+// rest are optional settings for titles that need them (they override -input / -wait and add
+// to -verbs / -click).
+var listColumns = []string{"id", "url", "title", "source", "drm", "mb", "input", "verbs", "clicks", "exe", "args", "wait"}
+
 // verifyOne checks one title and returns its TSV line:
 // id, Wine that worked (vnbox / classic), verdict, target, engine, source, DRM (retail), DRM traces.
 func verifyOne(ctx context.Context, r []string, o verifyOptions) []string {
 	id, url, title, src, drm := r[0], r[1], r[2], r[3], r[4]
+	if r[6] != "" {
+		o.input = r[6]
+	}
+	o.verbs = append(append([]string{}, o.verbs...), strings.Fields(r[7])...)
+	o.clicks = append(append([][2]int{}, o.clicks...), parseClicks(r[8])...)
+	if w, err := time.ParseDuration(r[11] + "s"); err == nil && r[11] != "" {
+		o.wait = w
+	}
 	line := func(best, verdict, target, engine, marks string) []string {
 		return []string{id, best, verdict, target, engine, src, drm, marks}
 	}
@@ -149,12 +166,28 @@ func verifyOne(ctx context.Context, r []string, o verifyOptions) []string {
 	waitDisk(ctx, 6<<30)
 	dl := filepath.Join(wine.Root(), "downloads", "verify", id)
 	defer os.RemoveAll(dl)
-	file := filepath.Join(dl, filepath.Base(strings.SplitN(url, "?", 2)[0]))
-	if err := fetch(ctx, url, file); err != nil {
-		fmt.Fprintln(logf, "download:", err)
+	// the url column may list patches after the distribution: they are unpacked over the game folder
+	var files []string
+	for i, u := range strings.Fields(url) {
+		f := filepath.Join(dl, strconv.Itoa(i), filepath.Base(strings.SplitN(u, "?", 2)[0]))
+		if err := fetch(ctx, u, f); err != nil {
+			fmt.Fprintln(logf, "download:", err)
+			return line("-", "DL_FAIL", "", "", "")
+		}
+		files = append(files, f)
+	}
+	if len(files) == 0 {
 		return line("-", "DL_FAIL", "", "", "")
 	}
-	p, l, err := addPackage(ctx, id, file, addOptions{Flavor: wine.Vnbox, Title: title, Clicks: o.clicks, Log: logf})
+	p, l, err := addPackage(ctx, id, files[0], addOptions{Flavor: wine.Vnbox, Exe: r[9], Title: title, Clicks: o.clicks, Log: logf})
+	if err == nil {
+		for _, f := range files[1:] {
+			if err = applyPatch(f, filepath.Join(p.Dir, "files", filepath.Dir(filepath.FromSlash(l.Target)))); err != nil {
+				err = fmt.Errorf("patch %s: %w", filepath.Base(f), err)
+				break
+			}
+		}
+	}
 	os.RemoveAll(dl)
 	if err != nil {
 		fmt.Fprintln(logf, "add:", err)
@@ -168,6 +201,9 @@ func verifyOne(ctx context.Context, r []string, o verifyOptions) []string {
 		if !slices.Contains(l.Winetricks, v) {
 			l.Winetricks = append(l.Winetricks, v)
 		}
+	}
+	if r[10] != "" {
+		l.Args = r[10]
 	}
 	if err := pkg.WriteLaunch(p.Dir, l); err != nil {
 		fmt.Fprintln(logf, "launch.ini:", err)
@@ -193,6 +229,34 @@ func verifyOne(ctx context.Context, r []string, o verifyOptions) []string {
 		fmt.Fprintln(logf, "sheet:", err)
 	}
 	return line(best, verdict, l.Target, l.Engine, marks)
+}
+
+// applyPatch unpacks a patch archive over the game folder. Folders that only wrap the patch
+// (renran_patch/...) are skipped, so the files land next to the game's own.
+func applyPatch(archive, gameDir string) error {
+	tmp, err := os.MkdirTemp(filepath.Join(wine.Root(), "downloads"), "patch")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmp)
+	if err := extract.Extract(archive, tmp); err != nil {
+		return err
+	}
+	root := tmp
+	for {
+		ents, _ := os.ReadDir(root)
+		if len(ents) != 1 || !ents[0].IsDir() {
+			break
+		}
+		if _, err := os.Stat(filepath.Join(gameDir, ents[0].Name())); err == nil {
+			break // the game has a folder of that name: the patch mirrors the game's layout
+		}
+		root = filepath.Join(root, ents[0].Name())
+	}
+	if out, err := exec.Command("cp", "-a", "--remove-destination", root+"/.", gameDir+"/").CombinedOutput(); err != nil {
+		return fmt.Errorf("%v: %s", err, out)
+	}
+	return nil
 }
 
 // waitDisk waits until the file system has at least min bytes free (titles are checked in

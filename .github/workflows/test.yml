@@ -1,0 +1,32 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  go:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      # IPA fonts: the ＭＳ ゴシック alias font test, 7-Zip: archive tests,
+      # moto: the S3 tests run against a local S3-compatible server
+      - name: tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q fonts-ipafont-gothic fonts-ipafont-mincho p7zip-full
+          pip install -q "moto[server]"
+          echo "MOTO_SERVER=$(command -v moto_server)" >> "$GITHUB_ENV"
+      - name: gofmt
+        run: |
+          out=$(gofmt -l cmd internal)
+          if [ -n "$out" ]; then echo "not gofmt-ed:"; echo "$out"; exit 1; fi
+      - name: vet
+        run: go vet ./...
+      - name: test
+        run: go test -race ./...
+      - name: build
+        run: go build -o bin/vnbox ./cmd/vnbox && go build -o bin/rtcprobe ./cmd/rtcprobe

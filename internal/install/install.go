@@ -204,6 +204,7 @@ func Run(ctx context.Context, s *capture.Session, path, display, shotDir string,
 		return "", err
 	}
 	env := s.Env(display)
+	env.Binds = []string{filepath.Dir(path)} // the installer's folder, unless it was staged into the prefix
 	kind := Classify(path)
 	fmt.Fprintf(log, "[%s] installer=%s %s\n", s.Name, kind, path)
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
@@ -316,8 +317,8 @@ func ExtractSFX(ctx context.Context, fl wine.Flavor, sfx, outDir, display string
 	if err := wine.EnsureX(display); err != nil {
 		return err
 	}
-	env := wine.Env{Flavor: fl, Prefix: prefix, Display: display}
 	abs, _ := filepath.Abs(sfx)
+	env := wine.Env{Flavor: fl, Prefix: prefix, Display: display, Sandbox: true, Binds: []string{filepath.Dir(abs), outDir}}
 	if err := Drive(ctx, env, outDir, abs, "", nil, log); err != nil {
 		return err
 	}

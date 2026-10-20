@@ -2,7 +2,7 @@
 // Windows system (files under C:\ and registry fragments) plus how to launch it.
 //
 //	packages/<name>/
-//	  launch.ini        [launch] target=<path under C:\> args= renderer= winetricks= title= engine=
+//	  launch.ini        [launch] target=<path under C:\> args= renderer= winetricks= title= engine= network=on
 //	  thumb.jpg         optional gallery thumbnail (taken while the game runs)
 //	  files/            copied into drive_c
 //	  system.reg.frag   HKLM changes
@@ -42,6 +42,7 @@ type Launch struct {
 	Title      string // display name for the gallery (defaults to the package name)
 	Engine     string // detected engine, shown in the gallery
 	DRM        string // DRM / protector found in the files (DRM:*, Protect:* tags of detect), comma separated
+	Network    bool   // network=on: the game may use the network (it runs without one otherwise)
 }
 
 // IsHTML reports whether the target is a web page (an HTML5 game): it runs in a native
@@ -115,6 +116,8 @@ func ParseLaunch(r io.Reader) (Launch, error) {
 			l.Engine = v
 		case "drm":
 			l.DRM = v
+		case "network":
+			l.Network = v == "on" || v == "1" || v == "yes"
 		}
 	}
 	return l, sc.Err()
@@ -137,6 +140,9 @@ func WriteLaunch(dir string, l Launch) error {
 	}
 	if l.DRM != "" {
 		s += "drm=" + l.DRM + "\n"
+	}
+	if l.Network {
+		s += "network=on\n"
 	}
 	return os.WriteFile(filepath.Join(dir, "launch.ini"), []byte(s), 0o644)
 }
