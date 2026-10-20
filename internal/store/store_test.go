@@ -31,19 +31,32 @@ func startMoto(t *testing.T) string {
 	port := l.Addr().(*net.TCPAddr).Port
 	l.Close()
 	cmd := exec.Command(bin, "-p", fmt.Sprint(port))
+	var out bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &out
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { cmd.Process.Kill(); cmd.Wait() })
+	exited := make(chan error, 1)
+	go func() { exited <- cmd.Wait() }()
+	t.Cleanup(func() {
+		cmd.Process.Kill()
+		<-exited
+	})
 	url := fmt.Sprintf("http://127.0.0.1:%d", port)
-	for i := 0; i < 100; i++ {
+	// the first start imports a lot of Python (slow on a fresh CI runner)
+	for deadline := time.Now().Add(60 * time.Second); time.Now().Before(deadline); {
 		if c, err := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", port)); err == nil {
 			c.Close()
 			return url
 		}
-		time.Sleep(100 * time.Millisecond)
+		select {
+		case err := <-exited:
+			exited <- err
+			t.Fatalf("moto exited: %v: %s", err, out.String())
+		case <-time.After(200 * time.Millisecond):
+		}
 	}
-	t.Fatal("moto did not start")
+	t.Fatalf("moto did not start: %s", out.String())
 	return ""
 }
 
