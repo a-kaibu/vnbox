@@ -22,6 +22,7 @@ import (
 
 	"vnbox/internal/detect"
 	"vnbox/internal/regdiff"
+	"vnbox/internal/verbs"
 	"vnbox/internal/wine"
 )
 
@@ -158,9 +159,10 @@ func Prepared(prefix string) bool {
 }
 
 // Prepare creates prefix from the flavor's base prefix and applies the package
-// (files, registry fragments, renderer, winetricks verbs). It does nothing if the
-// prefix is already prepared.
-func (p *Package) Prepare(ctx context.Context, fl wine.Flavor, prefix string) error {
+// (files, registry fragments, renderer, winetricks and vnbox verbs). It does nothing if the
+// prefix is already prepared. Steps that run Wine use the X server on display, started
+// here when needed.
+func (p *Package) Prepare(ctx context.Context, fl wine.Flavor, prefix, display string) error {
 	if Prepared(prefix) {
 		return nil
 	}
@@ -192,10 +194,7 @@ func (p *Package) Prepare(ctx context.Context, fl wine.Flavor, prefix string) er
 	if err := exec.Command("cp", "-a", "--remove-destination", filepath.Join(p.Dir, "files")+"/.", filepath.Join(prefix, "drive_c")+"/").Run(); err != nil {
 		return fmt.Errorf("copy files: %w", err)
 	}
-	env := wine.Env{Flavor: fl, Prefix: prefix, Display: os.Getenv("DISPLAY")}
-	if env.Display == "" {
-		env.Display = ":61"
-	}
+	env := wine.Env{Flavor: fl, Prefix: prefix, Display: display}
 	if l.Renderer != "" || len(l.Winetricks) > 0 {
 		if err := wine.EnsureX(env.Display); err != nil {
 			return err
@@ -215,13 +214,14 @@ func (p *Package) Prepare(ctx context.Context, fl wine.Flavor, prefix string) er
 		}
 	}
 	for _, v := range l.Winetricks {
-		// "vnbox-<name>" は vnbox 自前の手順 (scripts/verbs/<name>.sh <prefix>)、それ以外は winetricks の verb
-		c := exec.CommandContext(ctx, "winetricks", "-q", v)
-		if name, ok := strings.CutPrefix(v, "vnbox-"); ok { // vnbox-<名前>[:引数:...]
-			parts := strings.Split(name, ":")
-			args := append([]string{filepath.Join(wine.Root(), "scripts", "verbs", parts[0]+".sh"), prefix}, parts[1:]...)
-			c = exec.CommandContext(ctx, "bash", args...)
+		// "vnbox-<name>[:arg...]" は vnbox 自前の手順 (internal/verbs)、それ以外は winetricks の verb
+		if name, ok := strings.CutPrefix(v, "vnbox-"); ok {
+			if err := verbs.Apply(ctx, env, name); err != nil {
+				return err
+			}
+			continue
 		}
+		c := exec.CommandContext(ctx, "winetricks", "-q", v)
 		c.Env = env.Vars()
 		if out, err := c.CombinedOutput(); err != nil {
 			return fmt.Errorf("%s: %v: %s", v, err, out)

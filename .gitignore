@@ -20,7 +20,7 @@
 !/wine-build/*.patch
 !/wine-build/third_party/
 # 秘密情報・生成物
-scripts/store.conf
+config/store.conf
 __pycache__/
 *.pyc
 vnbox-tools.tar.gz

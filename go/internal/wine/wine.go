@@ -64,6 +64,7 @@ type Env struct {
 	Display string // ":123"
 	Sink    string // PulseAudio sink name, optional
 	Debug   string // WINEDEBUG, default "-all"
+	Win64   bool   // create a 64-bit prefix (WINEARCH=win64) even with the classic Wine
 }
 
 // Vars returns the process environment for wine.
@@ -88,7 +89,7 @@ func (e Env) Vars() []string {
 		set("TZ", "Asia/Tokyo")
 	}
 	set("WINEPREFIX", e.Prefix)
-	if e.Flavor == Vnbox || IsWin64(e.Prefix) {
+	if e.Flavor == Vnbox || e.Win64 || IsWin64(e.Prefix) {
 		set("WINEARCH", "win64")
 	} else {
 		set("WINEARCH", "win32")
@@ -145,6 +146,32 @@ func (e Env) RegAdd(ctx context.Context, key, name, typ, data string) error {
 		args = append(args, "/t", typ)
 	}
 	return e.Run(ctx, nil, args...)
+}
+
+// Reg runs `wine reg <args>` (add / delete / query ...).
+func (e Env) Reg(ctx context.Context, args ...string) error {
+	return e.Run(ctx, nil, append([]string{"reg"}, args...)...)
+}
+
+// ImportReg imports a .reg file's text (REGEDIT4) with regedit. wow32 also imports it into
+// the 32-bit view of a 64-bit prefix (syswow64\regedit.exe), where 32-bit programs look.
+func (e Env) ImportReg(ctx context.Context, text string, wow32 bool) error {
+	dir := filepath.Join(e.Prefix, "drive_c", "vnbox")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	f := filepath.Join(dir, "import.reg")
+	if err := os.WriteFile(f, []byte(strings.ReplaceAll(text, "\n", "\r\n")), 0o644); err != nil {
+		return err
+	}
+	defer os.Remove(f)
+	if err := e.Run(ctx, nil, "regedit", "/S", `C:\vnbox\import.reg`); err != nil {
+		return err
+	}
+	if wow32 && (e.Flavor == Vnbox || e.Win64 || IsWin64(e.Prefix)) {
+		return e.Run(ctx, nil, `C:\windows\syswow64\regedit.exe`, "/S", `C:\vnbox\import.reg`)
+	}
+	return nil
 }
 
 // Kill stops every process of the prefix; Wait waits for wineserver to exit
@@ -241,11 +268,26 @@ func startWM(display string) {
 	if err != nil {
 		return
 	}
-	c := exec.Command(bin, "--config-file", filepath.Join(Root(), "scripts", "wm", "openbox-rc.xml"))
+	c := exec.Command(bin, "--config-file", filepath.Join(Root(), "config", "openbox-rc.xml"))
 	c.Env = append(os.Environ(), "DISPLAY="+display)
 	if c.Start() == nil {
 		go c.Wait()
 		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+// StopX stops the X server on display (and with it the window manager), if one runs.
+func StopX(display string) {
+	b, err := os.ReadFile("/tmp/.X" + strings.TrimPrefix(display, ":") + "-lock")
+	if err != nil {
+		return
+	}
+	var pid int
+	fmt.Sscan(strings.TrimSpace(string(b)), &pid)
+	if pid > 0 {
+		if p, err := os.FindProcess(pid); err == nil {
+			p.Signal(os.Interrupt)
+		}
 	}
 }
 
@@ -272,6 +314,36 @@ func EnsureAudio(sink string) error {
 	}
 	return exec.Command("pactl", "load-module", "module-null-sink", "sink_name="+sink,
 		"sink_properties=device.description="+sink).Run()
+}
+
+// RemoveSink unloads the null sink created by EnsureAudio.
+func RemoveSink(sink string) {
+	out, err := exec.Command("pactl", "list", "short", "modules").Output()
+	if err != nil {
+		return
+	}
+	for _, l := range strings.Split(string(out), "\n") {
+		f := strings.Fields(l)
+		if len(f) >= 3 && f[1] == "module-null-sink" && strings.Contains(l, "sink_name="+sink+" ") {
+			exec.Command("pactl", "unload-module", f[0]).Run()
+		}
+	}
+}
+
+// Tool returns runtime/tools/<name>.exe, compiling tools/<name>/<name>.c (32-bit, MinGW) when
+// the executable is missing or older than its source.
+func Tool(name string) (string, error) {
+	exe := filepath.Join(Root(), "runtime", "tools", name+".exe")
+	src := filepath.Join(Root(), "tools", name, name+".c")
+	xs, err := os.Stat(exe)
+	if ss, serr := os.Stat(src); err == nil && (serr != nil || !ss.ModTime().After(xs.ModTime())) {
+		return exe, nil
+	}
+	os.MkdirAll(filepath.Dir(exe), 0o755)
+	if out, err := exec.Command("i686-w64-mingw32-gcc", "-O1", "-finput-charset=UTF-8", "-o", exe, src, "-luser32").CombinedOutput(); err != nil {
+		return "", fmt.Errorf("build %s: %v: %s", name, err, out)
+	}
+	return exe, nil
 }
 
 // ClonePrefix copies a base prefix using hard links, so a new prefix costs a few MB.

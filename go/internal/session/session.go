@@ -27,6 +27,13 @@ type Options struct {
 	SaveInterval time.Duration
 	FPS          int
 	Log          io.Writer
+
+	// for vnbox probe (dynamic checks): another prefix than prefixes/run-<name>, where Wine's
+	// output goes (default results/play-<name>.log), WINEDEBUG, and no Managed=N restart
+	Prefix    string
+	WineLog   string
+	Debug     string
+	NoManaged bool
 }
 
 // Session is a running game.
@@ -77,15 +84,17 @@ func Start(ctx context.Context, name string, o Options) (*Session, error) {
 	}
 	fl := l.WineFlavor(o.Flavor)
 	s := &Session{Name: name, Prefix: Prefix(name), Display: wine.FreeDisplay(name), Sink: wine.SinkFor(name), opt: o, launch: l}
-	s.env = wine.Env{Flavor: fl, Prefix: s.Prefix, Display: s.Display, Sink: s.Sink}
+	if o.Prefix != "" {
+		s.Prefix = o.Prefix
+	}
+	s.env = wine.Env{Flavor: fl, Prefix: s.Prefix, Display: s.Display, Sink: s.Sink, Debug: o.Debug}
 	if err := wine.EnsureX(s.Display); err != nil {
 		return nil, err
 	}
 	if err := wine.EnsureAudio(s.Sink); err != nil {
 		return nil, err
 	}
-	os.Setenv("DISPLAY", s.Display) // used by Prepare for renderer / winetricks
-	if err := p.Prepare(ctx, fl, s.Prefix); err != nil {
+	if err := p.Prepare(ctx, fl, s.Prefix, s.Display); err != nil {
 		return nil, fmt.Errorf("prepare: %w", err)
 	}
 	if o.Store != nil {
@@ -115,7 +124,11 @@ func (s *Session) start(ctx context.Context) (chan error, error) {
 	if s.launch.IsHTML() {
 		c = wine.BrowserCommand(ctx, s.env, filepath.Join(dir, exe))
 	}
-	lf, _ := os.Create(filepath.Join(wine.Root(), "results", "play-"+s.Name+".log"))
+	logPath := s.opt.WineLog
+	if logPath == "" {
+		logPath = filepath.Join(wine.Root(), "results", "play-"+s.Name+".log")
+	}
+	lf, _ := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	c.Stdout, c.Stderr = lf, lf
 	if err := c.Start(); err != nil {
 		return nil, err
@@ -135,7 +148,7 @@ func (s *Session) run(ctx context.Context) {
 	}
 	// Games that leave fullscreen to the window manager keep a 1x1 X window without one.
 	// Let Wine manage the windows itself (X11 Driver\Managed=N) and start again.
-	if s.wait1x1(ctx) {
+	if !s.opt.NoManaged && !s.launch.IsHTML() && s.wait1x1(ctx) {
 		fmt.Fprintf(s.opt.Log, "[%s] 1x1 window -> restarting with Managed=N\n", s.Name)
 		s.env.Kill()
 		<-exited
@@ -201,11 +214,14 @@ func (s *Session) wait1x1(ctx context.Context) bool {
 	return ok && w.Area() <= 1
 }
 
-// finish stops Wine, flushes the registry and uploads the final save.
+// finish stops Wine, flushes the registry, uploads the final save and stops the X server.
 func (s *Session) finish() {
 	s.env.Kill()
 	s.env.Wait()
 	s.save(context.Background(), true)
+	// the display and the sink belong to this run only (the next start picks free ones)
+	wine.StopX(s.Display)
+	wine.RemoveSink(s.Sink)
 	s.mu.Lock()
 	s.running = false
 	s.mu.Unlock()
@@ -245,6 +261,12 @@ func (s *Session) thumb(ctx context.Context) {
 		os.Rename(p+".tmp", p)
 	}
 }
+
+// Env returns the Wine environment of the game (prefix, display, sink).
+func (s *Session) Env() wine.Env { return s.env }
+
+// Launch returns the package's launch settings.
+func (s *Session) Launch() pkg.Launch { return s.launch }
 
 // Running reports whether the game is still running.
 func (s *Session) Running() bool {

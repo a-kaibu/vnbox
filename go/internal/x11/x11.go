@@ -5,6 +5,7 @@ package x11
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
@@ -113,6 +114,25 @@ func (d Display) Key(w Window, keysym string) {
 	d.xdo("windowfocus", w.ID)
 	time.Sleep(100 * time.Millisecond)
 	d.xdo("key", keysym)
+}
+
+// ActivateKey raises and focuses the window through the window manager (falling back to a
+// plain focus change) and sends a keysym: dialogs in front of the game need to be active.
+func (d Display) ActivateKey(w Window, keysym string) {
+	c := exec.Command("xdotool", "windowactivate", w.ID)
+	c.Env = d.env()
+	if c.Run() != nil {
+		d.xdo("windowfocus", w.ID)
+	}
+	time.Sleep(300 * time.Millisecond)
+	d.xdo("key", keysym)
+}
+
+// ScreenSize returns the size of the X screen.
+func (d Display) ScreenSize() ([2]int, error) {
+	var s [2]int
+	_, err := fmt.Sscanf(d.xdo("getdisplaygeometry"), "%d %d", &s[0], &s[1])
+	return s, err
 }
 
 // Shot saves a PNG of a screen rectangle. Grabbing from the root window works for

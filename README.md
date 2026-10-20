@@ -37,7 +37,7 @@ Linux サーバ上で Windows 向けノベルゲームを Wine で動かし、An
    xdotool ◀── データチャネル / POST /input (タップ・キー) ──┘
 ```
 
-- **ベース prefix** (`prefixes/base-vnbox`): 64bit / Win10 / コードページ 932 / 日本語フォント置換 / ＭＳ ゴシック等の実体フォント / icu.dll / 仮想デスクトップ無し。各ゲームの prefix はこれのハードリンク複製なので、1 本あたりの追加ディスクはゲーム本体とセーブ分だけ。
+- **ベース prefix** (`prefixes/base-vnbox`、`vnbox mkbase` で作る): 64bit / Win10 / コードページ 932 / 日本語フォント置換 / ＭＳ ゴシック等の実体フォント / icu.dll / 仮想デスクトップ無し。各ゲームの prefix はこれのハードリンク複製なので、1 本あたりの追加ディスクはゲーム本体とセーブ分だけ。
 - **パッケージ**はゲームの中身だけで、Wine や prefix を含まない。ベースや Wine を更新しても作り直さずに使える。
 - **1 ゲーム = 1 X ディスプレイ + 1 音声シンク**。複数人・複数本を同時に動かしても映像・音声・入力は混ざらない。
 
@@ -45,9 +45,8 @@ Linux サーバ上で Windows 向けノベルゲームを Wine で動かし、An
 
 ```bash
 cd go && go build -o ../bin/vnbox ./cmd/vnbox && cd ..     # Go 1.24+
-# ベース prefix (一度だけ)。自前 Wine (下記) 用の 64bit / Win10 のもの
-WINE_FLAVOR=vnbox WINEARCH=win64 scripts/mkbase.sh prefixes/base-vnbox
-# 従来の Wine (-wine classic) も使うなら: scripts/mkbase.sh (32bit / Win7) と WINEARCH=win64 scripts/mkbase.sh prefixes/base64
+bin/vnbox mkbase                        # ベース prefix (一度だけ)。自前 Wine (下記) 用の 64bit / Win10 のもの (prefixes/base-vnbox)
+# 従来の Wine (-wine classic) も使うなら: bin/vnbox mkbase -wine classic (32bit / Win7) と bin/vnbox mkbase -wine classic -win64
 ```
 
 必要なもの: Wine (自前ビルドは `/opt/wine-vnbox`)、Xvfb、openbox、PulseAudio、ffmpeg (libx264 / libopus)、xdotool、7z / unrar / lha、winetricks、`ja_JP.UTF-8` ロケール、日本語フォント (IPA / Noto)。
@@ -69,12 +68,25 @@ bin/vnbox store list | history <name> | push-package <name> | pull-package <name
 bin/vnbox capture begin <name> / capture end <name> # 手動インストールの差分取り
 bin/vnbox prepare <name> [-prefix dir]              # 実行用 prefix を準備するだけ
 bin/vnbox detect <フォルダ> / extract <アーカイブ> <出力先> / regdiff diff|apply|show
+bin/vnbox stop-all                                  # 動いているゲームと X をすべて止める
+```
+
+動作確認も `vnbox` で行う (play と同じ起動の仕方で動かすので、通ったものはそのまま遊べる。手順は [VERIFICATION.md](VERIFICATION.md)):
+
+```bash
+bin/vnbox probe mygame -input "shot:t30 pass:5 sleep:10 shot:a" -wait 30s   # 起動 → 操作列 → スクショ・判定 (results/mygame/)
+bin/vnbox candidates suezou downloads/suezou/links.tsv            # 候補集め (suezou ミラー / DLsite の体験版一覧 → 未試行分の抽出)
+bin/vnbox candidates dlsite pro 20 downloads/dlsite/pro.tsv
+bin/vnbox candidates pick downloads/batch7.tsv -suezou 100 -pro 50 -maniax 50
+bin/vnbox verify downloads/batch7.tsv -j 3 -out results/batch/summary7.tsv   # DL → add → probe (vnbox → 従来 Wine) → 一覧画像 → 結果 TSV
+bin/vnbox ledger record -list downloads/batch7.tsv -summary results/batch/summary7.tsv <id>...   # 目視で確かめたものを台帳へ
+bin/vnbox ledger md                                 # VERIFICATION.md の集計と一覧を作り直す
 ```
 
 - 共通の `-wine vnbox|classic` (既定 vnbox、環境変数 `VNBOX_FLAVOR`) で Wine を選ぶ。データの置き場所は `$VNBOX` (既定 `/home/user/vnbox`)。
 - **認証**: `-token` (または `VNBOX_TOKEN`) を付けると、トークンを知らない人は一覧も配信も操作もできない (一度 `?token=` で開くと Cookie)。トークン無しで起動すると警告を出す。
 - **インストーラの扱い**: MSI は `msiexec /qn`、Inno は `/VERYSILENT`、NSIS は `/S`。InstallShield は setup.exe に埋め込まれた MSI を Wine を使わずに取り出して入れる。それ以外 (CreateInstall / BGI / 独自) はダイアログの既定ボタンを押し続け、「インストール」「同意する」「次へ」などはラベルで探して押す (`tools/clickbtn`)。WinRAR 自己解凍は空の作業フォルダで Wine に展開させる。
-- **起動 exe の推定が外れたら** `packages/<name>/launch.ini` の `target=` を直す (C:\ からの相対パス)。`args=`、`renderer=` (gl/vulkan)、`winetricks=` (winetricks の verb、または `vnbox-<名前>` で `scripts/verbs/<名前>.sh`) も書ける。エンジンに応じて `vnbox add` が自動で付けるもの: Unity 6 → DXVK、NW.js / Electron → Chromium の GPU 回避引数、Godot 4 → Vulkan、XAML Islands → 代用品 DLL など。
+- **起動 exe の推定が外れたら** `packages/<name>/launch.ini` の `target=` を直す (C:\ からの相対パス)。`args=`、`renderer=` (gl/vulkan)、`winetricks=` (winetricks の verb、または `vnbox-<名前>` で vnbox 自前の手順: icu / msfonts / dxvk / vcrun / dotnet:<版>:<x64|x86>[:desktop] / xamlstub、`internal/verbs`) も書ける。エンジンに応じて `vnbox add` が自動で付けるもの: Unity 6 → DXVK、NW.js / Electron → Chromium の GPU 回避引数、Godot 4 → Vulkan、XAML Islands → 代用品 DLL など。
 - 起動ダイアログ (画面モード選択など) は配信画面でそのまま操作すればよい。
 - **テスト**: `cd go && go test ./...` (S3 部分は S3 互換のテストサーバ moto を自動で起動して確認。無ければスキップ)。
 
@@ -124,7 +136,7 @@ H.264 は前の画面との差分だけを送るので、止まっている時�
 `vnbox store` (と `serve` / `play` / `add`) がパッケージ (本体) とセーブを S3 または S3 互換ストレージ (Cloudflare R2 / MinIO / Wasabi 等) に置く。
 
 ```bash
-# 環境変数、または scripts/store.conf (ひな形は scripts/store.conf.example)
+# 環境変数、または config/store.conf (ひな形は config/store.conf.example)
 VNBOX_S3=s3://my-bucket/vnbox
 S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com   # AWS S3 なら不要
 VNBOX_USER=yashikota                                     # セーブの持ち主 (人ごとに分ける)
@@ -178,17 +190,9 @@ SAVE_INTERVAL=300                                        # プレイ中にセー
 ```
 go/                      vnbox 本体 (上記)
 bin/vnbox                ビルドしたコマンド
-scripts/
-  mkbase.sh              ベース prefix 作成 (env.sh / base.reg.in / fonts-ja.reg を使う)
-  env.sh                 mkbase.sh と run.sh の共通環境 (ja_JP.UTF-8, TZ=Asia/Tokyo, Wine の選択, Xvfb, PulseAudio)
-  base.reg.in            ベースのレジストリ調整 (仮想デスクトップ無し, XRandR モード変更無効, クラッシュダイアログ無効)
-  fonts-ja.reg           MS ゴシック/明朝/メイリオ/游 → IPA/Noto の置換 (gen_fonts_reg.py で生成)
-  verbs/                 launch.ini の winetricks=vnbox-<名前> で使う手順 (icu.dll シム / MS 別名フォント / DXVK / VC++ / .NET / XAML 代用品)
-  wm/openbox-rc.xml      ゲームごとの X に付ける枠なし openbox の設定
-  store.conf.example     S3 の設定のひな形
-  run.sh                 動作確認用: 操作列 INPUT (click/key/shot/sleep/pass) で起動してスクショ・ログを results/ へ
-  pearch.sh / stopall.sh exe の 32/64bit 判定 / 確認中のゲーム・Xvfb を全部止める
-  tools/                 一括の動作確認 (batch6 / recheck6 / verdict / sheet / record6) と候補集め・台帳からの md 生成
+config/
+  store.conf.example     S3 の設定のひな形 (config/store.conf にコピーして使う)
+  openbox-rc.xml         ゲームごとの X に付ける枠なし openbox の設定
 tools/                   Wine 内で動かす補助 (clickbtn: ラベルでボタンを押す、xamlstub: XAML Islands の代用品)
 recipes/add_hints.tsv    インストーラでクリックが要ったタイトルの座標メモ
 packages/<name>/         パッケージ
@@ -227,5 +231,4 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 - 本物の S3 / R2 で `vnbox store` を通しで確認。複数サーバで同じ人のセーブを同時に書かないよう、プレイ中はロック (S3 上のロックファイル) を置く。
 - 批評空間に届く環境 (国内の自宅サーバ等) で `vnbox meta -all` を実データで確認し、照合の外れ方を見る。
 - GPU のある自宅サーバで動画のフレームレートを再計測。
-- ベース prefix の作成 (`mkbase.sh`) と動作確認の操作列 (`run.sh`) も `vnbox` のサブコマンドにする。
 - エンジン別にブラウザ内実行 (WASM) へ逃がせるもの: 吉里吉里 (krkrsdl2)、NScripter/PONScripter (onsyuri)、Ren'Py (web 書き出し)、TyranoScript (元々 HTML5)。それ以外は配信で。

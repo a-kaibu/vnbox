@@ -46,7 +46,13 @@ const usage = `vnbox — Windows ノベルゲームを Wine で動かしてブ�
   vnbox meta-search <キーワード>                        批評空間/VNDB の候補 ID を一覧
   vnbox serve [-addr :8080] [-token T]                ポータル: ギャラリーから選んで起動・配信 (複数同時)
   vnbox play <name> [-addr :8080] [-token T]          1 本だけ起動して配信
+  vnbox mkbase [-win64] [dir]                         ベース prefix を作る (最初に一度。-wine classic なら 32bit / -win64 で 64bit)
   vnbox prepare <name> [-prefix dir]                  実行用 prefix を準備してパスを表示
+  vnbox probe <name> [-input 操作列] [-wait 30s]      play と同じ起動で動かし、操作列を流してスクショと判定 (results/<name>/)
+  vnbox verify <list.tsv> [-j 3] [-out tsv]           配布物の一覧を DL → add → probe (vnbox → classic) → 一覧画像 → 結果 TSV
+  vnbox ledger record [-note N] <id>... | ledger md   目視で確かめたものを台帳に記録 / VERIFICATION.md を作り直す
+  vnbox candidates suezou <out> | dlsite <pro|maniax> <ページ数> <out> | pick <out>   verify に渡す候補の一覧を作る
+  vnbox stop-all                                      動いているゲームと X をすべて止める
   vnbox store list | history <name>
   vnbox store push-package <name> | pull-package <name>
   vnbox store save-push <name> | save-pull <name> [時刻]
@@ -57,7 +63,7 @@ const usage = `vnbox — Windows ノベルゲームを Wine で動かしてブ�
 
 共通: -wine vnbox|classic (既定 vnbox。環境変数 VNBOX_FLAVOR)、データの置き場所は $VNBOX (既定 /home/user/vnbox)
 S3: VNBOX_S3=s3://bucket/prefix, S3_ENDPOINT (R2/MinIO 等), VNBOX_USER, 認証は AWS 標準の環境変数/プロファイル
-    (scripts/store.conf にも書ける)。トークンは -token か VNBOX_TOKEN。
+    (config/store.conf にも書ける)。トークンは -token か VNBOX_TOKEN。
 `
 
 func main() {
@@ -83,6 +89,18 @@ func main() {
 		err = cmdPlay(ctx, args)
 	case "prepare":
 		err = cmdPrepare(ctx, args)
+	case "mkbase":
+		err = cmdMkbase(ctx, args)
+	case "probe":
+		err = cmdProbe(ctx, args)
+	case "verify":
+		err = cmdVerify(ctx, args)
+	case "ledger":
+		err = cmdLedger(args)
+	case "candidates":
+		err = cmdCandidates(ctx, args)
+	case "stop-all":
+		err = cmdStopAll()
 	case "store":
 		err = cmdStore(ctx, args)
 	case "capture":
@@ -169,20 +187,57 @@ func cmdAdd(ctx context.Context, args []string) error {
 			clicks = append(clicks, [2]int{x, y})
 		}
 	}
-	p, err := add.Add(ctx, pos[0], pos[1], add.Options{Flavor: c.Flavor(), Exe: *exe, Clicks: clicks, Log: os.Stderr})
+	p, l, err := addPackage(ctx, pos[0], pos[1], addOptions{Flavor: c.Flavor(), Exe: *exe, Title: *title, Clicks: clicks, Log: os.Stderr})
 	if err != nil {
 		return err
+	}
+	fmt.Printf("package: %s\ntarget:  %s\nengine:  %s\n", p.Dir, l.Target, l.Engine)
+	if l.DRM != "" {
+		fmt.Printf("drm:     %s\n", l.DRM)
+	}
+	st, err := openStore(ctx)
+	if err != nil {
+		return err
+	}
+	if st != nil && !*noUp || *up {
+		if st == nil {
+			return errors.New("VNBOX_S3 is not set")
+		}
+		if err := st.PushPackage(ctx, p); err != nil {
+			return err
+		}
+		fmt.Println("uploaded to", store.LoadConfig().URL)
+	}
+	return nil
+}
+
+// addOptions are the settings of addPackage.
+type addOptions struct {
+	Flavor wine.Flavor
+	Exe    string   // start exe relative to the game folder ("" = guess)
+	Title  string   // gallery title
+	Clicks [][2]int // clicks on the installer's first screen
+	Log    io.Writer
+}
+
+// addPackage turns a distribution file into packages/<name> (vnbox add without the upload):
+// add.Add, then the launch fixes that depend on the engine (start the game behind BISHOP's
+// launcher, DXVK for Unity 6, Chromium flags for NW.js / Electron, ...) and the DRM traces.
+func addPackage(ctx context.Context, name, src string, o addOptions) (*pkg.Package, pkg.Launch, error) {
+	p, err := add.Add(ctx, name, src, add.Options{Flavor: o.Flavor, Exe: o.Exe, Clicks: o.Clicks, Log: o.Log})
+	if err != nil {
+		return nil, pkg.Launch{}, err
 	}
 	l, _ := p.Launch()
 	// BISHOP の起動ランチャー (startup.exe) は作品によって「ゲーム開始」で C++ 例外を出して終わる
 	// (隷従の制服 体験版)。startup.ini に書かれたゲーム本体を直接起動する
-	if *exe == "" {
+	if o.Exe == "" {
 		if t := bishopGame(filepath.Join(p.Dir, "files", filepath.FromSlash(l.Target))); t != "" {
 			l.Target = path.Join(path.Dir(l.Target), t)
 		}
 	}
 	// gallery metadata: the title given and the engine of the installed game folder
-	l.Title = *title
+	l.Title = o.Title
 	gdir := filepath.Join(p.Dir, "files", filepath.Dir(filepath.FromSlash(l.Target)))
 	det := detect.Detect(gdir)
 	if e := det.Engine; l.Engine == "" && e != "" && e != "unknown" {
@@ -233,29 +288,12 @@ func cmdAdd(ctx context.Context, args []string) error {
 	}
 	if len(drm) > 0 {
 		l.DRM = strings.Join(drm, ",")
-		fmt.Fprintf(os.Stderr, "warning: DRM / protection found: %s (purchased copies may need online activation)\n", l.DRM)
+		fmt.Fprintf(o.Log, "warning: DRM / protection found: %s (purchased copies may need online activation)\n", l.DRM)
 	}
 	if err := pkg.WriteLaunch(p.Dir, l); err != nil {
-		return err
+		return nil, pkg.Launch{}, err
 	}
-	fmt.Printf("package: %s\ntarget:  %s\nengine:  %s\n", p.Dir, l.Target, l.Engine)
-	if l.DRM != "" {
-		fmt.Printf("drm:     %s\n", l.DRM)
-	}
-	st, err := openStore(ctx)
-	if err != nil {
-		return err
-	}
-	if st != nil && !*noUp || *up {
-		if st == nil {
-			return errors.New("VNBOX_S3 is not set")
-		}
-		if err := st.PushPackage(ctx, p); err != nil {
-			return err
-		}
-		fmt.Println("uploaded to", store.LoadConfig().URL)
-	}
-	return nil
+	return p, l, nil
 }
 
 func sessionOptions(ctx context.Context, c common, fps int) (session.Options, error) {
@@ -413,7 +451,9 @@ func cmdPrepare(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := p.Prepare(ctx, l.WineFlavor(c.Flavor()), prefix); err != nil {
+	display := wine.FreeDisplay("prepare-" + pos[0])
+	defer wine.StopX(display)
+	if err := p.Prepare(ctx, l.WineFlavor(c.Flavor()), prefix, display); err != nil {
 		return err
 	}
 	fmt.Println(prefix)

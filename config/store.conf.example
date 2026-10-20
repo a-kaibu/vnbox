@@ -1,4 +1,4 @@
-# cp scripts/store.conf.example scripts/store.conf して編集する (bin/vnbox が読む。環境変数があればそちらが優先)
+# cp config/store.conf.example config/store.conf して編集する (bin/vnbox が読む。環境変数があればそちらが優先)
 VNBOX_S3=s3://my-bucket/vnbox
 # S3 互換ストレージのとき (AWS S3 なら空のまま)
 #S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com

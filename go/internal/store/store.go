@@ -40,7 +40,7 @@ import (
 	"vnbox/internal/wine"
 )
 
-// Config is read from the environment, falling back to scripts/store.conf
+// Config is read from the environment, falling back to config/store.conf
 // (KEY=VALUE lines).
 type Config struct {
 	URL      string // s3://bucket/prefix  (VNBOX_S3)
@@ -51,7 +51,7 @@ type Config struct {
 // LoadConfig returns the configuration; URL is empty when storage is not configured.
 func LoadConfig() Config {
 	file := map[string]string{}
-	if f, err := os.Open(filepath.Join(wine.Root(), "scripts", "store.conf")); err == nil {
+	if f, err := os.Open(filepath.Join(wine.Root(), "config", "store.conf")); err == nil {
 		sc := bufio.NewScanner(f)
 		for sc.Scan() {
 			line := strings.TrimSpace(sc.Text())

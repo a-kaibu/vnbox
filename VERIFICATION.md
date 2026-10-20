@@ -1,12 +1,19 @@
 # 動作確認の記録
 
 vnbox で実際に体験版を動かして確かめた結果。「動作」= タイトル画面以降まで (多くは本編のテキスト送りまで) スクリーンショットを目視で確認したもの。
-台帳は `results/verified.tsv` (確認済み) と `results/excluded.tsv` (対象外と理由)。下の「集計」と「起動確認済みタイトル一覧」は台帳から `scripts/tools/stats_md.py` / `scripts/tools/titles_md.py` で生成する。
+台帳は `results/verified.tsv` (確認済み) と `results/excluded.tsv` (対象外と理由)。下の「集計」と「起動確認済みタイトル一覧」は台帳から `vnbox ledger md` で生成する。
 
 ## 確認の手順
 
-- 一括確認 (第6弾以降): `scripts/tools/batch6.sh` / `recheck6.sh` が DL → `vnbox add` → 起動 → 操作列でスクショ → 一次判定 (`scripts/tools/verdict.sh`: プロセス生存 / 最終画面が十分大きい / 画面中央にコントラスト / クラッシュ痕跡なし) → 一覧画像 (`sheet6.sh`) を回し、全件の画像を目視して `record6.py` で台帳に記録する。
-- 1 本だけ確かめる: `INPUT="shot:t25 pass:5 sleep:10 shot:a" scripts/run.sh <name> <ゲームフォルダ> <exe> 25` → `results/<name>/` にスクショ。操作列は click:x,y / key:K / sleep:N / shot:名前 / pass:N (起動ダイアログを既定ボタンで抜ける)。
+確認はすべて `vnbox` で行う。ゲームは `vnbox play` / `serve` と同じセッションの処理 (prefix の準備、専用の X と音声シンク、1x1 ウィンドウなら Managed=N で起動し直し) で起動するので、確認で通ったものはそのまま遊べる。
+
+- 候補集め: `vnbox candidates suezou` (suezou ミラーの全ページのリンク) / `vnbox candidates dlsite pro|maniax` (DLsite の体験版ありの PC ゲーム。作品ページから製品版の DRM も読む) → `vnbox candidates pick` (未試行の作品フォルダ・年とブランドで分散・サイズで絞る)。
+- 一括確認: `vnbox verify <一覧> -j 3` が DL → `vnbox add` → `vnbox probe` (自前 Wine で NG なら従来 Wine でもう一度) → 最後の 2 枚の一覧画像 (`results/batch/v_<id>.png`) → 結果 TSV (`id, 通った Wine, 判定, 起動 exe, エンジン, 出典, 製品版 DRM, 配布物の DRM 痕跡`)。
+- 一次判定 (`probe` が出す OK / NG:<理由>): ゲームのウィンドウが最後まで残っている、Wine のクライアント領域より X のウィンドウが小さくない (画面が切れていない)、Wine がクラッシュを報告していない、最後のスクショが 400x300 相当以上で中央 80% にコントラストがある (真っ黒・真っ白でない)。
+- **全件の一覧画像を目視**して、タイトル画面以降まで出ているものだけを `vnbox ledger record` で台帳に記録する。NG のものはスクショとログ (`results/v_<id>_<wine>/`) を見て、操作列 (`-input`) や `-verbs` / `-click` を変えて `vnbox verify` し直すか、パッケージを直して `vnbox probe` する。
+- 1 本だけ確かめる: `vnbox probe <name> -input "shot:t25 pass:5 sleep:10 shot:a" -wait 25s` → `results/<name>/` にスクショ。操作列は click:x,y / key:K / sleep:N / shot:名前 / pass:N (起動ダイアログを既定ボタンで抜ける)。
+
+第1〜6弾は、当時のシェルスクリプト (`run.sh` / `batch6.sh` など。Wine を直接起動していた) で確かめた。今は上の `vnbox` のコマンドに置き換えて削除した。
 
 ## 機能の確認
 
@@ -46,11 +53,11 @@ vnbox で実際に体験版を動かして確かめた結果。「動作」= タ
 
 ## 第2弾: suezou ミラーの体験版を年代別に一括テスト (2006〜2026)
 
-`scripts/tools/suezou_crawl.py` でミラー全 195 ページから 4,009 件のリンクを集め、年度ごとにブランドが重ならないよう抽出。
+`scripts/tools/suezou_crawl.py` (今は `vnbox candidates suezou`) でミラー全 195 ページから 4,009 件のリンクを集め、年度ごとにブランドが重ならないよう抽出。
 `scripts/tools/batch.sh` (シェル版。今は削除済みで、第6弾以降は `batch6.sh` + `vnbox add`) が DL → 展開 / 無人インストール → エンジン判定 → 起動 → スクショ を自動で回す (vnbox Wine 使用)。
 
 第2弾 (51 本) と第3弾 (67 本、2 並列) の結果は `results/batch/summary.tsv`、各タイトルの経過スクショは `results/batch/<id>.png`。
-判定は `scripts/tools/verdict.sh` (プロセス生存 / 最終画面が十分大きい / 画面中央にコントラスト / クラッシュ痕跡なし) で一次判定し、**全件スクショを目視**して確定した。
+判定は `scripts/tools/verdict.sh` (今は `vnbox probe` の判定。プロセス生存 / 最終画面が十分大きい / 画面中央にコントラスト / クラッシュ痕跡なし) で一次判定し、**全件スクショを目視**して確定した。
 
 ## 集計
 
@@ -60,10 +67,10 @@ vnbox で実際に体験版を動かして確かめた結果。「動作」= タ
 - 第4弾 (2026-10-19): suezou ミラーから新たに 108 本、ムジナ 1 本、未解決分の解消 59 本
 - 第6弾 (2026-10-19〜20、Go 版 `vnbox add` でバッチ): 候補 423 本 (suezou 240 / DLsite 183) から **419 本** (suezou 240 / DLsite 179)。対象外 4 本、弱い確認 0 本、未確定 0 本
 
-対象外 (`results/excluded.tsv`、計 15 本) は理由付き: 配布物が紹介動画・音声・HTML5 のみ、配布ファイルの破損や削除、VR 専用、GPU 必須 (D3D12 SM6 専用の UE 5.8)。
+対象外 (`results/excluded.tsv`、計 15 本) は理由付き: 配布物が紹介動画・音声のみ、配布ファイルの破損、VR 専用、GPU 必須 (D3D12 SM6 専用の UE 5.8)。
 弱い確認 (0 本): 
 
-第6弾の DLsite 分の製品版 DRM (作品ページの表記): なし 124 / PlayDRM 51 / ソフト電池 2 / シリアル番号 2 (体験版にはどれも入っていない)
+第6弾の DLsite 分の製品版 DRM (作品ページの表記): なし 124 / PlayDRM 51 / シリアル番号 2 / ソフト電池 2 (体験版にはどれも入っていない)
 
 第6弾のエンジン別 (`vnbox add` の判定):
 
@@ -77,24 +84,24 @@ vnbox で実際に体験版を動かして確かめた結果。「動作」= タ
 | YU-RIS | 19 |
 | AdvHD | 15 |
 | SiglusEngine | 15 |
-| Softpal | 11 |
 | BGI/Ethornell | 11 |
+| Softpal | 11 |
 | LiveMaker | 9 |
+| Electron | 6 |
 | Escude | 6 |
 | WolfRPG | 6 |
-| Electron | 6 |
-| Eushully AGE | 4 |
-| CatSystem2 | 4 |
-| RealLive | 4 |
-| Artemis | 4 |
 | AdvWin32/WillPlus | 4 |
+| Artemis | 4 |
+| CatSystem2 | 4 |
+| Eushully AGE | 4 |
+| RealLive | 4 |
+| EntisGLS | 3 |
 | Kaguya | 3 |
 | ShiinaRio | 3 |
-| EntisGLS | 3 |
 | HTML5 | 2 |
+| AliceSoft System4 | 1 |
 | Majiro | 1 |
 | RenPy | 1 |
-| AliceSoft System4 | 1 |
 <!-- STATS:END -->
 
 第4弾の時点で最後まで残った 2 本の原因:
@@ -819,7 +826,7 @@ vnbox で実際に体験版を動かして確かめた結果。「動作」= タ
 | **DMM GAME PLAYER** (FANZA) | 専用クライアント経由で起動、起動ごとにオンライン確認 | — | DMM / FANZA はこの環境 (海外) からはログイン画面にしか行けず、体験版もクライアントも取得できない |
 | exe プロテクタ (Enigma Protector 等) | 実行ファイルの暗号化・改ざん検知 | 体験版にも掛かっていることがある | 第6弾で検出し、Wine で起動することを確認 (下表の「痕跡」) |
 
-- DLsite の作品ページから製品版の DRM 種別を読み取る: `scripts/tools/dlsite_drm.py` (「PlayDRM型」「ソフト電池」「シリアル番号発行型」の表記)。体験版 (`trial.dlsite.com`) にはどの方式も入っていなかった (exe・DLL の文字列と readme を確認)。
+- DLsite の作品ページから製品版の DRM 種別を読み取る: `vnbox candidates dlsite` (「PlayDRM型」「ソフト電池」「シリアル番号発行型」の表記)。体験版 (`trial.dlsite.com`) にはどの方式も入っていなかった (exe・DLL の文字列と readme を確認)。
 - `vnbox add` は配布物の exe / DLL から DRM・プロテクタの痕跡 (PlayDRM / ソフト電池 / DMM GAME PLAYER / StarForce / SecuROM / Themida / VMProtect / Enigma 等の文字列・PE セクション名) を探し、見つかれば `launch.ini` の `drm=` に記録してギャラリーに「DRM」と表示する。シグネチャは公開情報からの推測で、製品版での実地確認はまだ。
 - 製品版の DRM を実際に確かめるには、購入済みの配布物 (または DMM / DLsite のアカウント) が必要。用意できれば `vnbox add` → 起動 → 認証画面までをこの手順で確認できる。
 <!-- DRM:END -->
@@ -834,21 +841,21 @@ vnbox で実際に体験版を動かして確かめた結果。「動作」= タ
 6. **WM なし環境の注意**: キー入力は毎回 `windowfocus` が必要。D3D/GL のウィンドウは `import -window` 直撮りだと黒いことがあるので画面から矩形を切り出す。仮想画面は 720p ゲーム + 枠より大きくしないと「解像度が足りない」と縮小される (QLIE)。
 7. **動画**: DirectShow (quartz + winegstreamer, i386 の GStreamer プラグイン必須) で MPEG-1 は再生されるが、SampleGrabber 方式の NScripter ではタイトル動画が約 8fps。LAV Filters でも同値。GPU 環境で再確認が必要。
 8. **起動ダイアログ**: CatSystem2 (画面モード選択) や QLIE (起動設定) はレシピの操作列で自動通過できる。Softpal の「初回起動時のウインドウモード」ダイアログはクリックも Enter も効かず、**フォーカスを当てて Space** で進む (インストーラのダイアログ自動操作が自動でフォールバック)。
-9. **1x1 ウィンドウ**: フルスクリーン化を WM 任せにするゲーム (SakanaGL, FVP 系 ANIM 作品) は、WM なしだと X ウィンドウが 1x1 のまま。`X11 Driver\Managed=N` (Wine 自身がウィンドウを管理) で解決。`run.sh` / `vnbox serve`・`play` が 1x1 を検出すると自動でこの設定にして起動し直す。全体に掛けると Unity などが黒画面になるので、検出時だけ切り替える。
-10. **タイムゾーン**: SiglusEngine 系の一部は「日本語版 Windows 判定」をタイムゾーンで行い、UTC だと起動を拒否する。`env.sh` で `TZ=Asia/Tokyo` を既定にした。
-12. **MS フォントの実体**: こすぷれえっち (2014) は `EnumFontFamiliesEx` で「ＭＳ ゴシック」を名前で探し、無いと CRT の不正パラメータ例外で落ちた。Wine の置換 (Replacements) は列挙に出ない。IPA フォントの name テーブルを書き換えた「ＭＳ ゴシック / Ｐゴシック / 明朝 / Ｐ明朝 / UI Gothic」を prefix の Fonts に登録して解決 (`scripts/verbs/msfonts.sh`、ベースに標準装備)。
-13. **従来 32bit Wine が要るもの**: ユユカナ (2011, nanawind) は「Authentication failed : unrecognized kernel32 module」。新 WoW64 では 32bit の kernel32 が syswow64 から読まれるためで、WineHQ の従来 32bit prefix では動いた。NG 時は `scripts/tools/batch6.sh` / `recheck6.sh` が従来 Wine (`-wine classic`) で再試行する。
+9. **1x1 ウィンドウ**: フルスクリーン化を WM 任せにするゲーム (SakanaGL, FVP 系 ANIM 作品) は、WM なしだと X ウィンドウが 1x1 のまま。`X11 Driver\Managed=N` (Wine 自身がウィンドウを管理) で解決。`vnbox serve`・`play`・`probe` が 1x1 を検出すると自動でこの設定にして起動し直す。全体に掛けると Unity などが黒画面になるので、検出時だけ切り替える。
+10. **タイムゾーン**: SiglusEngine 系の一部は「日本語版 Windows 判定」をタイムゾーンで行い、UTC だと起動を拒否する。vnbox は `TZ=Asia/Tokyo` を既定にした。
+12. **MS フォントの実体**: こすぷれえっち (2014) は `EnumFontFamiliesEx` で「ＭＳ ゴシック」を名前で探し、無いと CRT の不正パラメータ例外で落ちた。Wine の置換 (Replacements) は列挙に出ない。IPA フォントの name テーブルを書き換えた「ＭＳ ゴシック / Ｐゴシック / 明朝 / Ｐ明朝 / UI Gothic」を prefix の Fonts に登録して解決 (`vnbox-msfonts`、ベースに標準装備)。
+13. **従来 32bit Wine が要るもの**: ユユカナ (2011, nanawind) は「Authentication failed : unrecognized kernel32 module」。新 WoW64 では 32bit の kernel32 が syswow64 から読まれるためで、WineHQ の従来 32bit prefix では動いた。NG 時は `vnbox verify` が従来 Wine (`-wine classic`) で再試行する。
 14. **起動の遅いゲーム**: BGI は起動に 40 秒ほど黒画面のことがある。1x1 ウィンドウ検出は 20 秒待ってから Managed=N に切り替えるようにした。
 15. **ロケールを忘れた手動実行**: BGI は `GetSystemDefaultLangID` が日本語でないと何も言わずに終了する。手で wine を叩くときも `LANG=ja_JP.UTF-8` / `TZ=Asia/Tokyo` を付ける (vnbox はすべて自動で付ける)。
 16. **InstallShield**: 新しめの setup.exe (署名 "InstallShield" がオーバーレイにある版) は中身がファイル名由来の鍵で XOR + ニブル入替されている。Wine でブートストラッパを動かすより、取り出して MSI を直接入れる方が確実。
 17. **クリックの長さ**: Eushully AGE などフレームごとにマウス状態を見るゲームは、xdotool の一瞬のクリックを取りこぼす。配信の入力は「押して 60ms 待って離す」にした。
-18. **XAML Islands**: Cyberworks TinkerBell の新しい版 (せをはやみ。) は C++/WinRT で `Windows.UI.Xaml.Hosting.DesktopWindowXamlSource` と TextBox を作る (文字入力欄用)。Wine には Windows.UI.Xaml の実装が無く、未捕捉の例外 (c0000409) で落ちる。何もしない代用品 `xamlstub32.dll` を Windows SDK のメタデータから生成して prefix に登録すると先へ進む (`tools/xamlstub/`、`scripts/verbs/xamlstub.sh`。`vnbox add` が exe 内の文字列から判定して `winetricks=vnbox-xamlstub` を付ける)。vtable は x86 stdcall の引数バイト数まで正確でないとスタックが壊れるので、手書きでなく .winmd から生成している。入力欄は表示されない (名前入力などは既定値のまま)。
+18. **XAML Islands**: Cyberworks TinkerBell の新しい版 (せをはやみ。) は C++/WinRT で `Windows.UI.Xaml.Hosting.DesktopWindowXamlSource` と TextBox を作る (文字入力欄用)。Wine には Windows.UI.Xaml の実装が無く、未捕捉の例外 (c0000409) で落ちる。何もしない代用品 `xamlstub32.dll` を Windows SDK のメタデータから生成して prefix に登録すると先へ進む (`tools/xamlstub/`、`vnbox-xamlstub`。`vnbox add` が exe 内の文字列から判定して `winetricks=vnbox-xamlstub` を付ける)。vtable は x86 stdcall の引数バイト数まで正確でないとスタックが壊れるので、手書きでなく .winmd から生成している。入力欄は表示されない (名前入力などは既定値のまま)。
 19. **Electron 製 (TyranoScript v5 等)**: GPU プロセスが Wine + GPU なしで起動できず「Cannot initialize WebGL」。`--in-process-gpu --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist` で動く。`app.asar` があれば `vnbox add` が起動引数に付ける。
 20. **InstallShield 2010 以降**: setup.exe 末尾の `ISSetupStream` 形式 (属性 48 バイト + UTF-16 名、名前の UTF-8 から作る鍵で XOR + ニブル入替、その後 zlib) から MSI を取り出して `msiexec /qn` で入れる。旧形式 (`InstallShield`) と同じく Wine でブートストラッパを動かさない。
 21. **入れ子の自己解凍**: zip の中身が ZIP 自己解凍 exe 1 つだけ、という配布がある (スペルマン)。exe をゲームとして起動すると何も出ないので、もう一段展開する。
 11. **インストーラの自動操作**: MSI は `msiexec /qn`、それ以外 (CreateInstall / BGI / Majiro / CatSystem2 / InstallShield / 独自) は小さいダイアログに Enter (効かなければ Space) を送り続けるだけで、今回の 8 種すべて完了した。WinRAR SFX は Linux 側の unrar で開けないことがあり、Wine で SFX 自体を動かして展開した。
 
-22. **ウィンドウの大きさ**: WM が無いと最大化・全画面の要求が実行されず、Wine 側は 1920x1080 なのに X のウィンドウが小さいまま右下が切れていた (かけぬけ★青春スパーキング)。枠を描かない openbox を Xvfb ごとに動かす。`run.sh` は Wine 内から見たクライアント領域と X のウィンドウを比べ、X 側が小さければ `NG:size_mismatch` にする。
+22. **ウィンドウの大きさ**: WM が無いと最大化・全画面の要求が実行されず、Wine 側は 1920x1080 なのに X のウィンドウが小さいまま右下が切れていた (かけぬけ★青春スパーキング)。枠を描かない openbox を Xvfb ごとに動かす。`vnbox probe` は Wine 内から見たクライアント領域と X のウィンドウを比べ、X 側が小さければ `NG:size_mismatch` にする。
 23. **自前で枠を描くウィンドウ**: Chromium 系 (NW.js / Electron) は WM_NCCALCSIZE でクライアント領域を枠いっぱいに広げる。Wine は WM が枠を描く前提でタイトルバー分を X ウィンドウから外すので、上 30px が欠けていた (RPG ツクール MZ 製)。win32u パッチでウィンドウ全体を出す。
 24. **NW.js も Chromium**: RPG ツクール MZ の一部は GPU プロセス無しでは真っ黒のまま。Electron と同じ引数を `vnbox add` が NW.js (nw.dll) にも付ける。
 25. **ダイアログの重なり**: 「フルスクリーンで表示しますか？」や「ディスプレイ設定を変更しますか？」がゲーム本体の大きなウィンドウの手前に出る。`pass:` は最大のウィンドウでなく、いちばん小さいダイアログ大のウィンドウに既定のボタンを押させ、続けて出るダイアログも数秒待つ。
