@@ -44,7 +44,7 @@ Linux サーバ上で Windows 向けノベルゲームを Wine で動かし、An
 ## 準備
 
 ```bash
-cd go && go build -o ../bin/vnbox ./cmd/vnbox && cd ..     # Go 1.24+
+go build -o bin/vnbox ./cmd/vnbox     # Go 1.26+
 bin/vnbox mkbase                        # ベース prefix (一度だけ)。自前 Wine (下記) 用の 64bit / Win10 のもの (prefixes/base-vnbox)
 # 従来の Wine (-wine classic) も使うなら: bin/vnbox mkbase -wine classic (32bit / Win7) と bin/vnbox mkbase -wine classic -win64
 ```
@@ -88,7 +88,7 @@ bin/vnbox ledger md                                 # VERIFICATION.md の集計�
 - **インストーラの扱い**: MSI は `msiexec /qn`、Inno は `/VERYSILENT`、NSIS は `/S`。InstallShield は setup.exe に埋め込まれた MSI を Wine を使わずに取り出して入れる。それ以外 (CreateInstall / BGI / 独自) はダイアログの既定ボタンを押し続け、「インストール」「同意する」「次へ」などはラベルで探して押す (`tools/clickbtn`)。WinRAR 自己解凍は空の作業フォルダで Wine に展開させる。
 - **起動 exe の推定が外れたら** `packages/<name>/launch.ini` の `target=` を直す (C:\ からの相対パス)。`args=`、`renderer=` (gl/vulkan)、`winetricks=` (winetricks の verb、または `vnbox-<名前>` で vnbox 自前の手順: icu / msfonts / dxvk / vcrun / dotnet:<版>:<x64|x86>[:desktop] / xamlstub、`internal/verbs`) も書ける。エンジンに応じて `vnbox add` が自動で付けるもの: Unity 6 → DXVK、NW.js / Electron → Chromium の GPU 回避引数、Godot 4 → Vulkan、XAML Islands → 代用品 DLL など。
 - 起動ダイアログ (画面モード選択など) は配信画面でそのまま操作すればよい。
-- **テスト**: `cd go && go test ./...` (S3 部分は S3 互換のテストサーバ moto を自動で起動して確認。無ければスキップ)。
+- **テスト**: `go test ./...` (S3 部分は S3 互換のテストサーバ moto を自動で起動して確認。無ければスキップ)。
 
 ## ストリーミングの方式
 
@@ -96,7 +96,7 @@ Go 版 (`vnbox serve` / `vnbox play`) は **WebRTC (H.264 + Opus)** だけで配
 
 | 経路 | 方式 | 実装 |
 |---|---|---|
-| 映像 | ゲームウィンドウの矩形だけを `ffmpeg -f x11grab` で取り込み、libx264 (constrained baseline, zerolatency, 30fps, CRF 23, 上限 3Mbps) で H.264 にして WebRTC で送る。H.264 を復号できないブラウザには VP8。エンコーダはゲームごとに 1 つで、見ている人全員に配る (誰も見ていなければ 20 秒後に止める) | `go/internal/stream/rtc.go` |
+| 映像 | ゲームウィンドウの矩形だけを `ffmpeg -f x11grab` で取り込み、libx264 (constrained baseline, zerolatency, 30fps, CRF 23, 上限 3Mbps) で H.264 にして WebRTC で送る。H.264 を復号できないブラウザには VP8。エンコーダはゲームごとに 1 つで、見ている人全員に配る (誰も見ていなければ 20 秒後に止める) | `internal/stream/rtc.go` |
 | キーフレーム | 定期は 10 秒ごと。新しい視聴者が来たときと、視聴者がパケット欠落を知らせたとき (PLI / FIR) にエンコーダを起動し直して即座にキーフレームを出す (3 秒に 1 回まで) | 同上 |
 | 音声 | ゲーム専用の PulseAudio null シンクの monitor を Opus 96kbps (20ms) にして WebRTC で送る。モバイルは最初のタップで消音を解除 | 同上 |
 | 入力 | WebRTC のデータチャネルで JSON を受け、表示倍率を逆算した座標で `xdotool` がそのウィンドウへ送る (データチャネルが無いときは `POST /input`)。タッチ操作は下記 | `stream.go` / `page.html` |
@@ -118,7 +118,7 @@ H.264 は前の画面との差分だけを送るので、止まっている時�
 - 同じ LAN / Tailscale などの VPN 内: 設定不要 (ホスト候補で直接繋がる)。
 - ルータでポートを開ける: `-rtc-port 8443 -public-ip <グローバル IP>`。映像・音声を 1 つの UDP ポートにまとめ、同じ番号の TCP でも受ける (UDP が通らない回線向け)。HTTP (`-addr`) と合わせて 2 ポートを転送すればよい。
 - 開けられない (CGNAT 等): `-ice stun:stun.l.google.com:19302,turn:user:pass@turn.example.com:3478` で STUN/TURN を使う (環境変数 `VNBOX_ICE` / `VNBOX_PUBLIC_IP` でも可)。
-- 動作確認用に `bin/rtcprobe` (`go/cmd/rtcprobe`): ブラウザ無しで WebRTC 接続し、受け取った H.264 / Opus をファイルに保存して kbps を表示する。
+- 動作確認用に `bin/rtcprobe` (`cmd/rtcprobe`): ブラウザ無しで WebRTC 接続し、受け取った H.264 / Opus をファイルに保存して kbps を表示する。
 
 **タッチ操作** (スマホ・タブレット):
 
@@ -149,7 +149,7 @@ SAVE_INTERVAL=300                                        # プレイ中にセー
 - **履歴**: `saves/<user>/<name>/<UTC時刻>.tar.zst` を消さずに積むので、任意の時点に戻せる (`vnbox store history <name>`、`save-pull <name> <時刻>`)。古いものは S3 のライフサイクルルールで期限切れにするとよい。
 - サーバを捨てても `packages/` と `saves/` が S3 にあれば、新しいサーバでベース prefix を作って `vnbox serve` するだけで続きから遊べる。
 
-## Go のパッケージ構成 (`go/`)
+## Go のパッケージ構成
 
 | パッケージ | 役割 |
 |---|---|
@@ -188,7 +188,7 @@ SAVE_INTERVAL=300                                        # プレイ中にセー
 ## 構成
 
 ```
-go/                      vnbox 本体 (上記)
+cmd/ internal/ go.mod     vnbox 本体 (Go、上記)
 bin/vnbox                ビルドしたコマンド
 config/
   store.conf.example     S3 の設定のひな形 (config/store.conf にコピーして使う)
