@@ -151,11 +151,20 @@ func sleep(ctx context.Context, d time.Duration) {
 func gameWindow(d x11.Display) (x11.Window, bool) {
 	var best x11.Window
 	for _, w := range d.Windows() {
-		if w.Name == "" || strings.Contains(w.Name, "デスクトップ") || strings.Contains(w.Name, "Desktop") {
+		if strings.Contains(w.Name, "デスクトップ") || strings.Contains(w.Name, "Desktop") {
 			continue
 		}
 		if w.Area() > best.Area() {
 			best = w
+		}
+	}
+	if best.ID == "" {
+		// some games leave the title empty (雪音の仇討ち物語, NW.js): take the biggest untitled
+		// window, but not the screen-sized one at the origin Wine keeps, nor frame edges
+		for _, w := range d.Unnamed() {
+			if w.Name == "" && (w.X > 0 || w.Y > 0) && w.Area() >= 120000 && w.Area() > best.Area() {
+				best = w
+			}
 		}
 	}
 	return best, best.ID != ""

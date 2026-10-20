@@ -4,7 +4,8 @@
  * 下の優先順でラベルが一致する有効なボタンの中央をマウスでクリックする。押したら "clicked <ラベル>" を出して 0 で終わる。
  * ラベルの比較では "&" と "(&N)" のようなアクセラレータ、空白、">" "<" "." を無視する。
  * ボタンを自前で描くインストーラ (子ウィンドウが無い) は、ウィンドウクラスと大きさで決め打ちした位置をクリックする。
- * 1 回目はインストール、2 回目以降 (インストール後にメニューへ戻ったとき) は終了ボタン。
+ * 1 回目はインストール、2 回目以降 (インストール後にメニューへ戻ったとき) はウィンドウを閉じる
+ * (終了ボタンの位置は作品ごとに違い、同じ大きさのメニューでもそこがアンインストールのことがある: ダイヤミック・デイズ)。
  * clickbtn.exe -list: 表示中のトップレベルウィンドウと子ウィンドウ (クラス名・文字列) を出すだけ (調査用)。 */
 #include <windows.h>
 #include <wchar.h>
@@ -32,11 +33,11 @@ static void normalize(const wchar_t *in, wchar_t *out, int n)
 
 struct find { int best; HWND button; HWND top; };
 
-/* ボタンを自前で描くインストーラ: クラス名, クライアント領域の大きさ, 1 回目に押す位置, 2 回目以降に押す位置 */
-static const struct layout { const wchar_t *cls; int w, h, x1, y1, x2, y2; const char *what; } layouts[] = {
-    {L"BGI - Main window", 500, 324, 398, 27, 398, 293, "BGI installer menu"},  /* インストール / インストーラの終了 */
-    {L"BGI - Main window", 960, 540, 278, 320, 278, 473, "BGI installer menu (960x540)"},  /* ゲームのインストール / インストーラーの終了 (学☆王) */
-    {L"BGI - Main window", 800, 450, 655, 224, 690, 410, "BGI installer menu (800x450)"},  /* インストール / インストーラの終了 (クダンノフォークロア) */
+/* ボタンを自前で描くインストーラ: クラス名, クライアント領域の大きさ, インストールボタンの位置 */
+static const struct layout { const wchar_t *cls; int w, h, x, y; const char *what; } layouts[] = {
+    {L"BGI - Main window", 500, 324, 398, 27, "BGI installer menu"},
+    {L"BGI - Main window", 960, 540, 278, 320, "BGI installer menu (960x540)"},  /* 学☆王 */
+    {L"BGI - Main window", 800, 450, 655, 224, "BGI installer menu (800x450)"},  /* クダンノフォークロア */
 };
 
 static void click_at(HWND h, int x, int y)
@@ -65,9 +66,10 @@ static BOOL CALLBACK layout_cb(HWND h, LPARAM l)
         wcscat(marker, L"vnbox-clickbtn-");
         wcscat(marker, L->cls);
         BOOL again = GetFileAttributesW(marker) != INVALID_FILE_ATTRIBUTES;
-        click_at(h, again ? L->x2 : L->x1, again ? L->y2 : L->y1);
+        if (again) PostMessageW(h, WM_CLOSE, 0, 0);
+        else click_at(h, L->x, L->y);
         CloseHandle(CreateFileW(marker, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0, NULL));
-        printf("clicked %s (%s)\n", L->what, again ? "second" : "first");
+        printf(again ? "closed %s\n" : "clicked %s\n", L->what);
         *(int *)l = 1;
         return FALSE;
     }
@@ -80,7 +82,8 @@ static BOOL CALLBACK child_cb(HWND h, LPARAM l)
     wchar_t cls[64], text[256], norm[256];
     if (!IsWindowVisible(h) || !IsWindowEnabled(h)) return TRUE;
     GetClassNameW(h, cls, 64);
-    if (_wcsicmp(cls, L"Button") && _wcsicmp(cls, L"TButton") && _wcsicmp(cls, L"TBitBtn")) return TRUE;
+    /* Button, and Delphi's TButton / TBitBtn / TLSFlatButton (LiberalInstaller) */
+    if (!wcsstr(cls, L"Button") && !wcsstr(cls, L"BitBtn")) return TRUE;
     LONG style = GetWindowLongW(h, GWL_STYLE) & 0x0f;
     if (!_wcsicmp(cls, L"Button") && style != BS_PUSHBUTTON && style != BS_DEFPUSHBUTTON) return TRUE;
     GetWindowTextW(h, text, 256);

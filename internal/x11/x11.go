@@ -38,10 +38,15 @@ func (d Display) xdo(args ...string) string {
 
 var geomRe = regexp.MustCompile(`(\w+)=(-?\d+)`)
 
-// Windows lists visible windows, skipping Wine's invisible IME helper.
-func (d Display) Windows() []Window {
+// Windows lists visible windows with a title, skipping Wine's invisible IME helper.
+func (d Display) Windows() []Window { return d.windows(".") }
+
+// Unnamed lists all visible windows, the untitled ones included.
+func (d Display) Unnamed() []Window { return d.windows("") }
+
+func (d Display) windows(name string) []Window {
 	var out []Window
-	for _, id := range strings.Fields(d.xdo("search", "--onlyvisible", "--name", ".")) {
+	for _, id := range strings.Fields(d.xdo("search", "--onlyvisible", "--name", name)) {
 		g := map[string]int{}
 		for _, m := range geomRe.FindAllStringSubmatch(d.xdo("getwindowgeometry", "--shell", id), -1) {
 			g[m[1]], _ = strconv.Atoi(m[2])
