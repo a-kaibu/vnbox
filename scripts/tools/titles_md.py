@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""titles_md.py  results/verified.tsv から README の「起動確認済みタイトル一覧」を作り直す (マーカー間を置換)"""
+"""titles_md.py  results/verified.tsv から VERIFICATION.md の「起動確認済みタイトル一覧」を作り直す (マーカー間を置換)"""
 import re
-V = '/home/user/vnbox/results/verified.tsv'; R = '/home/user/vnbox/README.md'
+V = '/home/user/vnbox/results/verified.tsv'; R = '/home/user/vnbox/VERIFICATION.md'
 rows = [l.rstrip('\n').split('\t') for l in open(V, encoding='utf-8') if l.strip() and not l.startswith('#')]
 import glob
 dl = {}  # DLsite の作品番号 → 登録日

@@ -21,8 +21,8 @@ ensure_x; ensure_audio
 export WINEDEBUG=${RUN_DEBUG:-err+all,fixme-all}
 # .NET (Core) を入れた prefix では mscoree を止めない (IL だけの DLL が読めなくなる)
 [ -d "$WINEPREFIX/drive_c/Program Files/dotnet" ] && export WINEDLLOVERRIDES="mshtml=;winemenubuilder.exe=d"
-# パッケージの起動引数 (launch.sh が prefix に書いたもの) を、指定が無ければ使う
-[ -z "${ARGS:-}" ] && [ -s "$WINEPREFIX/.vnbox-args" ] && ARGS=$(cat "$WINEPREFIX/.vnbox-args")
+# パッケージの起動引数 (PKG=packages/<name> の launch.ini の args=) を、指定が無ければ使う
+[ -z "${ARGS:-}" ] && [ -n "${PKG:-}" ] && ARGS=$(sed -n 's/^args=//p' "$PKG/launch.ini" | head -1)
 # ゲームのプロセスが生きているか。exe 名は正規表現として扱わず (「(体験版).exe」等)、大文字小文字も区別しない (「.eXe」)。
 # 並列実行中の別 prefix の同名 exe (Game.exe 等) と取り違えないよう WINEPREFIX も確かめる
 game_alive(){ local p pat; pat=$(basename "$EXE" | sed 's/[][\.*^$()+?{}|]/\\&/g')

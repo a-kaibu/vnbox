@@ -40,8 +40,8 @@ one(){ # タブ区切りの空欄を詰めないよう cut で取り出す ("rea
   for st in vnbox classic; do
     local R=b6_${id}_$st P=$V/prefixes/run-b6_${id}_$st FL=vnbox; [ $st = classic ] && FL=
     rm -rf "$P"
-    WINE_FLAVOR=$FL PREPARE_ONLY=1 scripts/launch.sh "$PK" "$P" >/dev/null 2>&1 || continue
-    WINE_FLAVOR=$FL WINEPREFIX_OVERRIDE=$P INPUT="$PROBE" timeout 900 scripts/run.sh $R "$P/drive_c/$(dirname "$T")" "$(basename "$T")" 45 >/dev/null 2>&1
+    bin/vnbox prepare $id -prefix "$P" -wine ${FL:-classic} >/dev/null 2>&1 || continue
+    PKG=$PK WINE_FLAVOR=$FL WINEPREFIX_OVERRIDE=$P INPUT="$PROBE" timeout 900 scripts/run.sh $R "$P/drive_c/$(dirname "$T")" "$(basename "$T")" 45 >/dev/null 2>&1
     WINEPREFIX=$P wineserver -k 2>/dev/null
     v=$(scripts/tools/verdict.sh $R); best=$st
     local d=$(cat results/$R/display.txt 2>/dev/null); [ -n "$d" ] && pkill -f "^Xvfb $d " 2>/dev/null

@@ -41,7 +41,7 @@ import (
 )
 
 // Config is read from the environment, falling back to scripts/store.conf
-// (KEY=VALUE lines, the same file the shell tools use).
+// (KEY=VALUE lines).
 type Config struct {
 	URL      string // s3://bucket/prefix  (VNBOX_S3)
 	Endpoint string // S3_ENDPOINT, for S3-compatible services

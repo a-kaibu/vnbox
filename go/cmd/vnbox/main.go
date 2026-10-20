@@ -46,7 +46,7 @@ const usage = `vnbox — Windows ノベルゲームを Wine で動かしてブ�
   vnbox meta-search <キーワード>                        批評空間/VNDB の候補 ID を一覧
   vnbox serve [-addr :8080] [-token T]                ポータル: ギャラリーから選んで起動・配信 (複数同時)
   vnbox play <name> [-addr :8080] [-token T]          1 本だけ起動して配信
-  vnbox prepare <name>                                実行用 prefix を準備してパスを表示
+  vnbox prepare <name> [-prefix dir]                  実行用 prefix を準備してパスを表示
   vnbox store list | history <name>
   vnbox store push-package <name> | pull-package <name>
   vnbox store save-push <name> | save-pull <name> [時刻]
@@ -394,15 +394,21 @@ func tokenQuery(t string) string {
 
 func cmdPrepare(ctx context.Context, args []string) error {
 	c := newFlags("prepare")
+	dir := c.fs.String("prefix", "", "prefix to prepare (default prefixes/run-<name>)")
 	pos := c.parse(args)
 	if len(pos) < 1 {
-		return errors.New("usage: vnbox prepare <name>")
+		return errors.New("usage: vnbox prepare <name> [-prefix dir]")
 	}
 	p, err := pkg.Open(pkg.Dir(pos[0]))
 	if err != nil {
 		return err
 	}
 	prefix := session.Prefix(pos[0])
+	if *dir != "" {
+		if prefix, err = filepath.Abs(*dir); err != nil {
+			return err
+		}
+	}
 	l, err := p.Launch()
 	if err != nil {
 		return err

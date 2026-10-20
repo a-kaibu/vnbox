@@ -3,7 +3,7 @@
 cd "$(dirname "$0")/.."
 me=$$; parent=$PPID; P=$(cat results/.protect 2>/dev/null)
 for p in prefixes/*/; do n=$(basename "$p"); grep -qx "$n" <<<"$P" && continue; WINEPREFIX=$PWD/$p wineserver -k 2>/dev/null; done
-for pat in 'vnbox\.py test' 'scripts/play\.sh' 'scripts/stream\.py' '^Xvfb :'; do
+for pat in 'bin/vnbox (play|serve|add)' 'scripts/run\.sh' '^Xvfb :'; do
   for p in $(pgrep -f "$pat"); do
     [ "$p" = "$me" ] || [ "$p" = "$parent" ] && continue
     d=$(tr '\0' ' ' </proc/$p/cmdline 2>/dev/null | grep -oE '^Xvfb :[0-9]+' | cut -d' ' -f2); [ -n "$d" ] && grep -qx "$d" <<<"$P" && continue

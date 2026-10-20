@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""stats_md.py  results/verified.tsv / excluded.tsv / 第6弾の一覧から README の「動作確認の集計」を作り直す
+"""stats_md.py  results/verified.tsv / excluded.tsv / 第6弾の一覧から VERIFICATION.md の「集計」を作り直す
 (<!-- STATS:BEGIN --> と <!-- STATS:END --> の間を置換)"""
 import collections
 V = '/home/user/vnbox'
-R = f'{V}/README.md'
+R = f'{V}/VERIFICATION.md'
 rows = [l.rstrip('\n').split('\t') for l in open(f'{V}/results/verified.tsv', encoding='utf-8') if l.strip() and not l.startswith('#')]
 strict = [r for r in rows if not r[-1].startswith('弱:')]
 weak = [r for r in rows if r[-1].startswith('弱:')]
