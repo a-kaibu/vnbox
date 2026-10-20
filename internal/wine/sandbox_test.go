@@ -12,6 +12,10 @@ func TestSandbox(t *testing.T) {
 	if !SandboxAvailable() {
 		t.Skip("bubblewrap not installed")
 	}
+	// some hosts (CI runners) do not let bubblewrap create namespaces
+	if out, err := exec.Command(bwrapPath, "--ro-bind", "/", "/", "--unshare-net", "true").CombinedOutput(); err != nil {
+		t.Skipf("bubblewrap cannot run here: %v: %s", err, out)
+	}
 	prefix := t.TempDir()
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "do-not-leak")
 	e := Env{Prefix: prefix, Sandbox: true}

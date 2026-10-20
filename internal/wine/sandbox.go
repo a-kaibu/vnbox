@@ -3,6 +3,7 @@ package wine
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,7 +30,17 @@ func SandboxAvailable() bool {
 		if os.Getenv("VNBOX_SANDBOX") == "0" {
 			return
 		}
-		bwrapPath, _ = exec.LookPath("bwrap")
+		p, err := exec.LookPath("bwrap")
+		if err != nil {
+			log.Print("warning: bubblewrap (bwrap) is not installed: games run without a sandbox")
+			return
+		}
+		// some hosts do not let it create namespaces (no user namespaces, AppArmor)
+		if out, err := exec.Command(p, "--ro-bind", "/", "/", "--unshare-net", "true").CombinedOutput(); err != nil {
+			log.Printf("warning: bubblewrap cannot run here (%v: %s): games run without a sandbox", err, strings.TrimSpace(string(out)))
+			return
+		}
+		bwrapPath = p
 	})
 	return bwrapPath != ""
 }
