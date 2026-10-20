@@ -116,6 +116,9 @@ func cmdVerify(ctx context.Context, args []string) error {
 		go func() {
 			defer func() { <-sem; wg.Done() }()
 			line := verifyOne(ctx, r, o)
+			if ctx.Err() != nil {
+				return // interrupted: not a result, check it again next time
+			}
 			mu.Lock()
 			defer mu.Unlock()
 			f, err := os.OpenFile(o.out, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
