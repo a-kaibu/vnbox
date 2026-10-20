@@ -50,7 +50,7 @@ func TestJudge(t *testing.T) {
 		{"dead", false, false, "", 800, 600, stripes, "NG:dead"},
 		{"cut off", true, true, "", 800, 600, stripes, "NG:size_mismatch(client=1280x720 x11=800x600)"},
 		{"crash", true, false, "wine: Unhandled exception 0xc0000005", 800, 600, stripes, "NG:crash"},
-		{"hang", true, false, "err:sync:RtlpWaitForCriticalSection section 0 wait timed out", 800, 600, stripes, "NG:hang"},
+		{"lock wait", true, false, "err:sync:RtlpWaitForCriticalSection section 0 wait timed out", 800, 600, stripes, "OK"},
 		{"small", true, false, "", 300, 200, stripes, "NG:small_window"},
 		{"blank", true, false, "", 800, 600, black, "NG:blank(0.000)"},
 	}

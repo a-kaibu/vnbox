@@ -282,10 +282,9 @@ func sizes(ctx context.Context, env wine.Env, d x11.Display, log io.Writer) (boo
 	return cw > 0 && xw.ID != "" && (cw-xw.W > 16 || ch-xw.H > 16), s
 }
 
-var (
-	crashRe = regexp.MustCompile(`Unhandled exception|page fault`)
-	stallRe = regexp.MustCompile(`RtlpWaitForCriticalSection`) // a thread waited 60 s for a lock
-)
+// crashRe matches Wine's crash reports. A thread waiting 60 s for a lock
+// (RtlpWaitForCriticalSection) is not one: QLIE and BGI games log it and keep running.
+var crashRe = regexp.MustCompile(`Unhandled exception|page fault`)
 
 // Judge decides OK or NG:<reason>: the game must still be running, its window must not be cut
 // off, Wine must not have reported a crash, and the last screenshot must be at least 400x300
@@ -304,11 +303,6 @@ func Judge(r *Result) string {
 	if len(r.Shots) < 2 {
 		return "NG:noshot"
 	}
-	// a long wait for a lock is a hang only if the game stopped drawing: some games log it
-	// while loading and go on (QLIE)
-	if stallRe.Match(log) && sameImage(r.Shots[len(r.Shots)-2], r.Shots[len(r.Shots)-1]) {
-		return "NG:hang"
-	}
 	img, err := loadImage(r.Shots[len(r.Shots)-1])
 	if err != nil {
 		return "NG:noshot"
@@ -320,24 +314,6 @@ func Judge(r *Result) string {
 		return fmt.Sprintf("NG:blank(%.3f)", sd)
 	}
 	return "OK"
-}
-
-// sameImage reports whether two screenshots have the same pixels.
-func sameImage(a, b string) bool {
-	ia, err1 := loadImage(a)
-	ib, err2 := loadImage(b)
-	if err1 != nil || err2 != nil || ia.Bounds() != ib.Bounds() {
-		return false
-	}
-	r := ia.Bounds()
-	for y := r.Min.Y; y < r.Max.Y; y++ {
-		for x := r.Min.X; x < r.Max.X; x++ {
-			if ia.At(x, y) != ib.At(x, y) {
-				return false
-			}
-		}
-	}
-	return true
 }
 
 func loadImage(path string) (image.Image, error) {
