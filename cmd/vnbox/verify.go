@@ -147,7 +147,7 @@ func parseClicks(s string) [][2]int {
 // listColumns are the columns of a verify list. The first six come from vnbox candidates; the
 // rest are optional settings for titles that need them (they override -input / -wait and add
 // to -verbs / -click).
-var listColumns = []string{"id", "url", "title", "source", "drm", "mb", "input", "verbs", "clicks", "exe", "args", "wait"}
+var listColumns = []string{"id", "url", "title", "source", "drm", "mb", "input", "verbs", "clicks", "exe", "args", "wait", "renderer"}
 
 // verifyOne checks one title and returns its TSV line:
 // id, Wine that worked (vnbox / classic), verdict, target, engine, source, DRM (retail), DRM traces.
@@ -204,6 +204,9 @@ func verifyOne(ctx context.Context, r []string, o verifyOptions) []string {
 		if !slices.Contains(l.Winetricks, v) {
 			l.Winetricks = append(l.Winetricks, v)
 		}
+	}
+	if r[12] != "" {
+		l.Renderer = r[12]
 	}
 	if r[10] != "" {
 		l.Args = r[10]

@@ -15,7 +15,7 @@ r1_majiro	http://suezou.dyndns.org/dl2008/siesta/irevo/irevotrial.zip	あいれ�
 r1_softpal_tenmao	https://kumanomi-soft.amusecraft.com/tenmao/dl/tenmao_try.zip	転性魔王さま 体験版	第1弾			pass:4 sleep:8 click:224,451 sleep:6 click:580,216 sleep:8 click:640,600 click:640,600 shot:story			tenmao_try/tenmao_try.exe		25
 r1_softpal_hanako	https://amusecraft.com/milimili/try/hanako_try.zip	トイレの花子さん 体験版	第1弾			pass:4 sleep:8 click:640,600 click:640,600 shot:story			hanako_try/hanako_try.exe		25
 r1_advhd	https://www.willplus-download.com/Empress/yukanmadam/yukanmadam_trialedition.exe	有閑夫人倶楽部 体験版	第1弾			click:260,640 sleep:8 click:640,500 sleep:1.5 click:640,500 sleep:1.5 click:640,500 sleep:1.5 click:640,500 sleep:1.5 click:640,500 sleep:1.5 click:640,500 sleep:1.5 click:640,500 sleep:1.5 click:640,500 sleep:1.5 click:640,500 sleep:1.5 click:640,500 sleep:1.5 click:640,500 sleep:1.5 click:640,500 sleep:1.5 click:640,500 sleep:1.5 click:640,500 sleep:1.5 click:640,500 sleep:1.5 click:640,500 sleep:1.5 shot:story			yukanmadam_trialedition/有閑夫人倶楽部 -体験版-/AdvHD.exe		25
-r1_musica	http://www.minori.ph/download/files/WindRP_TRIAL.zip	Wind RP 体験版	第1弾			click:160,362 sleep:5 click:400,450 sleep:1.5 click:400,450 sleep:3 shot:story			WindRP_TRIAL/WindRP.exe		25
+r1_musica	http://www.minori.ph/download/files/WindRP_TRIAL.zip	Wind RP 体験版	第1弾			sleep:3 shot:title			WindRP_TRIAL/WindRP.exe		25
 r1_tyrano	http://www.gocha-mix.com/gp/gxgp01/dl/gxgp001_trial.zip	転生した世界で… 体験版	第1弾			click:125,366 sleep:8 click:640,500 click:640,500 shot:story			gxgp001_trial/gxgp001_trial.exe		25
 r1_renpy	https://www.renpy.org/dl/8.5.3/renpy-8.5.3-sdk.zip	The Question	第1弾			click:62,237 sleep:5 click:600,400 click:600,400 shot:story			renpy-8.5.3-sdk/renpy.exe	the_question	30
 r1_unity	https://www.willplus-download.com/ensemble/kyokumari/kyokumari_trial.zip	旭光のマリアージュ 体験版	第1弾						kyokumari_trial/旭光のマリアージュ体験版.exe		
@@ -103,7 +103,7 @@ b2016_apadash	http://suezou.dyndns.org/dl2016/apadash/oak_train/aptd005_tr.zip	�
 b2024_tinkerbell	http://suezou.dyndns.org/dl2024/tinkerbell/mujina/mujina_taiken200.zip	ムジナ 体験版Ver02	suezou		586						
 b2006_kaguya	http://suezou.dyndns.org/dl2006/kaguya/amatsu/amatu_trial.EXE	淫皇覇伝アマツ（体験版）	suezou		309						
 b2007_kaguya	http://suezou.dyndns.org/dl2007/kaguya/delta/delta_trial.EXE	でるた！（体験版）	suezou		662						
-b2016_evoll	http://suezou.dyndns.org/dl2016/evoll/oinari/trial_oinari.zip	お嬢様はイイナリみたいです！？ 体験版	suezou		217						
+b2016_evoll	http://suezou.dyndns.org/dl2016/evoll/oinari/trial_oinari.zip	お嬢様はイイナリみたいです！？ 体験版	suezou		217							gdi
 b2008_akabeesoft	http://suezou.dyndns.org/dl2008/akabeesoft/wlo/wlo_webtrial.zip	ＷＬＯ-世界恋愛機構- web用体験版	suezou		354						
 b2015_guilty	http://suezou.dyndns.org/dl2015/guilty/yobai3/yobai3_trial.zip	淫らに喘ぐ七人の夜這いする孕女　体験版	suezou		507						
 b2009_cube	http://suezou.dyndns.org/dl2009/cube/natsunoame/natsunoame_trial.zip	夏ノ雨 -体験版-	suezou		443						
