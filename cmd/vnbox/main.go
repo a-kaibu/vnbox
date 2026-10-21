@@ -321,6 +321,10 @@ func addPackage(ctx context.Context, name, src string, o addOptions) (*pkg.Packa
 		if t == "Runtime:XamlIslands" && !slices.Contains(l.Winetricks, "vnbox-xamlstub") {
 			l.Winetricks = append(l.Winetricks, "vnbox-xamlstub")
 		}
+		// MFC 4.2 (VC++ 6) を使うのに同梱していないもの (魔女恋にっき DMM 版): winetricks で入れる
+		if t == "Runtime:MFC42" && !slices.Contains(l.Winetricks, "mfc42") && !hasFile(gdir, "mfc42.dll") {
+			l.Winetricks = append(l.Winetricks, "mfc42")
+		}
 		if strings.HasPrefix(t, "DRM:") || strings.HasPrefix(t, "Protect:") {
 			drm = append(drm, t)
 		}
@@ -975,4 +979,17 @@ func cmdInstallWine(ctx context.Context) error {
 	}
 	fmt.Println("installed:", wine.Vnbox.Bin(), "("+winebuild.Tag()+")")
 	return nil
+}
+
+// hasFile reports whether dir (or a folder below it) holds a file of this name (case ignored).
+func hasFile(dir, name string) bool {
+	found := false
+	filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && strings.EqualFold(d.Name(), name) {
+			found = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return found
 }
