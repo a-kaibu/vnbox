@@ -66,7 +66,7 @@ sudo apt install flex bison gettext libx11-dev libxext-dev libxrandr-dev libxi-d
 # 3. vnbox 本体 (Go 1.26+)
 go install github.com/a-kaibu/vnbox/cmd/vnbox@latest
 
-# 4. 自前 Wine (Wine 11.0 + vnbox のパッチ) をビルドして ~/.local/share/vnbox/wine に入れる。最初に一度、4 コアで 40 分ほど
+# 4. 自前 Wine (Wine 11.0 + vnbox のパッチ) をビルドして ~/.local/share/vnbox/wine に入れる。最初に一度、4 コアで 40 分ほど、ディスク 7GB ほど (終われば作業フォルダ ~/.local/share/vnbox/wine-build-src は消してよい)
 vnbox build-wine
 
 # 5. 遊ぶ: DL した体験版 (zip / lzh / 7z / rar / 自己解凍 / インストーラ) をパッケージにして、配信を始める
