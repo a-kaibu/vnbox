@@ -8,6 +8,9 @@
 !/downloads/suezou/*.tsv
 /runtime/
 /bin/
+/wine/
+/wine.new/
+/wine-build-src/
 # テスト結果のスクショ・ログ (台帳だけ管理する)
 /results/*
 !/results/verified.tsv
