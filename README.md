@@ -31,7 +31,7 @@ Linux サーバ上で Windows 向けノベルゲームを Wine で動かし、An
    + パッケージを流し込み                               │ (準備後に変わったファイル + レジストリ差分だけ)
    │
    ▼
- Wine (自前ビルド /opt/wine-vnbox, 新 WoW64)。1 ゲームごとに:
+ Wine (自前ビルド vnbox build-wine, 新 WoW64)。1 ゲームごとに:
    Xvfb :N + openbox (枠なし) ──x11grab──▶ ffmpeg H.264 ──┐   WebRTC (映像・音声・入力のデータチャネル)
    PulseAudio null シンク ──monitor──▶ ffmpeg Opus ─────────┤ vnbox serve (HTTP :port) ◀──▶ ブラウザ (Android 等)
    xdotool ◀── データチャネル / POST /input (タップ・キー) ──┘
@@ -41,49 +41,77 @@ Linux サーバ上で Windows 向けノベルゲームを Wine で動かし、An
 - **パッケージ**はゲームの中身だけで、Wine や prefix を含まない。ベースや Wine を更新しても作り直さずに使える。
 - **1 ゲーム = 1 X ディスプレイ + 1 音声シンク**。複数人・複数本を同時に動かしても映像・音声・入力は混ざらない。
 
-## 準備
+## インストールして遊ぶまで
+
+Ubuntu 24.04 で確かめた手順。
 
 ```bash
-go build -o bin/vnbox ./cmd/vnbox     # Go 1.26+
-bin/vnbox mkbase                        # ベース prefix (一度だけ)。自前 Wine (下記) 用の 64bit / Win10 のもの (prefixes/base-vnbox)
-# 従来の Wine (-wine classic) も使うなら: bin/vnbox mkbase -wine classic (32bit / Win7) と bin/vnbox mkbase -wine classic -win64
+# 1. 実行に要るもの
+sudo dpkg --add-architecture i386 && sudo apt update
+sudo apt install xvfb openbox pulseaudio ffmpeg bubblewrap xdotool imagemagick \
+  p7zip-full unrar lhasa cabextract winetricks gcc-mingw-w64 python3-venv \
+  fonts-ipafont fonts-noto-cjk locales \
+  gstreamer1.0-plugins-base:i386 gstreamer1.0-plugins-good:i386 gstreamer1.0-libav:i386 \
+  gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
+sudo locale-gen ja_JP.UTF-8
+
+# 2. 自前 Wine のビルドに要るもの (build-wine を使うときだけ)
+sudo apt install flex bison gettext libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
+  libxinerama-dev libxcomposite-dev libxfixes-dev libxrender-dev libxxf86vm-dev libxkbcommon-dev \
+  libfreetype-dev libfontconfig-dev libgl-dev libegl-dev libosmesa6-dev libgbm-dev libdrm-dev \
+  libvulkan-dev libwayland-dev libpulse-dev libasound2-dev libgstreamer1.0-dev \
+  libgstreamer-plugins-base1.0-dev libgnutls28-dev libdbus-1-dev libunwind-dev libudev-dev \
+  libusb-1.0-0-dev libsdl2-dev libcups2-dev libkrb5-dev libpcap-dev libv4l-dev
+
+# 3. vnbox 本体 (Go 1.26+)
+go install github.com/a-kaibu/vnbox/cmd/vnbox@latest
+
+# 4. 自前 Wine (Wine 11.0 + vnbox のパッチ) をビルドして ~/.local/share/vnbox/wine に入れる。最初に一度、4 コアで 1 時間ほど
+vnbox build-wine
+
+# 5. 遊ぶ: DL した体験版 (zip / lzh / 7z / rar / 自己解凍 / インストーラ) をパッケージにして、配信を始める
+vnbox add yuna ~/Downloads/yuna_taiken.zip     # 初回はベース prefix も作る (数分)。インストーラは自動で通す
+vnbox play yuna -token 好きな文字列             # → ログに出る http://<ホスト>:8080/g/yuna/?token=... をブラウザで開く
 ```
 
-必要なもの: Wine (自前ビルドは `/opt/wine-vnbox`)、Xvfb、openbox、PulseAudio、ffmpeg (libx264 / libopus。GPU で配信するなら VAAPI / NVENC 対応のもの。VAAPI には 64bit の VA ドライバ `mesa-va-drivers` / `intel-media-va-driver` も要る。Wine 用の `:i386` だけでは ffmpeg から使えない)、bubblewrap、xdotool、ImageMagick、7z / unrar / lha、cabextract、winetricks、MinGW (`i686-w64-mingw32-gcc`、補助ツールのビルド)、`ja_JP.UTF-8` ロケール、日本語フォント (IPA / Noto)。
+- データ (パッケージ・prefix・自前 Wine・セーブ) は `~/.local/share/vnbox` に置く。別の場所にするなら `VNBOX=/path`。
+- 自前 Wine をビルドしない場合は、ディストリの Wine (`apt install wine`) で `-wine classic` を付けて動かせる (`vnbox add -wine classic ...` / `vnbox play -wine classic ...`)。ただし動作確認は自前 Wine で行っていて、動画や Unity など一部は自前 Wine のパッチが要る。
+- 配信はブラウザ (PC / Android) で開くだけ。映像・音声は WebRTC、タップとキーはデータチャネルで送る。ゲームを閉じるか Ctrl-C で終わり、終了時にセーブを残す (`VNBOX_S3` があれば S3 にも上げる)。
+- 何本も並べて選ぶなら `vnbox serve -token ...` (ギャラリー)。
 
 ## 使い方
 
 ```bash
-bin/vnbox add mygame ~/Downloads/trial.zip -title "○○ 体験版"   # パッケージ化 (VNBOX_S3 があれば S3 にも上げる。-no-upload で抑止)
-bin/vnbox add mygame2 ~/Downloads/setup.exe                       # インストーラでも同じ
-bin/vnbox add mygame3 game.zip -exe 'Game/start.exe'              # 起動 exe を明示
-bin/vnbox add mygame4 setup.zip -click "157,408"                  # インストーラの最初の画面 (BGI のメニュー等) でクリックする座標 (ウィンドウ基準)
-bin/vnbox serve -addr :8080 -token <秘密の文字列>     # ポータル: ギャラリーから「遊ぶ」で起動・配信、「終了」でセーブを上げて停止
-bin/vnbox play mygame -addr :8080 -token <...>      # 1 本だけ起動して配信 (ゲームを閉じるか Ctrl-C で終了、終了時にセーブ)
-bin/vnbox meta mygame -fetch                        # 批評空間 (届かなければ VNDB) からブランド・発売日・点数・タグ・紹介・カバーを取得
-bin/vnbox meta -all                                 # meta.json の無い全パッケージに対して取得
-bin/vnbox meta-search 姫狩り                         # 候補 ID の一覧 → bin/vnbox meta mygame -id egs:12345 / -id vndb:v1195 で指定
-bin/vnbox meta mygame -title T -engine E -thumb 画像 # ギャラリー表示を手で直す
-bin/vnbox store list | history <name> | push-package <name> | pull-package <name> | save-push <name> | save-pull <name> [時刻]
-bin/vnbox capture begin <name> / capture end <name> # 手動インストールの差分取り
-bin/vnbox prepare <name> [-prefix dir]              # 実行用 prefix を準備するだけ
-bin/vnbox detect <フォルダ> / extract <アーカイブ> <出力先> / regdiff diff|apply|show
-bin/vnbox stop-all                                  # 動いているゲームと X をすべて止める
+vnbox add mygame ~/Downloads/trial.zip -title "○○ 体験版"   # パッケージ化 (VNBOX_S3 があれば S3 にも上げる。-no-upload で抑止)
+vnbox add mygame2 ~/Downloads/setup.exe                       # インストーラでも同じ
+vnbox add mygame3 game.zip -exe 'Game/start.exe'              # 起動 exe を明示
+vnbox add mygame4 setup.zip -click "157,408"                  # インストーラの最初の画面 (BGI のメニュー等) でクリックする座標 (ウィンドウ基準)
+vnbox serve -addr :8080 -token <秘密の文字列>     # ポータル: ギャラリーから「遊ぶ」で起動・配信、「終了」でセーブを上げて停止
+vnbox play mygame -addr :8080 -token <...>      # 1 本だけ起動して配信 (ゲームを閉じるか Ctrl-C で終了、終了時にセーブ)
+vnbox meta mygame -fetch                        # 批評空間 (届かなければ VNDB) からブランド・発売日・点数・タグ・紹介・カバーを取得
+vnbox meta -all                                 # meta.json の無い全パッケージに対して取得
+vnbox meta-search 姫狩り                         # 候補 ID の一覧 → vnbox meta mygame -id egs:12345 / -id vndb:v1195 で指定
+vnbox meta mygame -title T -engine E -thumb 画像 # ギャラリー表示を手で直す
+vnbox store list | history <name> | push-package <name> | pull-package <name> | save-push <name> | save-pull <name> [時刻]
+vnbox capture begin <name> / capture end <name> # 手動インストールの差分取り
+vnbox prepare <name> [-prefix dir]              # 実行用 prefix を準備するだけ
+vnbox detect <フォルダ> / extract <アーカイブ> <出力先> / regdiff diff|apply|show
+vnbox stop-all                                  # 動いているゲームと X をすべて止める
 ```
 
-動作確認も `vnbox` で行う (play と同じ起動の仕方で動かすので、通ったものはそのまま遊べる。手順は [VERIFICATION.md](VERIFICATION.md)):
+動作確認も `vnbox` で行う (play と同じ起動の仕方で動かすので、通ったものはそのまま遊べる。手順は [VERIFICATION.md](VERIFICATION.md))。台帳と結果はリポジトリに置くので、リポジトリの中で `export VNBOX=$PWD` してから:
 
 ```bash
-bin/vnbox probe mygame -input "shot:t30 pass:5 sleep:10 shot:a" -wait 30s   # 使い捨ての prefix で起動 → 操作列 → スクショ・判定 (results/mygame/)。遊ぶ用の prefix とセーブには触らない
-bin/vnbox candidates suezou downloads/suezou/links.tsv            # 候補集め (suezou ミラー / DLsite の体験版一覧 → 未試行分の抽出)
-bin/vnbox candidates dlsite pro 20 downloads/dlsite/pro.tsv
-bin/vnbox candidates pick downloads/batch7.tsv -suezou 100 -pro 50 -maniax 50
-bin/vnbox verify downloads/batch7.tsv -j 3 -out results/batch/summary7.tsv   # DL → add → probe (vnbox → 従来 Wine) → 一覧画像 → 結果 TSV
-bin/vnbox ledger record -list downloads/batch7.tsv -summary results/batch/summary7.tsv <id>...   # 目視で確かめたものを台帳へ
-bin/vnbox ledger md                                 # VERIFICATION.md の集計と一覧を作り直す
+vnbox probe mygame -input "shot:t30 pass:5 sleep:10 shot:a" -wait 30s   # 使い捨ての prefix で起動 → 操作列 → スクショ・判定 (results/mygame/)。遊ぶ用の prefix とセーブには触らない
+vnbox candidates suezou downloads/suezou/links.tsv            # 候補集め (suezou ミラー / DLsite の体験版一覧 → 未試行分の抽出)
+vnbox candidates dlsite pro 20 downloads/dlsite/pro.tsv
+vnbox candidates pick downloads/batch7.tsv -suezou 100 -pro 50 -maniax 50
+vnbox verify downloads/batch7.tsv -j 3 -out results/batch/summary7.tsv   # DL → add → probe (vnbox → 従来 Wine) → 一覧画像 → 結果 TSV
+vnbox ledger record -list downloads/batch7.tsv -summary results/batch/summary7.tsv <id>...   # 目視で確かめたものを台帳へ
+vnbox ledger md                                 # VERIFICATION.md の集計と一覧を作り直す
 ```
 
-- 共通の `-wine vnbox|classic` (既定 vnbox、環境変数 `VNBOX_FLAVOR`) で Wine を選ぶ。データの置き場所は `$VNBOX` (既定 `/home/user/vnbox`)。
+- 共通の `-wine vnbox|classic` (既定 vnbox、環境変数 `VNBOX_FLAVOR`) で Wine を選ぶ。データの置き場所は `$VNBOX` (既定 `~/.local/share/vnbox`)。
 - **認証**: `-token` (または `VNBOX_TOKEN`) を付けると、トークンを知らない人は一覧も配信も操作もできない (一度 `?token=` で開くと Cookie)。トークン無しで起動すると警告を出す。HTTPS は持たないので、外に出すときは VPN の内側に置く。
 - **sandbox**: 配布物の exe (ゲーム、インストーラ、自己解凍) は bubblewrap (`bwrap`) の中で動かす。ネットワークなし (オンライン認証が要るゲームは launch.ini に `network=on`)、ファイルは読み取り専用で `/home` `/root` `/tmp` `/run` を隠し、見えるのは自分の prefix・X ディスプレイ・音声のソケット・wineserver だけ。AWS の鍵やトークンは環境変数から外す。prefix の準備 (verb / winetricks) は信頼できる処理なので外で動かす。`VNBOX_SANDBOX=0` で無効 (bwrap が無いときも無効)。
 - **インストーラの扱い**: MSI は `msiexec /qn`、Inno は `/VERYSILENT`、NSIS は `/S`。InstallShield は setup.exe に埋め込まれた MSI を Wine を使わずに取り出して入れる。それ以外 (CreateInstall / BGI / 独自) はダイアログの既定ボタンを押し続け、「インストール」「同意する」「次へ」などはラベルで探して押す (`tools/clickbtn`)。WinRAR 自己解凍は空の作業フォルダで Wine に展開させる。
@@ -194,22 +222,28 @@ SAVE_INTERVAL=300                                        # プレイ中にセー
 ## 構成
 
 ```
+リポジトリ:
 cmd/ internal/ go.mod     vnbox 本体 (Go、上記)
-bin/vnbox                ビルドしたコマンド
+embed.go                 下の tools/ config/openbox-rc.xml wine-build/ をコマンドに埋め込む (go install だけで動くように)
 config/
-  store.conf.example     S3 の設定のひな形 (config/store.conf にコピーして使う)
+  store.conf.example     S3 の設定のひな形 (<データ>/config/store.conf にコピーして使う)
   openbox-rc.xml         ゲームごとの X に付ける枠なし openbox の設定
-tools/                   Wine 内で動かす補助 (clickbtn: ラベルでボタンを押す、xamlstub: XAML Islands の代用品)
+tools/                   Wine 内で動かす補助 (clickbtn: ラベルでボタンを押す、winsize、xamlstub: XAML Islands の代用品)。初回に MinGW でビルド
+wine-build/              自前 Wine のパッチ (third_party/ は fitudao 氏のパッチ、LGPL-2.1)
 recipes/add_hints.tsv    インストーラでクリックが要ったタイトルの座標メモ
-packages/<name>/         パッケージ
-prefixes/                ベース prefix と実行用 prefix
 results/verified.tsv     起動確認済みタイトルの台帳 (VERIFICATION.md の一覧はここから生成)
 results/excluded.tsv     対象外のタイトルと理由
-wine-build/              自前 Wine のパッチ (third_party/ は fitudao 氏のパッチ、LGPL-2.1)
 VERIFICATION.md          動作確認の記録
+
+データ (~/.local/share/vnbox、$VNBOX で変更):
+packages/<name>/         パッケージ
+prefixes/                ベース prefix と実行用 prefix
+wine/                    vnbox build-wine で入れた自前 Wine
+runtime/                 埋め込みファイルの展開先と、ビルドした補助ツール・ICU などのキャッシュ
+config/store.conf        S3 の設定 (任意)
 ```
 
-## 自前 Wine (`/opt/wine-vnbox`, `WINE_FLAVOR=vnbox`)
+## 自前 Wine (`vnbox build-wine`, `-wine vnbox`)
 
 Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64` (新 WoW64) でビルドしたもの。
 ベース prefix は `prefixes/base-vnbox` (64bit, Win10, CP932)。32bit ゲームもこの prefix で動く。
@@ -229,7 +263,7 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 | `wine-build/vnbox-win32u-own-frame-visible.patch` | win32u: タイトルバーを自分で描くウィンドウ (WM_NCCALCSIZE でクライアント領域を枠いっぱいに広げる Chromium / NW.js / Electron) でも、Wine は WM が枠を描く前提で上端のタイトルバー分を X ウィンドウから外していた (vnbox の WM は枠を描かない)。クライアント領域が想定の枠にかかるときはウィンドウ全体を見せる | RPG ツクール MZ (NW.js) 製の体験版多数: 上 30px が欠けて X 側 1280x720 / Wine 側 1280x750 → 全体が見える |
 | `wine-build/vnbox-win32u-mouse-in-pointer.patch` | win32u / user32: EnableMouseInPointer が未実装 (失敗を返す) だった。Unity 6 の入力システムはこれを呼んだ後、マウスを WM_POINTER でしか受け取らない。上流 (Wine 11.3 以降, MR 10120) と同じく、通常のマウスメッセージはそのまま配りつつ、その前に対応する WM_POINTER* を送り、GetPointerInfo でそのフレームを返す | 化けきつねたいじ 体験版 (Unity 6): 「はじめる」が押せない → 押せる |
 
-後から足したパッチ (kernelbase / ntdll / qasf / winegstreamer / wined3d / quartz / win32u / user32) は、該当 DLL だけを再ビルドして `/opt/wine-vnbox` に差し替えた (元のファイルは `wine-build/orig-dlls/`)。Wine を作り直すときは `wine-build/` のパッチを全部当てて `--enable-archs=i386,x86_64` でビルドする。
+`vnbox build-wine` が Wine 11.0 のソースを取ってきて、これらを上から順に当て (`internal/winebuild`)、`--enable-archs=i386,x86_64 --disable-tests` で `<データ>/wine` にビルドする。作業フォルダ `<データ>/wine-build-src` は残るので、やり直すと続きから。Wine の場所は `VNBOX_WINE` (bin のフォルダ) で変えられる (無ければ `<データ>/wine/bin`、次に `/opt/wine-vnbox/bin`)。
 
 ## 次にやること
 

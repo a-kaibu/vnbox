@@ -29,9 +29,18 @@ func TestSandbox(t *testing.T) {
 		}
 		return strings.TrimSpace(string(out))
 	}
-	// /home only holds the empty path down to the folders bound in (runtime/tools)
-	if got := run("ls -A /root; ls -A " + Root() + " 2>/dev/null"); got != "runtime" && got != "" {
-		t.Errorf("/root or the vnbox data visible in the sandbox: %q", got)
+	// /home and /root only hold the empty path down to the folders bound in (runtime/tools)
+	for _, home := range []string{"/root", "/home"} {
+		want := ""
+		if rel, ok := strings.CutPrefix(Root(), home+"/"); ok {
+			want = strings.Split(rel, "/")[0]
+		}
+		if got := run("ls -A " + home); got != want && got != "" {
+			t.Errorf("%s visible in the sandbox: %q", home, got)
+		}
+	}
+	if got := run("ls -A " + Root() + " 2>/dev/null"); got != "runtime" && got != "" {
+		t.Errorf("the vnbox data visible in the sandbox: %q", got)
 	}
 	if got := run("ls -A " + Root() + "/runtime 2>/dev/null"); got != "tools" && got != "" {
 		t.Errorf("runtime/ visible in the sandbox: %q", got)

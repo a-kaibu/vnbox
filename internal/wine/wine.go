@@ -3,48 +3,110 @@
 package wine
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/a-kaibu/vnbox"
 )
 
 // Flavor selects the Wine build.
 type Flavor string
 
 const (
-	// Vnbox is the patched build in /opt/wine-vnbox (new WoW64: 32-bit apps run in a 64-bit prefix).
+	// Vnbox is the patched build (vnbox build-wine; new WoW64: 32-bit apps run in a 64-bit prefix).
 	Vnbox Flavor = "vnbox"
 	// Classic is the distribution's Wine with a separate 32-bit prefix. Some copy protections
 	// that inspect kernel32 only work here.
 	Classic Flavor = "classic"
 )
 
-// Root is the vnbox data directory (prefixes/, packages/, results/ ...).
+// Root is the vnbox data directory (packages/, prefixes/, wine/, results/ ...): $VNBOX, or
+// else ~/.local/share/vnbox ($XDG_DATA_HOME/vnbox).
 func Root() string {
 	if r := os.Getenv("VNBOX"); r != "" {
 		return r
 	}
-	return "/home/user/vnbox"
+	if d := os.Getenv("XDG_DATA_HOME"); d != "" {
+		return filepath.Join(d, "vnbox")
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".local", "share", "vnbox")
 }
 
-// Bin returns the directory holding wine/wineserver for the flavor ("" means $PATH).
+// Bin returns the directory holding wine/wineserver for the flavor ("" means $PATH): for the
+// patched build $VNBOX_WINE, or else what vnbox build-wine installed (<root>/wine), or else
+// /opt/wine-vnbox.
 func (f Flavor) Bin() string {
 	if f == Vnbox {
 		if d := os.Getenv("VNBOX_WINE"); d != "" {
+			return d
+		}
+		if d := filepath.Join(Root(), "wine", "bin"); exists(filepath.Join(d, "wine")) {
 			return d
 		}
 		return "/opt/wine-vnbox/bin"
 	}
 	return ""
 }
+
+// Installed reports an error when the flavor's Wine cannot be found.
+func (f Flavor) Installed() error {
+	if f == Vnbox {
+		if !exists(filepath.Join(f.Bin(), "wine")) {
+			return errors.New("the patched Wine is not installed: run vnbox build-wine once (or set VNBOX_WINE, or use -wine classic)")
+		}
+		return nil
+	}
+	if _, err := exec.LookPath("wine"); err != nil {
+		return errors.New("wine is not installed (apt install wine)")
+	}
+	return nil
+}
+
+func exists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
+}
+
+// Extract writes the file or folder name of the files built into vnbox (tools/..., config/...,
+// wine-build/...) under <root>/runtime/src and returns its path there. Files are rewritten
+// only when their content changed, so their times say when they last did.
+func Extract(name string) (string, error) {
+	extractMu.Lock()
+	defer extractMu.Unlock()
+	base := filepath.Join(Root(), "runtime", "src")
+	err := fs.WalkDir(vnbox.Files, name, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		b, err := vnbox.Files.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		dst := filepath.Join(base, filepath.FromSlash(p))
+		if old, err := os.ReadFile(dst); err == nil && bytes.Equal(old, b) {
+			return nil
+		}
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(dst, b, 0o644)
+	})
+	return filepath.Join(base, filepath.FromSlash(name)), err
+}
+
+var extractMu sync.Mutex
 
 // BasePrefix returns the base prefix every game prefix is cloned from.
 func (f Flavor) BasePrefix(x64 bool) string {
@@ -288,7 +350,11 @@ func startWM(display string) {
 	if err != nil {
 		return
 	}
-	c := exec.Command(bin, "--config-file", filepath.Join(Root(), "config", "openbox-rc.xml"))
+	rc, err := Extract("config/openbox-rc.xml")
+	if err != nil {
+		return
+	}
+	c := exec.Command(bin, "--config-file", rc)
 	c.Env = append(os.Environ(), "DISPLAY="+display)
 	if c.Start() == nil {
 		go c.Wait()
@@ -356,13 +422,17 @@ func RemoveSink(sink string) {
 	}
 }
 
-// Tool returns runtime/tools/<name>.exe, compiling tools/<name>/<name>.c (32-bit, MinGW) when
-// the executable is missing or older than its source.
+// Tool returns runtime/tools/<name>.exe, compiling tools/<name>/<name>.c (built into vnbox;
+// 32-bit, MinGW) when the executable is missing or older than its source.
 func Tool(name string) (string, error) {
 	toolMu.Lock()
 	defer toolMu.Unlock()
 	exe := filepath.Join(Root(), "runtime", "tools", name+".exe")
-	src := filepath.Join(Root(), "tools", name, name+".c")
+	dir, err := Extract("tools/" + name)
+	if err != nil {
+		return "", err
+	}
+	src := filepath.Join(dir, name+".c")
 	xs, err := os.Stat(exe)
 	if ss, serr := os.Stat(src); err == nil && (serr != nil || !ss.ModTime().After(xs.ModTime())) {
 		return exe, nil

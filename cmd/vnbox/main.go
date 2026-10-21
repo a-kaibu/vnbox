@@ -24,22 +24,25 @@ import (
 	"syscall"
 	"time"
 
-	"vnbox/internal/add"
-	"vnbox/internal/capture"
-	"vnbox/internal/detect"
-	"vnbox/internal/extract"
-	"vnbox/internal/meta"
-	"vnbox/internal/pkg"
-	"vnbox/internal/portal"
-	"vnbox/internal/regdiff"
-	"vnbox/internal/session"
-	"vnbox/internal/store"
-	"vnbox/internal/stream"
-	"vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/add"
+	"github.com/a-kaibu/vnbox/internal/base"
+	"github.com/a-kaibu/vnbox/internal/capture"
+	"github.com/a-kaibu/vnbox/internal/detect"
+	"github.com/a-kaibu/vnbox/internal/extract"
+	"github.com/a-kaibu/vnbox/internal/meta"
+	"github.com/a-kaibu/vnbox/internal/pkg"
+	"github.com/a-kaibu/vnbox/internal/portal"
+	"github.com/a-kaibu/vnbox/internal/regdiff"
+	"github.com/a-kaibu/vnbox/internal/session"
+	"github.com/a-kaibu/vnbox/internal/store"
+	"github.com/a-kaibu/vnbox/internal/stream"
+	"github.com/a-kaibu/vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/winebuild"
 )
 
 const usage = `vnbox — Windows ノベルゲームを Wine で動かしてブラウザ配信する
 
+  vnbox build-wine [-j N]                             自前 Wine (パッチ入り Wine 11.0) をビルドして <データ>/wine に入れる (最初に一度)
   vnbox add <name> <配布物> [-exe 相対パス] [-click x,y;...] [-no-upload]   zip/lzh/7z/rar/SFX/インストーラ/フォルダからパッケージを作る
   vnbox meta <name> [-title T] [-engine E] [-thumb 画像]  ギャラリー表示用のタイトル・エンジン・サムネイルを設定
   vnbox meta <name> -fetch [-id egs:N|vndb:vN] | meta -all   批評空間 (届かなければ VNDB) からブランド・発売日・点数・タグ・あらすじ・カバーを取得
@@ -61,7 +64,7 @@ const usage = `vnbox — Windows ノベルゲームを Wine で動かしてブ�
   vnbox extract <アーカイブ> <出力先>
   vnbox regdiff diff <before> <after> <out> | apply <frag> <target> | show <frag>
 
-共通: -wine vnbox|classic (既定 vnbox。環境変数 VNBOX_FLAVOR)、データの置き場所は $VNBOX (既定 /home/user/vnbox)
+共通: -wine vnbox|classic (既定 vnbox。環境変数 VNBOX_FLAVOR)、データの置き場所は $VNBOX (既定 ~/.local/share/vnbox)
 S3: VNBOX_S3=s3://bucket/prefix, S3_ENDPOINT (R2/MinIO 等), VNBOX_USER, 認証は AWS 標準の環境変数/プロファイル
     (config/store.conf にも書ける)。トークンは -token か VNBOX_TOKEN。
 `
@@ -89,6 +92,8 @@ func main() {
 		err = cmdPlay(ctx, args)
 	case "prepare":
 		err = cmdPrepare(ctx, args)
+	case "build-wine":
+		err = cmdBuildWine(ctx, args)
 	case "mkbase":
 		err = cmdMkbase(ctx, args)
 	case "probe":
@@ -147,6 +152,14 @@ func newFlags(name string) common {
 
 func (c common) Flavor() wine.Flavor { return wine.Flavor(*c.flavor) }
 
+// ready checks that the Wine to use is installed and makes its base prefix if needed.
+func (c common) ready(ctx context.Context) error {
+	if err := c.Flavor().Installed(); err != nil {
+		return err
+	}
+	return base.Ensure(ctx, c.Flavor(), os.Stderr)
+}
+
 // parse allows flags after positional arguments (vnbox add name file -exe x).
 func (c common) parse(args []string) []string {
 	var pos []string
@@ -179,6 +192,9 @@ func cmdAdd(ctx context.Context, args []string) error {
 	pos := c.parse(args)
 	if len(pos) < 2 {
 		return errors.New("usage: vnbox add <name> <配布物>")
+	}
+	if err := c.ready(ctx); err != nil {
+		return err
 	}
 	var clicks [][2]int
 	for _, pt := range strings.Split(*clickFlag, ";") {
@@ -387,6 +403,9 @@ func cmdServe(ctx context.Context, args []string) error {
 	if err := rtc(); err != nil {
 		return err
 	}
+	if err := c.ready(ctx); err != nil {
+		return err
+	}
 	opt, err := sessionOptions(ctx, c, *fps)
 	if err != nil {
 		return err
@@ -409,6 +428,9 @@ func cmdPlay(ctx context.Context, args []string) error {
 	pos := c.parse(args)
 	if len(pos) < 1 {
 		return errors.New("usage: vnbox play <name>")
+	}
+	if err := c.ready(ctx); err != nil {
+		return err
 	}
 	if err := rtc(); err != nil {
 		return err
@@ -912,3 +934,14 @@ func cmdMetaSearch(ctx context.Context, args []string) error {
 }
 
 func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
+
+func cmdBuildWine(ctx context.Context, args []string) error {
+	c := newFlags("build-wine")
+	jobs := c.fs.Int("j", 0, "make -j (default: number of CPUs)")
+	c.parse(args)
+	if err := winebuild.Build(ctx, winebuild.Options{Jobs: *jobs, Log: os.Stderr}); err != nil {
+		return err
+	}
+	fmt.Println("installed:", wine.Vnbox.Bin())
+	return nil
+}

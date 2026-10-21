@@ -15,10 +15,10 @@ import (
 	"sort"
 	"strings"
 
-	"vnbox/internal/detect"
-	"vnbox/internal/pkg"
-	"vnbox/internal/regdiff"
-	"vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/detect"
+	"github.com/a-kaibu/vnbox/internal/pkg"
+	"github.com/a-kaibu/vnbox/internal/regdiff"
+	"github.com/a-kaibu/vnbox/internal/wine"
 )
 
 const snapDir = ".vnbox-snap"

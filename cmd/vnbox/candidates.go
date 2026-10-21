@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/wine"
 )
 
 func cmdCandidates(ctx context.Context, args []string) error {

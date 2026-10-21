@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/wine"
 )
 
 // vcDLLs get native,builtin overrides so the installed runtime wins over Wine's own msvcp140.
@@ -199,7 +199,11 @@ func XamlStub(ctx context.Context, env wine.Env) error {
 	if err := copyFile(dll, filepath.Join(env.Prefix, "drive_c", "vnbox", "xamlstub32.dll")); err != nil {
 		return err
 	}
-	classes, err := os.ReadFile(filepath.Join(wine.Root(), "tools", "xamlstub", "classes.txt"))
+	src, err := wine.Extract("tools/xamlstub")
+	if err != nil {
+		return err
+	}
+	classes, err := os.ReadFile(filepath.Join(src, "classes.txt"))
 	if err != nil {
 		return err
 	}
@@ -213,7 +217,10 @@ func XamlStub(ctx context.Context, env wine.Env) error {
 }
 
 func buildXamlStub(ctx context.Context, dll string) error {
-	src := filepath.Join(wine.Root(), "tools", "xamlstub")
+	src, err := wine.Extract("tools/xamlstub")
+	if err != nil {
+		return err
+	}
 	winmd := filepath.Join(cache("xamlstub"), "winmd")
 	if m, _ := filepath.Glob(filepath.Join(winmd, "*.winmd")); len(m) == 0 {
 		nupkg := filepath.Join(cache("xamlstub"), "sdk-contracts-"+sdkContracts+".nupkg")

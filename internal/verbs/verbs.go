@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/wine"
 )
 
 // Apply installs one verb ("icu", "dotnet:8:x64:desktop" ...) into env's prefix.

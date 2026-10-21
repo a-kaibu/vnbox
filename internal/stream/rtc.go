@@ -29,7 +29,7 @@ import (
 	"github.com/pion/webrtc/v4/pkg/media/ivfreader"
 	"github.com/pion/webrtc/v4/pkg/media/oggreader"
 
-	"vnbox/internal/x11"
+	"github.com/a-kaibu/vnbox/internal/x11"
 )
 
 // RTCConfig is how peers reach this server. The zero value works on a LAN.

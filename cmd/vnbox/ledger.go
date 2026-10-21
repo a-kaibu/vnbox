@@ -14,7 +14,7 @@ import (
 	"sort"
 	"strings"
 
-	"vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/wine"
 )
 
 func ledgerPath(name string) string { return filepath.Join(wine.Root(), "results", name) }

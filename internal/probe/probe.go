@@ -21,9 +21,9 @@ import (
 	"strings"
 	"time"
 
-	"vnbox/internal/session"
-	"vnbox/internal/wine"
-	"vnbox/internal/x11"
+	"github.com/a-kaibu/vnbox/internal/session"
+	"github.com/a-kaibu/vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/x11"
 )
 
 // DefaultInput clicks the middle of an 800x600 window and presses Enter, six times.

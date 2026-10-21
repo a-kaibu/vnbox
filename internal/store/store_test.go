@@ -14,7 +14,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
-	"vnbox/internal/pkg"
+	"github.com/a-kaibu/vnbox/internal/pkg"
 )
 
 // startMoto runs a local S3-compatible server (moto) for the test, or skips.

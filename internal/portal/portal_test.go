@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"vnbox/internal/meta"
-	"vnbox/internal/pkg"
-	"vnbox/internal/session"
+	"github.com/a-kaibu/vnbox/internal/meta"
+	"github.com/a-kaibu/vnbox/internal/pkg"
+	"github.com/a-kaibu/vnbox/internal/session"
 )
 
 func TestAuth(t *testing.T) {

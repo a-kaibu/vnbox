@@ -12,7 +12,7 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	"vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/wine"
 )
 
 // msFonts are copies of the IPA fonts renamed to the Windows Japanese font names

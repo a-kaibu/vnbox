@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"vnbox/internal/session"
+	"github.com/a-kaibu/vnbox/internal/session"
 )
 
 // Server holds the running sessions.

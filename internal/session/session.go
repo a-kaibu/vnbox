@@ -13,11 +13,11 @@ import (
 	"sync"
 	"time"
 
-	"vnbox/internal/pkg"
-	"vnbox/internal/store"
-	"vnbox/internal/stream"
-	"vnbox/internal/wine"
-	"vnbox/internal/x11"
+	"github.com/a-kaibu/vnbox/internal/pkg"
+	"github.com/a-kaibu/vnbox/internal/store"
+	"github.com/a-kaibu/vnbox/internal/stream"
+	"github.com/a-kaibu/vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/x11"
 )
 
 // Options configure a session.

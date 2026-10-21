@@ -20,10 +20,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"vnbox/internal/detect"
-	"vnbox/internal/regdiff"
-	"vnbox/internal/verbs"
-	"vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/detect"
+	"github.com/a-kaibu/vnbox/internal/regdiff"
+	"github.com/a-kaibu/vnbox/internal/verbs"
+	"github.com/a-kaibu/vnbox/internal/wine"
 )
 
 // Marker files inside a prepared prefix.

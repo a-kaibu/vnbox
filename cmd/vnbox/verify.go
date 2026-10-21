@@ -22,11 +22,11 @@ import (
 	"syscall"
 	"time"
 
-	"vnbox/internal/base"
-	"vnbox/internal/extract"
-	"vnbox/internal/pkg"
-	"vnbox/internal/probe"
-	"vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/base"
+	"github.com/a-kaibu/vnbox/internal/extract"
+	"github.com/a-kaibu/vnbox/internal/pkg"
+	"github.com/a-kaibu/vnbox/internal/probe"
+	"github.com/a-kaibu/vnbox/internal/wine"
 )
 
 func cmdMkbase(ctx context.Context, args []string) error {

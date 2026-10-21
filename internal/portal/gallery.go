@@ -15,10 +15,10 @@ import (
 	"sync"
 	"time"
 
-	"vnbox/internal/meta"
-	"vnbox/internal/pkg"
-	"vnbox/internal/stream"
-	"vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/meta"
+	"github.com/a-kaibu/vnbox/internal/pkg"
+	"github.com/a-kaibu/vnbox/internal/stream"
+	"github.com/a-kaibu/vnbox/internal/wine"
 )
 
 //go:embed gallery.html

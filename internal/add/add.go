@@ -13,12 +13,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"vnbox/internal/capture"
-	"vnbox/internal/detect"
-	"vnbox/internal/extract"
-	"vnbox/internal/install"
-	"vnbox/internal/pkg"
-	"vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/capture"
+	"github.com/a-kaibu/vnbox/internal/detect"
+	"github.com/a-kaibu/vnbox/internal/extract"
+	"github.com/a-kaibu/vnbox/internal/install"
+	"github.com/a-kaibu/vnbox/internal/pkg"
+	"github.com/a-kaibu/vnbox/internal/wine"
 )
 
 // ErrNoExecutable means the archive holds no program (e.g. a promotional movie).
@@ -50,6 +50,7 @@ func Add(ctx context.Context, name, src string, o Options) (*pkg.Package, error)
 	if err != nil {
 		return nil, err
 	}
+	os.MkdirAll(filepath.Join(wine.Root(), "downloads"), 0o755)
 	work, err := os.MkdirTemp(filepath.Join(wine.Root(), "downloads"), "add-"+name+".")
 	if err != nil {
 		return nil, err

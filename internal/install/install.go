@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"vnbox/internal/capture"
-	"vnbox/internal/detect"
-	"vnbox/internal/wine"
-	"vnbox/internal/x11"
+	"github.com/a-kaibu/vnbox/internal/capture"
+	"github.com/a-kaibu/vnbox/internal/detect"
+	"github.com/a-kaibu/vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/x11"
 )
 
 // Kind is the installer technology.

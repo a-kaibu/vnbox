@@ -13,8 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"vnbox/internal/verbs"
-	"vnbox/internal/wine"
+	"github.com/a-kaibu/vnbox/internal/verbs"
+	"github.com/a-kaibu/vnbox/internal/wine"
 )
 
 // settings are written into every base prefix.
@@ -102,4 +102,21 @@ func Make(ctx context.Context, fl wine.Flavor, win64 bool, dir string, log io.Wr
 	env.Kill()
 	fmt.Fprintf(log, "base prefix ready: %s (code page 932, %s)\n", dir, ver)
 	return nil
+}
+
+// Ensure makes the flavor's (32-bit for classic) base prefix when there is none yet, so the
+// first vnbox add needs no mkbase. It takes a few minutes (fonts, ICU).
+func Ensure(ctx context.Context, fl wine.Flavor, log io.Writer) error {
+	dir := fl.BasePrefix(false)
+	if _, err := os.Stat(filepath.Join(dir, "system.reg")); err == nil {
+		return nil
+	}
+	fmt.Fprintf(log, "making the base prefix %s (first time only, a few minutes)\n", dir)
+	tmp := dir + ".new"
+	os.RemoveAll(tmp) // an interrupted earlier try
+	if err := Make(ctx, fl, false, tmp, log); err != nil {
+		os.RemoveAll(tmp)
+		return err
+	}
+	return os.Rename(tmp, dir)
 }

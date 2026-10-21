@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"vnbox/internal/x11"
+	"github.com/a-kaibu/vnbox/internal/x11"
 )
 
 //go:embed page.html

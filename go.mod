@@ -1,4 +1,4 @@
-module vnbox
+module github.com/a-kaibu/vnbox
 
 go 1.26.0
 
