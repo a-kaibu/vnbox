@@ -42,7 +42,8 @@ import (
 
 const usage = `vnbox — Windows ノベルゲームを Wine で動かしてブラウザ配信する
 
-  vnbox build-wine [-j N]                             自前 Wine (パッチ入り Wine 11.0) をビルドして <データ>/wine に入れる (最初に一度)
+  vnbox install-wine                                  自前 Wine (パッチ入り Wine 11.0) のビルド済みを GitHub の Releases から <データ>/wine に入れる (add / play が初回に自動で行う)
+  vnbox build-wine [-j N] [-prefix dir] [-tag]        自前 Wine を手元でビルドする (Releases にまだ無いパッチのとき)
   vnbox add <name> <配布物> [-exe 相対パス] [-click x,y;...] [-no-upload]   zip/lzh/7z/rar/SFX/インストーラ/フォルダからパッケージを作る
   vnbox meta <name> [-title T] [-engine E] [-thumb 画像]  ギャラリー表示用のタイトル・エンジン・サムネイルを設定
   vnbox meta <name> -fetch [-id egs:N|vndb:vN] | meta -all   批評空間 (届かなければ VNDB) からブランド・発売日・点数・タグ・あらすじ・カバーを取得
@@ -94,6 +95,8 @@ func main() {
 		err = cmdPrepare(ctx, args)
 	case "build-wine":
 		err = cmdBuildWine(ctx, args)
+	case "install-wine":
+		err = cmdInstallWine(ctx)
 	case "mkbase":
 		err = cmdMkbase(ctx, args)
 	case "probe":
@@ -152,10 +155,20 @@ func newFlags(name string) common {
 
 func (c common) Flavor() wine.Flavor { return wine.Flavor(*c.flavor) }
 
-// ready checks that the Wine to use is installed and makes its base prefix if needed.
+// ready makes sure the Wine to use is there (the patched one is downloaded from the
+// releases the first time) and makes its base prefix if needed.
 func (c common) ready(ctx context.Context) error {
+	if c.Flavor() == wine.Vnbox && c.Flavor().Installed() != nil && os.Getenv("VNBOX_WINE") == "" {
+		fmt.Fprintf(os.Stderr, "downloading the patched Wine (%s, first time only)\n", winebuild.Tag())
+		if err := winebuild.Install(ctx, os.Stderr); err != nil {
+			return err
+		}
+	}
 	if err := c.Flavor().Installed(); err != nil {
 		return err
+	}
+	if c.Flavor() == wine.Vnbox && winebuild.Outdated() {
+		log.Printf("note: a newer patched Wine is out (%s): vnbox install-wine", winebuild.Tag())
 	}
 	return base.Ensure(ctx, c.Flavor(), os.Stderr)
 }
@@ -938,10 +951,28 @@ func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 func cmdBuildWine(ctx context.Context, args []string) error {
 	c := newFlags("build-wine")
 	jobs := c.fs.Int("j", 0, "make -j (default: number of CPUs)")
+	prefix := c.fs.String("prefix", "", "install there instead of <data>/wine (for packaging)")
+	tag := c.fs.Bool("tag", false, "only print the release tag and file name of this Wine")
 	c.parse(args)
-	if err := winebuild.Build(ctx, winebuild.Options{Jobs: *jobs, Log: os.Stderr}); err != nil {
+	if *tag {
+		fmt.Println(winebuild.Tag(), winebuild.Asset())
+		return nil
+	}
+	if err := winebuild.Build(ctx, winebuild.Options{Jobs: *jobs, Prefix: *prefix, Log: os.Stderr}); err != nil {
 		return err
 	}
-	fmt.Println("installed:", wine.Vnbox.Bin())
+	if *prefix != "" {
+		fmt.Println("installed:", *prefix)
+	} else {
+		fmt.Println("installed:", wine.Vnbox.Bin())
+	}
+	return nil
+}
+
+func cmdInstallWine(ctx context.Context) error {
+	if err := winebuild.Install(ctx, os.Stderr); err != nil {
+		return err
+	}
+	fmt.Println("installed:", wine.Vnbox.Bin(), "("+winebuild.Tag()+")")
 	return nil
 }

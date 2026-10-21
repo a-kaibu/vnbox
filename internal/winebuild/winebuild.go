@@ -5,6 +5,9 @@ package winebuild
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,7 +15,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
+	"github.com/a-kaibu/vnbox"
 	"github.com/a-kaibu/vnbox/internal/wine"
 )
 
@@ -32,6 +37,76 @@ var Patches = []string{
 	"vnbox-quartz-videowindow-unlocked.patch",
 	"vnbox-win32u-own-frame-visible.patch",
 	"vnbox-win32u-mouse-in-pointer.patch",
+}
+
+// configureArgs are the configure options besides --prefix (new WoW64, no tests).
+var configureArgs = []string{"--enable-archs=i386,x86_64", "--disable-tests"}
+
+// Repo is the GitHub repository whose releases hold the built Wine.
+const Repo = "a-kaibu/vnbox"
+
+// Tag names the release of the Wine these patches make: wine-<version>-vnbox-<hash>, the hash
+// being over the version, the configure options and the patches. A vnbox binary therefore
+// always fetches the Wine of the patches built into it, and changing a patch makes a new one.
+func Tag() string {
+	h := sha256.New()
+	fmt.Fprintf(h, "%s\n%s\n", Version, strings.Join(configureArgs, " "))
+	for _, p := range Patches {
+		b, _ := vnbox.Files.ReadFile("wine-build/" + p)
+		fmt.Fprintf(h, "%s %d\n", p, len(b))
+		h.Write(b)
+	}
+	return "wine-" + Version + "-vnbox-" + hex.EncodeToString(h.Sum(nil))[:10]
+}
+
+// Asset is the file name of the built Wine in the release: a tar.xz holding wine-vnbox/
+// (bin/, lib/, share/), which runs from any folder.
+func Asset() string { return Tag() + "-x86_64.tar.xz" }
+
+// tagFile records in the installed Wine the release it came from.
+const tagFile = ".vnbox-tag"
+
+// Install downloads the release of Tag() and unpacks it into <root>/wine (replacing an older
+// one). It fails when no build of these patches is published yet (then build-wine makes it).
+func Install(ctx context.Context, log io.Writer) error {
+	if log == nil {
+		log = io.Discard
+	}
+	dl := filepath.Join(wine.Root(), "downloads")
+	if err := os.MkdirAll(dl, 0o755); err != nil {
+		return err
+	}
+	archive := filepath.Join(dl, Asset())
+	url := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", Repo, Tag(), Asset())
+	if err := download(ctx, url, archive, log); err != nil {
+		if errors.Is(err, errNotFound) {
+			return fmt.Errorf("no published build of this Wine (%s) yet: make it with vnbox build-wine", Tag())
+		}
+		return err
+	}
+	defer os.Remove(archive)
+	tmp := filepath.Join(wine.Root(), "wine.new")
+	os.RemoveAll(tmp)
+	if err := os.MkdirAll(tmp, 0o755); err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmp)
+	if out, err := exec.CommandContext(ctx, "tar", "-xJf", archive, "-C", tmp).CombinedOutput(); err != nil {
+		return fmt.Errorf("unpack %s: %v: %s", Asset(), err, out)
+	}
+	dst := filepath.Join(wine.Root(), "wine")
+	if err := os.WriteFile(filepath.Join(tmp, "wine-vnbox", tagFile), []byte(Tag()+"\n"), 0o644); err != nil {
+		return err
+	}
+	os.RemoveAll(dst)
+	return os.Rename(filepath.Join(tmp, "wine-vnbox"), dst)
+}
+
+// Outdated reports whether <root>/wine came from a release other than Tag() (the patches
+// built into this vnbox changed since it was installed). A Wine built here is never outdated.
+func Outdated() bool {
+	b, err := os.ReadFile(filepath.Join(wine.Root(), "wine", tagFile))
+	return err == nil && strings.TrimSpace(string(b)) != Tag()
 }
 
 // Options of Build.
@@ -93,7 +168,9 @@ func Build(ctx context.Context, o Options) error {
 		if err := os.MkdirAll(build, 0o755); err != nil {
 			return err
 		}
-		if err := run(build, filepath.Join(src, "configure"), "--prefix="+o.Prefix, "--enable-archs=i386,x86_64", "--disable-tests"); err != nil {
+		// no debug information: the installed Wine is a third of the size
+		args := append([]string{"--prefix=" + o.Prefix, "CFLAGS=-O2", "CROSSCFLAGS=-O2"}, configureArgs...)
+		if err := run(build, filepath.Join(src, "configure"), args...); err != nil {
 			return err
 		}
 	}
@@ -118,6 +195,9 @@ func download(ctx context.Context, url, dst string, log io.Writer) error {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return errNotFound
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%s: %s", url, resp.Status)
 	}
@@ -134,3 +214,5 @@ func download(ctx context.Context, url, dst string, log io.Writer) error {
 	}
 	return os.Rename(dst+".part", dst)
 }
+
+var errNotFound = errors.New("not found")

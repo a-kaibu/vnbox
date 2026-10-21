@@ -47,35 +47,26 @@ Ubuntu 24.04 で確かめた手順。
 
 ```bash
 # 1. 実行に要るもの
-sudo dpkg --add-architecture i386 && sudo apt update
-sudo apt install xvfb openbox pulseaudio ffmpeg bubblewrap xdotool imagemagick \
+sudo apt update
+sudo apt install xvfb openbox pulseaudio ffmpeg bubblewrap xdotool imagemagick xz-utils \
   p7zip-full unrar lhasa cabextract winetricks gcc-mingw-w64 python3-venv \
-  fonts-ipafont fonts-noto-cjk locales \
-  gstreamer1.0-plugins-base:i386 gstreamer1.0-plugins-good:i386 gstreamer1.0-libav:i386 \
-  gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav
+  fonts-ipafont fonts-noto-cjk locales libgl1-mesa-dri mesa-vulkan-drivers \
+  gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav \
+  libunwind8 libpcap0.8 libpcsclite1 ocl-icd-libopencl1 libsdl2-2.0-0 libcups2 libxkbregistry0
 sudo locale-gen ja_JP.UTF-8
 
-# 2. 自前 Wine のビルドに要るもの (build-wine を使うときだけ)
-sudo apt install flex bison gettext libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
-  libxinerama-dev libxcomposite-dev libxfixes-dev libxrender-dev libxxf86vm-dev libxkbcommon-dev \
-  libfreetype-dev libfontconfig-dev libgl-dev libegl-dev libosmesa6-dev libgbm-dev libdrm-dev \
-  libvulkan-dev libwayland-dev libpulse-dev libasound2-dev libgstreamer1.0-dev \
-  libgstreamer-plugins-base1.0-dev libgnutls28-dev libdbus-1-dev libunwind-dev libudev-dev \
-  libusb-1.0-0-dev libsdl2-dev libcups2-dev libkrb5-dev libpcap-dev libv4l-dev
-
-# 3. vnbox 本体 (Go 1.26+)
+# 2. vnbox 本体 (Go 1.26+)
 go install github.com/a-kaibu/vnbox/cmd/vnbox@latest
 
-# 4. 自前 Wine (Wine 11.0 + vnbox のパッチ) をビルドして ~/.local/share/vnbox/wine に入れる。最初に一度、4 コアで 40 分ほど、ディスク 7GB ほど (終われば作業フォルダ ~/.local/share/vnbox/wine-build-src は消してよい)
-vnbox build-wine
-
-# 5. 遊ぶ: DL した体験版 (zip / lzh / 7z / rar / 自己解凍 / インストーラ) をパッケージにして、配信を始める
-vnbox add yuna ~/Downloads/yuna_taiken.zip     # 初回はベース prefix も作る (数分)。インストーラは自動で通す
+# 3. 遊ぶ: DL した体験版 (zip / lzh / 7z / rar / 自己解凍 / インストーラ) をパッケージにして、配信を始める
+vnbox add yuna ~/Downloads/yuna_taiken.zip     # 初回は自前 Wine (90MB) を GitHub の Releases から落とし、ベース prefix も作る (数分)
 vnbox play yuna -token 好きな文字列             # → ログに出る http://<ホスト>:8080/g/yuna/?token=... をブラウザで開く
 ```
 
 - データ (パッケージ・prefix・自前 Wine・セーブ) は `~/.local/share/vnbox` に置く。別の場所にするなら `VNBOX=/path`。
-- 自前 Wine をビルドしない場合は、ディストリの Wine (`apt install wine`) で `-wine classic` を付けて動かせる (`vnbox add -wine classic ...` / `vnbox play -wine classic ...`)。ただし動作確認は自前 Wine で行っていて、動画や Unity など一部は自前 Wine のパッチが要る。
+- 自前 Wine は GitHub Actions (`.github/workflows/wine.yml`) がパッチの変わるたびにビルドして Releases に置く。タグ `wine-11.0-vnbox-<ハッシュ>` はパッチの中身から決まるので、vnbox は自分に入っているパッチと同じ Wine を落とす (`vnbox install-wine` で入れ直し。パッチが新しくなっていればそう表示する)。
+- Releases にまだ無いパッチ (手元で変えたとき) は手元でビルドする。ビルドに要るもの (`sudo apt install` で): `flex bison gettext libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev libxcomposite-dev libxfixes-dev libxrender-dev libxxf86vm-dev libxkbcommon-dev libfreetype-dev libfontconfig-dev libgl-dev libegl-dev libosmesa6-dev libgbm-dev libdrm-dev libvulkan-dev libwayland-dev libpulse-dev libasound2-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgnutls28-dev libdbus-1-dev libunwind-dev libudev-dev libusb-1.0-0-dev libsdl2-dev libcups2-dev libkrb5-dev libpcap-dev libv4l-dev libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libpcsclite-dev ocl-icd-opencl-dev`。`vnbox build-wine` で 4 コア 40 分ほど・ディスク 7GB ほど (終われば `~/.local/share/vnbox/wine-build-src` は消してよい)。
+- 自前 Wine を使わない場合は、ディストリの Wine (`apt install wine`) で `-wine classic` を付けて動かせる (`vnbox add -wine classic ...` / `vnbox play -wine classic ...`)。ただし動作確認は自前 Wine で行っていて、動画や Unity など一部は自前 Wine のパッチが要る。
 - 配信はブラウザ (PC / Android) で開くだけ。映像・音声は WebRTC、タップとキーはデータチャネルで送る。ゲームを閉じるか Ctrl-C で終わり、終了時にセーブを残す (`VNBOX_S3` があれば S3 にも上げる)。
 - 何本も並べて選ぶなら `vnbox serve -token ...` (ギャラリー)。
 
@@ -263,7 +254,7 @@ Wine 11.0 のソースに次のパッチを当て、`--enable-archs=i386,x86_64`
 | `wine-build/vnbox-win32u-own-frame-visible.patch` | win32u: タイトルバーを自分で描くウィンドウ (WM_NCCALCSIZE でクライアント領域を枠いっぱいに広げる Chromium / NW.js / Electron) でも、Wine は WM が枠を描く前提で上端のタイトルバー分を X ウィンドウから外していた (vnbox の WM は枠を描かない)。クライアント領域が想定の枠にかかるときはウィンドウ全体を見せる | RPG ツクール MZ (NW.js) 製の体験版多数: 上 30px が欠けて X 側 1280x720 / Wine 側 1280x750 → 全体が見える |
 | `wine-build/vnbox-win32u-mouse-in-pointer.patch` | win32u / user32: EnableMouseInPointer が未実装 (失敗を返す) だった。Unity 6 の入力システムはこれを呼んだ後、マウスを WM_POINTER でしか受け取らない。上流 (Wine 11.3 以降, MR 10120) と同じく、通常のマウスメッセージはそのまま配りつつ、その前に対応する WM_POINTER* を送り、GetPointerInfo でそのフレームを返す | 化けきつねたいじ 体験版 (Unity 6): 「はじめる」が押せない → 押せる |
 
-`vnbox build-wine` が Wine 11.0 のソースを取ってきて、これらを上から順に当て (`internal/winebuild`)、`--enable-archs=i386,x86_64 --disable-tests` で `<データ>/wine` にビルドする。作業フォルダ `<データ>/wine-build-src` は残るので、やり直すと続きから。Wine の場所は `VNBOX_WINE` (bin のフォルダ) で変えられる (無ければ `<データ>/wine/bin`、次に `/opt/wine-vnbox/bin`)。
+`vnbox build-wine` (と GitHub Actions) が Wine 11.0 のソースを取ってきて、これらを上から順に当て (`internal/winebuild`)、`--enable-archs=i386,x86_64 --disable-tests` (デバッグ情報なし) で `<データ>/wine` にビルドする。ビルド済みは Releases にあり、`vnbox install-wine` (初回の add / play も) がそれを入れる。作業フォルダ `<データ>/wine-build-src` は残るので、やり直すと続きから。Wine の場所は `VNBOX_WINE` (bin のフォルダ) で変えられる (無ければ `<データ>/wine/bin`、次に `/opt/wine-vnbox/bin`)。
 
 ## 次にやること
 

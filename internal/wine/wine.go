@@ -64,7 +64,7 @@ func (f Flavor) Bin() string {
 func (f Flavor) Installed() error {
 	if f == Vnbox {
 		if !exists(filepath.Join(f.Bin(), "wine")) {
-			return errors.New("the patched Wine is not installed: run vnbox build-wine once (or set VNBOX_WINE, or use -wine classic)")
+			return errors.New("the patched Wine is not installed: vnbox install-wine (or build-wine; or set VNBOX_WINE, or use -wine classic)")
 		}
 		return nil
 	}

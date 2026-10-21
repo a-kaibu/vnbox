@@ -1,0 +1,69 @@
+name: wine
+
+# Builds vnbox's own Wine (Wine 11.0 + wine-build/*.patch, new WoW64) and publishes it as a
+# release, which vnbox install-wine (and the first vnbox add / play) downloads. The release
+# tag is a hash of the patches (vnbox build-wine -tag), so a build only runs when they change.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "wine-build/**"
+      - "internal/winebuild/**"
+      - ".github/workflows/wine.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VNBOX: ${{ runner.temp }}/vnbox
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: release tag
+        id: tag
+        run: |
+          read -r tag asset < <(go run ./cmd/vnbox build-wine -tag)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "asset=$asset" >> "$GITHUB_OUTPUT"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "exists=yes" >> "$GITHUB_OUTPUT"
+            echo "$tag is already published"
+          fi
+      - name: build dependencies
+        if: steps.tag.outputs.exists != 'yes'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q gcc-mingw-w64 flex bison gettext \
+            libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
+            libxcomposite-dev libxfixes-dev libxrender-dev libxxf86vm-dev libxkbcommon-dev \
+            libfreetype-dev libfontconfig-dev libgl-dev libegl-dev libosmesa6-dev libgbm-dev libdrm-dev \
+            libvulkan-dev libwayland-dev libpulse-dev libasound2-dev libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev libgnutls28-dev libdbus-1-dev libunwind-dev libudev-dev \
+            libusb-1.0-0-dev libsdl2-dev libcups2-dev libkrb5-dev libpcap-dev libv4l-dev \
+            libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libpcsclite-dev ocl-icd-opencl-dev
+      - name: build
+        if: steps.tag.outputs.exists != 'yes'
+        run: go run ./cmd/vnbox build-wine -prefix "$RUNNER_TEMP/wine-vnbox"
+      - name: smoke test
+        if: steps.tag.outputs.exists != 'yes'
+        run: |
+          "$RUNNER_TEMP/wine-vnbox/bin/wine" --version
+          WINEPREFIX="$RUNNER_TEMP/prefix" WINEDEBUG=-all "$RUNNER_TEMP/wine-vnbox/bin/wine" cmd /c echo ok
+      - name: package
+        if: steps.tag.outputs.exists != 'yes'
+        run: tar -C "$RUNNER_TEMP" -cf - wine-vnbox | xz -T0 -6 > "${{ steps.tag.outputs.asset }}"
+      - name: release
+        if: steps.tag.outputs.exists != 'yes'
+        run: |
+          gh release create "${{ steps.tag.outputs.tag }}" "${{ steps.tag.outputs.asset }}" --target "$GITHUB_SHA" \
+            --title "Wine ${{ steps.tag.outputs.tag }}" \
+            --notes "Wine 11.0 with the patches in wine-build/ at ${GITHUB_SHA}, built with --enable-archs=i386,x86_64 (new WoW64) on Ubuntu 24.04. Installed by vnbox install-wine (and the first vnbox add / play)."
