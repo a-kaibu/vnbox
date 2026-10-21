@@ -22,7 +22,6 @@ jobs:
     timeout-minutes: 180
     env:
       GH_TOKEN: ${{ github.token }}
-      VNBOX: ${{ runner.temp }}/vnbox
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -52,7 +51,7 @@ jobs:
             libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libpcsclite-dev ocl-icd-opencl-dev
       - name: build
         if: steps.tag.outputs.exists != 'yes'
-        run: go run ./cmd/vnbox build-wine -prefix "$RUNNER_TEMP/wine-vnbox"
+        run: VNBOX="$RUNNER_TEMP/vnbox" go run ./cmd/vnbox build-wine -prefix "$RUNNER_TEMP/wine-vnbox"
       - name: smoke test
         if: steps.tag.outputs.exists != 'yes'
         run: |
