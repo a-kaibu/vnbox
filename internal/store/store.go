@@ -297,7 +297,11 @@ func SaveFiles(prefix string) ([]string, error) {
 		rel = filepath.ToSlash(rel)
 		low := strings.ToLower(rel)
 		if d.IsDir() {
-			if low == "windows" || strings.HasSuffix(low, "/temp") || low == "temp" {
+			// caches, not saves: WinINet's also keeps the URLs a game asked for, which for a DRM
+			// login (ソフト電池) carry the password
+			if low == "windows" || strings.HasSuffix(low, "/temp") || low == "temp" ||
+				strings.HasSuffix(low, "/inetcache") || strings.HasSuffix(low, "/temporary internet files") ||
+				strings.HasSuffix(low, "/inetcookies") || strings.HasSuffix(low, "/microsoft/windows/history") {
 				return filepath.SkipDir
 			}
 			return nil
