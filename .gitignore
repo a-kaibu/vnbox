@@ -18,7 +18,6 @@
 !/results/batch/
 /results/batch/*
 !/results/batch/summary*.tsv
-!/results/batch/summary*.tsv
 # Wine のビルド物と元ファイル (パッチだけ管理する)
 /wine-build/*
 !/wine-build/*.patch
