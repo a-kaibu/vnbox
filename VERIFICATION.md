@@ -15,6 +15,17 @@ vnbox で実際に体験版を動かして確かめた結果。「動作」= タ
 
 第1〜6弾は、当時のシェルスクリプト (`run.sh` / `batch6.sh` など。Wine を直接起動していた) で確かめた。今は上の `vnbox` のコマンドに置き換えて削除した。
 
+## Wine 11.20 で全件確認し直し (2026-10-21〜22)
+
+自前 Wine を 11.0 (安定版) から 11.20 (開発版の最新) に上げ、690 本を同じ手順で配布元からやり直した。自前 Wine は GitHub Actions でビルドして Releases に置いたもの (`wine-11.20-vnbox-f216c497b0`) を `vnbox install-wine` で入れて使った。結果は `results/batch/summary_1120.tsv` (やり直し分 `summary_rerun1120.tsv` をまとめたもの)。
+
+- **690 本すべてが一次判定 OK、一覧画像を全件目視してタイトル画面以降まで動作** (686 本が自前 Wine、4 本が従来 Wine。従来 Wine の 4 本は 11.0 のときも同じ: ユユカナ、`s2010_akabeesoft_lavender`、`dl_RJ01728288`、`dl_RJ01734456`)。KAG3 紹介デモは以前と同じく配布物の `Config.tjs` の修正が要る。
+- パッチ: 9 本を 11.20 に載せ替え。`quartz-videowindow-unlocked` は 11.20 の IVideoWindow (全画面エミュレーションが入った) に合わせて書き直し。`win32u-mouse-in-pointer` (11.3 で本家に入った) と `win32u-own-frame-visible` (11.20 に同じ処理がある) は外した。化けきつねたいじ (mouse-in-pointer が効いた Unity 6) と RPG ツクール MZ の作品 (own-frame-visible が効いた) はパッチ無しの 11.20 で動作。
+- 11.20 で出た退行と対処:
+  - **Electron 製 2 本** (梨乃ねね 子種を乞う村 ほか) が成人確認の後にメモリを 12GB まで使って落ちた。11.20 ではゲーム同梱の `vulkan-1.dll` より Wine 内蔵のものが読まれ、Chromium (ANGLE) が同梱の SwiftShader を使えずにホストの lavapipe で描こうとするため。ベース prefix で `vulkan-1` を `native,builtin` にして解決。
+  - **お嬢様はイイナリみたいです！？** (DirectDraw): メニューをクリックすると画面の大半が黒くなる (11.0 では起きない)。`renderer=gdi` で正常。確認用一覧に `renderer` 列を足して指定。
+- その他 (Wine とは無関係): 操作列のタイミング (プリマドール、Wind、生命のスペア)、自動の Enter がタイトルの「終了」を選んでいた (Magus Tale)、ニュートンと林檎の樹の起動メニュー、確認中にディスクが一杯になった数本 (同時に動かす本数を減らしてやり直して OK)。
+
 ## Go 版 (sandbox 込み) で全件確認し直し (2026-10-20〜21)
 
 第1〜6弾で確認した 690 本を、上の手順 (`vnbox verify results/batch/recheck_all.tsv`) で配布元からの DL からやり直した。ゲームとインストーラは bubblewrap の中 (ネットワークなし、他のゲーム・パッケージ・資格情報は見えない) で動かした。結果は `results/batch/summary_go.tsv` (再試行分は `summary_ng*.tsv` / `summary_clicked.tsv` / `summary_clicks.tsv` をまとめたもの)。
