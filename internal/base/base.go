@@ -26,6 +26,10 @@ var settings = []struct{ key, name, typ, data string }{
 	{`HKLM\Software\Microsoft\Windows NT\CurrentVersion\AeDebug`, "Auto", "", "0"},
 	{`HKLM\Software\Microsoft\Windows NT\CurrentVersion\AeDebug`, "Debugger", "", ""},
 	{`HKCU\Software\Wine\WineDbg`, "ShowCrashDialog", "REG_DWORD", "0"},
+	// Chromium (Electron / NW.js) ships its own Vulkan loader for SwiftShader. Since Wine 11.x
+	// the builtin vulkan-1 wins, ANGLE then misses SwiftShader, renders on the host's lavapipe
+	// and grows past 12 GB (梨乃ねね 子種を乞う村). Games without their own keep the builtin.
+	{`HKCU\Software\Wine\DllOverrides`, "vulkan-1", "", "native,builtin"},
 }
 
 // fontReplacements map Windows Japanese font names to the IPA / Noto fonts of the host.
