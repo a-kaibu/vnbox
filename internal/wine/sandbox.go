@@ -91,6 +91,11 @@ func (e Env) sandboxArgs(dir string, vars []string) ([]string, []string) {
 		args = append(args, flag, src, dst)
 	}
 	bind(true, e.Prefix, e.Prefix)
+	// the Wine build itself, when it lives under a hidden folder (vnbox build-wine puts it in
+	// the data directory, usually below /home)
+	if bin := e.Flavor.Bin(); bin != "" {
+		bind(false, filepath.Dir(bin), filepath.Dir(bin))
+	}
 	for _, b := range e.Binds {
 		bind(true, b, b)
 	}
