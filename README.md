@@ -49,7 +49,7 @@ bin/vnbox mkbase                        # ベース prefix (一度だけ)。自�
 # 従来の Wine (-wine classic) も使うなら: bin/vnbox mkbase -wine classic (32bit / Win7) と bin/vnbox mkbase -wine classic -win64
 ```
 
-必要なもの: Wine (自前ビルドは `/opt/wine-vnbox`)、Xvfb、openbox、PulseAudio、ffmpeg (libx264 / libopus。GPU で配信するなら VAAPI / NVENC 対応のもの)、bubblewrap、xdotool、ImageMagick、7z / unrar / lha、cabextract、winetricks、MinGW (`i686-w64-mingw32-gcc`、補助ツールのビルド)、`ja_JP.UTF-8` ロケール、日本語フォント (IPA / Noto)。
+必要なもの: Wine (自前ビルドは `/opt/wine-vnbox`)、Xvfb、openbox、PulseAudio、ffmpeg (libx264 / libopus。GPU で配信するなら VAAPI / NVENC 対応のもの。VAAPI には 64bit の VA ドライバ `mesa-va-drivers` / `intel-media-va-driver` も要る。Wine 用の `:i386` だけでは ffmpeg から使えない)、bubblewrap、xdotool、ImageMagick、7z / unrar / lha、cabextract、winetricks、MinGW (`i686-w64-mingw32-gcc`、補助ツールのビルド)、`ja_JP.UTF-8` ロケール、日本語フォント (IPA / Noto)。
 
 ## 使い方
 
