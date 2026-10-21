@@ -69,6 +69,12 @@ vnbox play yuna -token 好きな文字列             # → ログに出る http
 - 自前 Wine を使わない場合は、ディストリの Wine (`apt install wine`) で `-wine classic` を付けて動かせる (`vnbox add -wine classic ...` / `vnbox play -wine classic ...`)。ただし動作確認は自前 Wine で行っていて、動画や Unity など一部は自前 Wine のパッチが要る。
 - 配信はブラウザ (PC / Android) で開くだけ。映像・音声は WebRTC、タップとキーはデータチャネルで送る。ゲームを閉じるか Ctrl-C で終わり、終了時にセーブを残す (`VNBOX_S3` があれば S3 にも上げる)。
 - 何本も並べて選ぶなら `vnbox serve -token ...` (ギャラリー)。
+- **DRM の製品版**: ソフト電池 (DLsite / DMM) の作品は、`vnbox add` が同梱のランタイム (`runtimes/softdenchi`) を入れ、オンライン認証のためネットワークを許す。起動時の「ユーザー認証」は、`~/.local/share/vnbox/config/accounts.conf` (権限 600 で) に書いておけば自動で入力して送信する:
+  ```
+  dmm.id=DMM のログイン ID か登録メールアドレス
+  dmm.password=パスワード
+  ```
+  このファイルはリポジトリにも S3 にも上げない。ランタイム側の「ID・パスワードを保存する」には触らない (prefix に残るとセーブと一緒に S3 へ上がるため)。認証は HTTP/1.0 で DMM に問い合わせるので、HTTP/1.0 を通さないプロキシの内側や、DMM が使えない海外からは通らない。
 
 ## 使い方
 
