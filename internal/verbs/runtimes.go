@@ -291,8 +291,13 @@ func SoftDenchi(ctx context.Context, env wine.Env) error {
 		if out, err := c.CombinedOutput(); err != nil && !errors.Is(err, exec.ErrWaitDelay) {
 			return fmt.Errorf("%s: %v: %s", s[0], err, out)
 		}
-		env.Wait()
+		if strings.HasPrefix(s[0], "vcredist") {
+			env.Wait()
+		}
 	}
+	// the runtime starts its services (UCManSvc, SdProxy), which never end on their own: stop
+	// the prefix's Wine instead of waiting for it (the game starts them again)
+	env.Kill()
 	if _, err := os.Stat(filepath.Join(env.Prefix, "drive_c", "Program Files (x86)", "SoftDenchi", "SdProxy.exe")); err != nil {
 		if _, err := os.Stat(filepath.Join(env.Prefix, "drive_c", "Program Files", "SoftDenchi", "SdProxy.exe")); err != nil {
 			return fmt.Errorf("the runtime did not install")
