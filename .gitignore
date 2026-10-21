@@ -18,6 +18,7 @@
 !/results/batch/
 /results/batch/*
 !/results/batch/summary*.tsv
+!/results/batch/summary*.tsv
 # Wine のビルド物と元ファイル (パッチだけ管理する)
 /wine-build/*
 !/wine-build/*.patch
@@ -29,3 +30,4 @@ __pycache__/
 vnbox-tools.tar.gz
 # 第6弾の実行中は追記が続くので一時的に追跡しない (終わったら git add -f で記録する)
 __pycache__/
+/results/batch/summary_1120.tsv
