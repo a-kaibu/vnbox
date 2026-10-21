@@ -22,7 +22,7 @@ import (
 )
 
 // Version is the Wine release the patches are made for.
-const Version = "11.0"
+const Version = "11.20"
 
 // Patches are applied in this order (wine-build/ of the repository).
 var Patches = []string{
@@ -35,8 +35,6 @@ var Patches = []string{
 	"vnbox-kernelbase-safe-disk-free.patch",
 	"vnbox-wmreader-allocator-retry.patch",
 	"vnbox-quartz-videowindow-unlocked.patch",
-	"vnbox-win32u-own-frame-visible.patch",
-	"vnbox-win32u-mouse-in-pointer.patch",
 }
 
 // configureArgs are the configure options besides --prefix (new WoW64, no tests).
@@ -142,7 +140,7 @@ func Build(ctx context.Context, o Options) error {
 	if _, err := os.Stat(filepath.Join(src, ".vnbox-patched")); err != nil {
 		tarball := filepath.Join(work, "wine-"+Version+".tar.xz")
 		if _, err := os.Stat(tarball); err != nil {
-			if err := download(ctx, fmt.Sprintf("https://dl.winehq.org/wine/source/%s/wine-%s.tar.xz", Version, Version), tarball, o.Log); err != nil {
+			if err := download(ctx, sourceURL(), tarball, o.Log); err != nil {
 				return err
 			}
 		}
@@ -216,3 +214,14 @@ func download(ctx context.Context, url, dst string, log io.Writer) error {
 }
 
 var errNotFound = errors.New("not found")
+
+// sourceURL is where WineHQ keeps the source of Version: source/11.0/ for a stable release,
+// source/11.x/ for the development ones (11.1, 11.2 ...).
+func sourceURL() string {
+	major, minor, _ := strings.Cut(Version, ".")
+	dir := major + ".x"
+	if minor == "0" || strings.HasPrefix(minor, "0.") {
+		dir = major + ".0"
+	}
+	return fmt.Sprintf("https://dl.winehq.org/wine/source/%s/wine-%s.tar.xz", dir, Version)
+}

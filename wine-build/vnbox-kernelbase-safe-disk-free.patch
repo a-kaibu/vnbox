@@ -1,6 +1,8 @@
+diff --git a/dlls/kernelbase/volume.c b/dlls/kernelbase/volume.c
+index edfd777..b48b70b 100644
 --- a/dlls/kernelbase/volume.c
 +++ b/dlls/kernelbase/volume.c
-@@ -609,6 +609,17 @@
+@@ -608,6 +608,17 @@ UINT WINAPI DECLSPEC_HOTPATCH GetDriveTypeA( LPCSTR root )
  }
  
  
@@ -18,7 +20,7 @@
  /***********************************************************************
   *           GetDiskFreeSpaceExW   (kernelbase.@)
   */
-@@ -631,9 +642,9 @@
+@@ -630,9 +641,9 @@ BOOL WINAPI DECLSPEC_HOTPATCH GetDiskFreeSpaceExW( LPCWSTR root, PULARGE_INTEGER
  
      units = info.SectorsPerAllocationUnit * info.BytesPerSector;
      if (total) total->QuadPart = info.TotalAllocationUnits.QuadPart * units;
@@ -30,7 +32,7 @@
      return TRUE;
  }
  
-@@ -674,6 +685,7 @@
+@@ -673,6 +684,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH GetDiskFreeSpaceW( LPCWSTR root, LPDWORD cluster_s
      if (!set_ntstatus( status )) return FALSE;
  
      units = info.SectorsPerAllocationUnit * info.BytesPerSector;

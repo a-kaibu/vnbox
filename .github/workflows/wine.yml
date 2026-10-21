@@ -1,6 +1,6 @@
 name: wine
 
-# Builds vnbox's own Wine (Wine 11.0 + wine-build/*.patch, new WoW64) and publishes it as a
+# Builds vnbox's own Wine (Wine + wine-build/*.patch, new WoW64) and publishes it as a
 # release, which vnbox install-wine (and the first vnbox add / play) downloads. The release
 # tag is a hash of the patches (vnbox build-wine -tag), so a build only runs when they change.
 
@@ -65,4 +65,4 @@ jobs:
         run: |
           gh release create "${{ steps.tag.outputs.tag }}" "${{ steps.tag.outputs.asset }}" --target "$GITHUB_SHA" \
             --title "Wine ${{ steps.tag.outputs.tag }}" \
-            --notes "Wine 11.0 with the patches in wine-build/ at ${GITHUB_SHA}, built with --enable-archs=i386,x86_64 (new WoW64) on Ubuntu 24.04. Installed by vnbox install-wine (and the first vnbox add / play)."
+            --notes "Wine (the version in the tag) with the patches in wine-build/ at ${GITHUB_SHA}, built with --enable-archs=i386,x86_64 (new WoW64) on Ubuntu 24.04. Installed by vnbox install-wine (and the first vnbox add / play)."

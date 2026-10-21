@@ -1,8 +1,8 @@
 diff --git a/dlls/crypt32/base64.c b/dlls/crypt32/base64.c
-index 298756ca541..b0fc892c053 100644
+index 75d1591..408e068 100644
 --- a/dlls/crypt32/base64.c
 +++ b/dlls/crypt32/base64.c
-@@ -299,6 +299,79 @@ static BOOL BinaryToHexRawA(const BYTE *bin, DWORD nbin, DWORD flags, char *str,
+@@ -300,6 +300,79 @@ static BOOL BinaryToHexRawA(const BYTE *bin, DWORD nbin, DWORD flags, char *str,
      return TRUE;
  }
  
@@ -82,7 +82,7 @@ index 298756ca541..b0fc892c053 100644
  BOOL WINAPI CryptBinaryToStringA(const BYTE *pbBinary,
   DWORD cbBinary, DWORD dwFlags, LPSTR pszString, DWORD *pcchString)
  {
-@@ -333,6 +406,8 @@ BOOL WINAPI CryptBinaryToStringA(const BYTE *pbBinary,
+@@ -334,6 +407,8 @@ BOOL WINAPI CryptBinaryToStringA(const BYTE *pbBinary,
          encoder = BinaryToHexRawA;
          break;
      case CRYPT_STRING_HEX:
@@ -92,10 +92,10 @@ index 298756ca541..b0fc892c053 100644
      case CRYPT_STRING_HEXADDR:
      case CRYPT_STRING_HEXASCIIADDR:
 diff --git a/dlls/crypt32/tests/base64.c b/dlls/crypt32/tests/base64.c
-index 2263b236fa8..6b43216f9af 100644
+index 7400a6e..9b60c47 100644
 --- a/dlls/crypt32/tests/base64.c
 +++ b/dlls/crypt32/tests/base64.c
-@@ -610,6 +610,38 @@ static void test_CryptBinaryToString(void)
+@@ -615,6 +615,38 @@ static void test_CryptBinaryToString(void)
          ok(strLen == strLen2, "%lu: Expected length %ld, got %ld\n", i, strLen, strLen2);
          ok(!memcmp(hex, cmp, strLen * sizeof(WCHAR)), "%lu: got %s\n", i, wine_dbgstr_wn(hex, strLen));
  
@@ -135,7 +135,7 @@ index 2263b236fa8..6b43216f9af 100644
          strLen *= 2;
          ret = CryptBinaryToStringW(input, sizes[k], CRYPT_STRING_HEX | flags[i], hex, &strLen);
 diff --git a/dlls/imagehlp/integrity.c b/dlls/imagehlp/integrity.c
-index ebad7001548..766b8d04a2b 100644
+index ebad700..766b8d0 100644
 --- a/dlls/imagehlp/integrity.c
 +++ b/dlls/imagehlp/integrity.c
 @@ -631,30 +631,6 @@ BOOL WINAPI ImageGetCertificateHeader(
@@ -697,7 +697,7 @@ index ebad7001548..766b8d04a2b 100644
          UnmapViewOfFile( map );
      if( hMap != INVALID_HANDLE_VALUE )
 diff --git a/dlls/imagehlp/tests/image.c b/dlls/imagehlp/tests/image.c
-index 4d7a6f5bdfe..68124a05807 100644
+index 4d7a6f5..68124a0 100644
 --- a/dlls/imagehlp/tests/image.c
 +++ b/dlls/imagehlp/tests/image.c
 @@ -321,7 +321,7 @@ static const struct expected_blob b1[] = {
@@ -719,7 +719,7 @@ index 4d7a6f5bdfe..68124a05807 100644
  static const struct expected_blob b4[] = {
      {FILE_PE_START,  &bin64},
 diff --git a/dlls/msi/classes.c b/dlls/msi/classes.c
-index ca0e59170e6..00aa5e1329a 100644
+index ca0e591..00aa5e1 100644
 --- a/dlls/msi/classes.c
 +++ b/dlls/msi/classes.c
 @@ -656,6 +656,14 @@ static UINT load_classes_and_such( MSIPACKAGE *package )

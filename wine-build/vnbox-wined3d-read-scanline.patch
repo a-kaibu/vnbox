@@ -1,6 +1,8 @@
+diff --git a/dlls/wined3d/directx.c b/dlls/wined3d/directx.c
+index b8bd2c6..364def1 100644
 --- a/dlls/wined3d/directx.c
 +++ b/dlls/wined3d/directx.c
-@@ -2382,7 +2382,9 @@
+@@ -2413,7 +2413,9 @@ HRESULT CDECL wined3d_get_device_caps(const struct wined3d_adapter *adapter,
  
      caps->DeviceType = (device_type == WINED3D_DEVICE_TYPE_HAL) ? WINED3D_DEVICE_TYPE_HAL : WINED3D_DEVICE_TYPE_REF;
  

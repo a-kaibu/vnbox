@@ -1,6 +1,8 @@
+diff --git a/dlls/kernelbase/process.c b/dlls/kernelbase/process.c
+index ae9a7d6..b150a4d 100644
 --- a/dlls/kernelbase/process.c
 +++ b/dlls/kernelbase/process.c
-@@ -899,7 +899,18 @@
+@@ -933,7 +933,18 @@ DWORD WINAPI DECLSPEC_HOTPATCH GetProcessId( HANDLE process )
  BOOL WINAPI /* DECLSPEC_HOTPATCH */ GetProcessMitigationPolicy( HANDLE process, PROCESS_MITIGATION_POLICY policy,
                                                            void *buffer, SIZE_T length )
  {

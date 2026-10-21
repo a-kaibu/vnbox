@@ -1,6 +1,8 @@
+diff --git a/dlls/qasf/dmowrapper.c b/dlls/qasf/dmowrapper.c
+index f6e586d..8c2ad7c 100644
 --- a/dlls/qasf/dmowrapper.c
 +++ b/dlls/qasf/dmowrapper.c
-@@ -329,6 +329,12 @@
+@@ -329,6 +329,12 @@ static HRESULT process_output(struct dmo_wrapper *filter, IMediaObject *dmo)
          }
  
          release_output_samples(filter);

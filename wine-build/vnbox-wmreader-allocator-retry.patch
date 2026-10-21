@@ -1,6 +1,8 @@
+diff --git a/dlls/winegstreamer/wm_reader.c b/dlls/winegstreamer/wm_reader.c
+index 8fc5ff6..6c9cf5b 100644
 --- a/dlls/winegstreamer/wm_reader.c
 +++ b/dlls/winegstreamer/wm_reader.c
-@@ -1770,7 +1770,16 @@
+@@ -1788,7 +1788,16 @@ static HRESULT wm_reader_read_stream_sample(struct wm_reader *reader, struct wg_
      if (stream->format.major_type == WG_MAJOR_TYPE_AUDIO)
          capacity = min(capacity, 16384);
  

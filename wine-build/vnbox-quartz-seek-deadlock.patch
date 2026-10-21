@@ -1,6 +1,8 @@
+diff --git a/dlls/winegstreamer/quartz_parser.c b/dlls/winegstreamer/quartz_parser.c
+index 5cddd7b..df76c84 100644
 --- a/dlls/winegstreamer/quartz_parser.c
 +++ b/dlls/winegstreamer/quartz_parser.c
-@@ -1314,6 +1314,33 @@
+@@ -1347,6 +1347,33 @@ static HRESULT send_sample(struct parser_source *pin, IMediaSample *sample,
  
  /* Send a single GStreamer buffer (splitting it into multiple IMediaSamples if
   * necessary). */
@@ -34,7 +36,7 @@
  static void send_buffer(struct parser_source *pin, struct parser *filter, const struct wg_parser_buffer *buffer)
  {
      HRESULT hr;
-@@ -1339,7 +1366,7 @@
+@@ -1372,7 +1399,7 @@ static void send_buffer(struct parser_source *pin, struct parser *filter, const
          {
              uint32_t advance;
  
@@ -43,7 +45,7 @@
              {
                  ERR("Failed to get a sample, hr %#lx.\n", hr);
                  break;
-@@ -1369,7 +1396,7 @@
+@@ -1402,7 +1429,7 @@ static void send_buffer(struct parser_source *pin, struct parser *filter, const
      }
      else
      {

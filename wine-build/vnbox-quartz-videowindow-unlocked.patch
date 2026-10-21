@@ -1,776 +1,664 @@
+diff --git a/dlls/quartz/filtergraph.c b/dlls/quartz/filtergraph.c
+index d495b7c..6c589d0 100644
 --- a/dlls/quartz/filtergraph.c
 +++ b/dlls/quartz/filtergraph.c
-@@ -3860,6 +3860,23 @@
+@@ -3875,6 +3875,11 @@ static struct filter_graph *impl_from_IVideoWindow(IVideoWindow *iface)
      return CONTAINING_RECORD(iface, struct filter_graph, IVideoWindow_iface);
  }
  
 +/* vnbox: the video renderer's IVideoWindow methods move, show and hide its window, which
 + * may send messages to the application's UI thread. Holding the graph lock across those
 + * calls deadlocks when that UI thread forwards a message through NotifyOwnerMessage (or
-+ * calls any other IVideoWindow method) at the same time, so only look the renderer up
-+ * under the lock and call it without. */
-+static HRESULT get_video_window(struct filter_graph *graph, IVideoWindow **window)
-+{
-+    HRESULT hr;
-+
-+    EnterCriticalSection(&graph->cs);
-+    hr = GetTargetInterface(graph, &IID_IVideoWindow, (void **)window);
-+    if (hr == S_OK)
-+        IVideoWindow_AddRef(*window);
-+    LeaveCriticalSection(&graph->cs);
-+    return hr;
-+}
-+
++ * calls any other IVideoWindow method) at the same time, so the renderer is only looked up
++ * under the lock and called without it. */
  static HRESULT WINAPI VideoWindow_QueryInterface(IVideoWindow *iface, REFIID iid, void **out)
  {
      struct filter_graph *graph = impl_from_IVideoWindow(iface);
-@@ -3935,14 +3952,13 @@
- 
-     TRACE("(%p/%p)->(%s (%p))\n", This, iface, debugstr_w(strCaption), strCaption);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
+@@ -3958,10 +3963,16 @@ static HRESULT WINAPI VideoWindow_put_Caption(IVideoWindow *iface, BSTR strCapti
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
  
      if (hr == S_OK)
+-        hr = IVideoWindow_put_Caption(pVideoWindow, strCaption);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
 +    {
-         hr = IVideoWindow_put_Caption(pVideoWindow, strCaption);
--
--    LeaveCriticalSection(&This->cs);
++        hr = IVideoWindow_put_Caption(pVideoWindow, strCaption);
 +        IVideoWindow_Release(pVideoWindow);
 +    }
- 
-     return hr;
- }
-@@ -3955,14 +3971,13 @@
- 
-     TRACE("(%p/%p)->(%p)\n", This, iface, strCaption);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_get_Caption(pVideoWindow, strCaption);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -3975,14 +3990,13 @@
- 
-     TRACE("graph %p, style %#lx.\n", This, WindowStyle);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_put_WindowStyle(pVideoWindow, WindowStyle);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -3995,14 +4009,13 @@
- 
-     TRACE("(%p/%p)->(%p)\n", This, iface, WindowStyle);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_get_WindowStyle(pVideoWindow, WindowStyle);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4015,14 +4028,13 @@
- 
-     TRACE("graph %p, style %#lx.\n", This, WindowStyleEx);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_put_WindowStyleEx(pVideoWindow, WindowStyleEx);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4035,14 +4047,13 @@
- 
-     TRACE("(%p/%p)->(%p)\n", This, iface, WindowStyleEx);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_get_WindowStyleEx(pVideoWindow, WindowStyleEx);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4055,14 +4066,13 @@
- 
-     TRACE("graph %p, show %#lx.\n", This, AutoShow);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_put_AutoShow(pVideoWindow, AutoShow);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4075,14 +4085,13 @@
- 
-     TRACE("(%p/%p)->(%p)\n", This, iface, AutoShow);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_get_AutoShow(pVideoWindow, AutoShow);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4095,14 +4104,13 @@
- 
-     TRACE("graph %p, state %ld.\n", This, WindowState);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_put_WindowState(pVideoWindow, WindowState);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4115,14 +4123,13 @@
- 
-     TRACE("(%p/%p)->(%p)\n", This, iface, WindowState);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_get_WindowState(pVideoWindow, WindowState);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4135,14 +4142,13 @@
- 
-     TRACE("graph %p, palette %ld.\n", This, BackgroundPalette);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_put_BackgroundPalette(pVideoWindow, BackgroundPalette);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4156,14 +4162,13 @@
- 
-     TRACE("(%p/%p)->(%p)\n", This, iface, pBackgroundPalette);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_get_BackgroundPalette(pVideoWindow, pBackgroundPalette);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4176,14 +4181,13 @@
- 
-     TRACE("graph %p, visible %ld.\n", This, Visible);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_put_Visible(pVideoWindow, Visible);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4196,14 +4200,13 @@
- 
-     TRACE("(%p/%p)->(%p)\n", This, iface, pVisible);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_get_Visible(pVideoWindow, pVisible);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4216,14 +4219,13 @@
- 
-     TRACE("graph %p, left %ld.\n", This, Left);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_put_Left(pVideoWindow, Left);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4236,14 +4238,13 @@
- 
-     TRACE("(%p/%p)->(%p)\n", This, iface, pLeft);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_get_Left(pVideoWindow, pLeft);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4256,14 +4257,13 @@
- 
-     TRACE("graph %p, width %ld.\n", This, Width);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_put_Width(pVideoWindow, Width);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4276,14 +4276,13 @@
- 
-     TRACE("(%p/%p)->(%p)\n", This, iface, pWidth);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_get_Width(pVideoWindow, pWidth);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4296,14 +4295,13 @@
- 
-     TRACE("graph %p, top %ld.\n", This, Top);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_put_Top(pVideoWindow, Top);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4316,14 +4314,13 @@
- 
-     TRACE("(%p/%p)->(%p)\n", This, iface, pTop);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_get_Top(pVideoWindow, pTop);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4336,14 +4333,13 @@
- 
-     TRACE("graph %p, height %ld.\n", This, Height);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_put_Height(pVideoWindow, Height);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4356,14 +4352,13 @@
- 
-     TRACE("(%p/%p)->(%p)\n", This, iface, pHeight);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_get_Height(pVideoWindow, pHeight);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4376,14 +4371,13 @@
- 
-     TRACE("graph %p, owner %#Ix.\n", This, Owner);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_put_Owner(pVideoWindow, Owner);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4396,14 +4390,13 @@
- 
-     TRACE("(%p/%p)->(%p)\n", This, iface, Owner);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_get_Owner(pVideoWindow, Owner);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4416,14 +4409,13 @@
- 
-     TRACE("graph %p, drain %#Ix.\n", This, Drain);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_put_MessageDrain(pVideoWindow, Drain);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4436,14 +4428,13 @@
- 
-     TRACE("(%p/%p)->(%p)\n", This, iface, Drain);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_get_MessageDrain(pVideoWindow, Drain);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4456,14 +4447,13 @@
- 
-     TRACE("(%p/%p)->(%p)\n", This, iface, Color);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_get_BorderColor(pVideoWindow, Color);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4476,14 +4466,13 @@
- 
-     TRACE("graph %p, colour %#lx.\n", This, Color);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_put_BorderColor(pVideoWindow, Color);
--
--    LeaveCriticalSection(&This->cs);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
- 
-     return hr;
- }
-@@ -4496,20 +4485,19 @@
- 
-     TRACE("(%p/%p)->(%p)\n", This, iface, FullScreenMode);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
- 
-     if (hr == S_OK)
-+    {
-         hr = IVideoWindow_get_FullScreenMode(pVideoWindow, FullScreenMode);
-+        IVideoWindow_Release(pVideoWindow);
-+    }
-     if (hr == E_NOTIMPL)
-     {
-         *FullScreenMode = OAFALSE;
-         hr = S_OK;
-     }
- 
--    LeaveCriticalSection(&This->cs);
--
++
      return hr;
  }
  
-@@ -4521,17 +4509,16 @@
- 
-     TRACE("graph %p, fullscreen %ld.\n", This, FullScreenMode);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
+@@ -3981,10 +3992,16 @@ static HRESULT WINAPI VideoWindow_get_Caption(IVideoWindow *iface, BSTR *strCapt
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
  
      if (hr == S_OK)
+-        hr = IVideoWindow_get_Caption(pVideoWindow, strCaption);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
 +    {
-         hr = IVideoWindow_put_FullScreenMode(pVideoWindow, FullScreenMode);
++        hr = IVideoWindow_get_Caption(pVideoWindow, strCaption);
 +        IVideoWindow_Release(pVideoWindow);
 +    }
-     if (hr == E_NOTIMPL && FullScreenMode == OAFALSE)
-         hr = S_FALSE;
- 
--    LeaveCriticalSection(&This->cs);
--
++
      return hr;
  }
  
-@@ -4543,14 +4530,13 @@
- 
-     TRACE("graph %p, focus %ld.\n", This, Focus);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
+@@ -4004,10 +4021,16 @@ static HRESULT WINAPI VideoWindow_put_WindowStyle(IVideoWindow *iface, LONG Wind
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
  
      if (hr == S_OK)
+-        hr = IVideoWindow_put_WindowStyle(pVideoWindow, WindowStyle);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
 +    {
-         hr = IVideoWindow_SetWindowForeground(pVideoWindow, Focus);
--
--    LeaveCriticalSection(&This->cs);
++        hr = IVideoWindow_put_WindowStyle(pVideoWindow, WindowStyle);
 +        IVideoWindow_Release(pVideoWindow);
 +    }
- 
++
      return hr;
  }
-@@ -4564,14 +4550,13 @@
  
-     TRACE("graph %p, hwnd %#Ix, message %#lx, wparam %#Ix, lparam %#Ix.\n", This, hwnd, uMsg, wParam, lParam);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
+@@ -4027,10 +4050,16 @@ static HRESULT WINAPI VideoWindow_get_WindowStyle(IVideoWindow *iface, LONG *Win
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
  
      if (hr == S_OK)
+-        hr = IVideoWindow_get_WindowStyle(pVideoWindow, WindowStyle);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
 +    {
-         hr = IVideoWindow_NotifyOwnerMessage(pVideoWindow, hwnd, uMsg, wParam, lParam);
--
--    LeaveCriticalSection(&This->cs);
++        hr = IVideoWindow_get_WindowStyle(pVideoWindow, WindowStyle);
 +        IVideoWindow_Release(pVideoWindow);
 +    }
- 
++
      return hr;
  }
-@@ -4585,14 +4570,13 @@
  
-     TRACE("graph %p, left %ld, top %ld, width %ld, height %ld.\n", This, Left, Top, Width, Height);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
+@@ -4050,10 +4079,16 @@ static HRESULT WINAPI VideoWindow_put_WindowStyleEx(IVideoWindow *iface, LONG Wi
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
  
      if (hr == S_OK)
+-        hr = IVideoWindow_put_WindowStyleEx(pVideoWindow, WindowStyleEx);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
 +    {
-         hr = IVideoWindow_SetWindowPosition(pVideoWindow, Left, Top, Width, Height);
--
--    LeaveCriticalSection(&This->cs);
++        hr = IVideoWindow_put_WindowStyleEx(pVideoWindow, WindowStyleEx);
 +        IVideoWindow_Release(pVideoWindow);
 +    }
- 
++
      return hr;
  }
-@@ -4606,14 +4590,13 @@
  
-     TRACE("(%p/%p)->(%p, %p, %p, %p)\n", This, iface, pLeft, pTop, pWidth, pHeight);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
+@@ -4073,10 +4108,16 @@ static HRESULT WINAPI VideoWindow_get_WindowStyleEx(IVideoWindow *iface, LONG *W
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
  
      if (hr == S_OK)
+-        hr = IVideoWindow_get_WindowStyleEx(pVideoWindow, WindowStyleEx);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
 +    {
-         hr = IVideoWindow_GetWindowPosition(pVideoWindow, pLeft, pTop, pWidth, pHeight);
--
--    LeaveCriticalSection(&This->cs);
++        hr = IVideoWindow_get_WindowStyleEx(pVideoWindow, WindowStyleEx);
 +        IVideoWindow_Release(pVideoWindow);
 +    }
- 
++
      return hr;
  }
-@@ -4627,14 +4610,13 @@
  
-     TRACE("(%p/%p)->(%p, %p)\n", This, iface, pWidth, pHeight);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
+@@ -4096,10 +4137,16 @@ static HRESULT WINAPI VideoWindow_put_AutoShow(IVideoWindow *iface, LONG AutoSho
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
  
      if (hr == S_OK)
+-        hr = IVideoWindow_put_AutoShow(pVideoWindow, AutoShow);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
 +    {
-         hr = IVideoWindow_GetMinIdealImageSize(pVideoWindow, pWidth, pHeight);
--
--    LeaveCriticalSection(&This->cs);
++        hr = IVideoWindow_put_AutoShow(pVideoWindow, AutoShow);
 +        IVideoWindow_Release(pVideoWindow);
 +    }
- 
++
      return hr;
  }
-@@ -4648,14 +4630,13 @@
  
-     TRACE("(%p/%p)->(%p, %p)\n", This, iface, pWidth, pHeight);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
+@@ -4119,10 +4166,16 @@ static HRESULT WINAPI VideoWindow_get_AutoShow(IVideoWindow *iface, LONG *AutoSh
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
  
      if (hr == S_OK)
+-        hr = IVideoWindow_get_AutoShow(pVideoWindow, AutoShow);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
 +    {
-         hr = IVideoWindow_GetMaxIdealImageSize(pVideoWindow, pWidth, pHeight);
--
--    LeaveCriticalSection(&This->cs);
++        hr = IVideoWindow_get_AutoShow(pVideoWindow, AutoShow);
 +        IVideoWindow_Release(pVideoWindow);
 +    }
- 
++
      return hr;
  }
-@@ -4669,14 +4650,13 @@
  
-     TRACE("(%p/%p)->(%p, %p, %p, %p)\n", This, iface, pLeft, pTop, pWidth, pHeight);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
+@@ -4142,10 +4195,16 @@ static HRESULT WINAPI VideoWindow_put_WindowState(IVideoWindow *iface, LONG Wind
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
  
      if (hr == S_OK)
+-        hr = IVideoWindow_put_WindowState(pVideoWindow, WindowState);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
 +    {
-         hr = IVideoWindow_GetRestorePosition(pVideoWindow, pLeft, pTop, pWidth, pHeight);
--
--    LeaveCriticalSection(&This->cs);
++        hr = IVideoWindow_put_WindowState(pVideoWindow, WindowState);
 +        IVideoWindow_Release(pVideoWindow);
 +    }
- 
++
      return hr;
  }
-@@ -4689,14 +4669,13 @@
  
-     TRACE("graph %p, hide %ld.\n", This, HideCursor);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
+@@ -4165,10 +4224,16 @@ static HRESULT WINAPI VideoWindow_get_WindowState(IVideoWindow *iface, LONG *Win
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
  
      if (hr == S_OK)
+-        hr = IVideoWindow_get_WindowState(pVideoWindow, WindowState);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
 +    {
-         hr = IVideoWindow_HideCursor(pVideoWindow, HideCursor);
--
--    LeaveCriticalSection(&This->cs);
++        hr = IVideoWindow_get_WindowState(pVideoWindow, WindowState);
 +        IVideoWindow_Release(pVideoWindow);
 +    }
- 
++
      return hr;
  }
-@@ -4709,14 +4688,13 @@
  
-     TRACE("(%p/%p)->(%p)\n", This, iface, CursorHidden);
- 
--    EnterCriticalSection(&This->cs);
--
--    hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
-+    hr = get_video_window(This, &pVideoWindow);
+@@ -4188,10 +4253,16 @@ static HRESULT WINAPI VideoWindow_put_BackgroundPalette(IVideoWindow *iface, LON
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
  
      if (hr == S_OK)
+-        hr = IVideoWindow_put_BackgroundPalette(pVideoWindow, BackgroundPalette);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
 +    {
-         hr = IVideoWindow_IsCursorHidden(pVideoWindow, CursorHidden);
--
--    LeaveCriticalSection(&This->cs);
++        hr = IVideoWindow_put_BackgroundPalette(pVideoWindow, BackgroundPalette);
 +        IVideoWindow_Release(pVideoWindow);
 +    }
- 
++
      return hr;
  }
+ 
+@@ -4212,10 +4283,16 @@ static HRESULT WINAPI VideoWindow_get_BackgroundPalette(IVideoWindow *iface,
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_get_BackgroundPalette(pVideoWindow, pBackgroundPalette);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_get_BackgroundPalette(pVideoWindow, pBackgroundPalette);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4235,10 +4312,16 @@ static HRESULT WINAPI VideoWindow_put_Visible(IVideoWindow *iface, LONG Visible)
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_put_Visible(pVideoWindow, Visible);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_put_Visible(pVideoWindow, Visible);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4258,10 +4341,16 @@ static HRESULT WINAPI VideoWindow_get_Visible(IVideoWindow *iface, LONG *pVisibl
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_get_Visible(pVideoWindow, pVisible);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_get_Visible(pVideoWindow, pVisible);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4281,10 +4370,16 @@ static HRESULT WINAPI VideoWindow_put_Left(IVideoWindow *iface, LONG Left)
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_put_Left(pVideoWindow, Left);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_put_Left(pVideoWindow, Left);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4304,10 +4399,16 @@ static HRESULT WINAPI VideoWindow_get_Left(IVideoWindow *iface, LONG *pLeft)
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_get_Left(pVideoWindow, pLeft);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_get_Left(pVideoWindow, pLeft);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4327,10 +4428,16 @@ static HRESULT WINAPI VideoWindow_put_Width(IVideoWindow *iface, LONG Width)
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_put_Width(pVideoWindow, Width);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_put_Width(pVideoWindow, Width);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4350,10 +4457,16 @@ static HRESULT WINAPI VideoWindow_get_Width(IVideoWindow *iface, LONG *pWidth)
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_get_Width(pVideoWindow, pWidth);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_get_Width(pVideoWindow, pWidth);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4373,10 +4486,16 @@ static HRESULT WINAPI VideoWindow_put_Top(IVideoWindow *iface, LONG Top)
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_put_Top(pVideoWindow, Top);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_put_Top(pVideoWindow, Top);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4396,10 +4515,16 @@ static HRESULT WINAPI VideoWindow_get_Top(IVideoWindow *iface, LONG *pTop)
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_get_Top(pVideoWindow, pTop);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_get_Top(pVideoWindow, pTop);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4419,10 +4544,16 @@ static HRESULT WINAPI VideoWindow_put_Height(IVideoWindow *iface, LONG Height)
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_put_Height(pVideoWindow, Height);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_put_Height(pVideoWindow, Height);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4442,10 +4573,16 @@ static HRESULT WINAPI VideoWindow_get_Height(IVideoWindow *iface, LONG *pHeight)
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_get_Height(pVideoWindow, pHeight);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_get_Height(pVideoWindow, pHeight);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4465,10 +4602,16 @@ static HRESULT WINAPI VideoWindow_put_Owner(IVideoWindow *iface, OAHWND Owner)
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_put_Owner(pVideoWindow, Owner);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_put_Owner(pVideoWindow, Owner);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4488,10 +4631,16 @@ static HRESULT WINAPI VideoWindow_get_Owner(IVideoWindow *iface, OAHWND *Owner)
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_get_Owner(pVideoWindow, Owner);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_get_Owner(pVideoWindow, Owner);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4537,10 +4686,16 @@ static HRESULT WINAPI VideoWindow_get_MessageDrain(IVideoWindow *iface, OAHWND *
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_get_MessageDrain(pVideoWindow, Drain);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_get_MessageDrain(pVideoWindow, Drain);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4560,10 +4715,16 @@ static HRESULT WINAPI VideoWindow_get_BorderColor(IVideoWindow *iface, LONG *Col
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_get_BorderColor(pVideoWindow, Color);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_get_BorderColor(pVideoWindow, Color);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4583,10 +4744,16 @@ static HRESULT WINAPI VideoWindow_put_BorderColor(IVideoWindow *iface, LONG Colo
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_put_BorderColor(pVideoWindow, Color);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_put_BorderColor(pVideoWindow, Color);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4818,10 +4985,16 @@ static HRESULT WINAPI VideoWindow_SetWindowForeground(IVideoWindow *iface, LONG
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_SetWindowForeground(pVideoWindow, Focus);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_SetWindowForeground(pVideoWindow, Focus);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4842,10 +5015,16 @@ static HRESULT WINAPI VideoWindow_NotifyOwnerMessage(IVideoWindow *iface, OAHWND
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_NotifyOwnerMessage(pVideoWindow, hwnd, uMsg, wParam, lParam);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_NotifyOwnerMessage(pVideoWindow, hwnd, uMsg, wParam, lParam);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4866,10 +5045,16 @@ static HRESULT WINAPI VideoWindow_SetWindowPosition(IVideoWindow *iface, LONG Le
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_SetWindowPosition(pVideoWindow, Left, Top, Width, Height);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_SetWindowPosition(pVideoWindow, Left, Top, Width, Height);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4890,10 +5075,16 @@ static HRESULT WINAPI VideoWindow_GetWindowPosition(IVideoWindow *iface, LONG *p
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_GetWindowPosition(pVideoWindow, pLeft, pTop, pWidth, pHeight);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_GetWindowPosition(pVideoWindow, pLeft, pTop, pWidth, pHeight);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4914,10 +5105,16 @@ static HRESULT WINAPI VideoWindow_GetMinIdealImageSize(IVideoWindow *iface, LONG
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_GetMinIdealImageSize(pVideoWindow, pWidth, pHeight);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_GetMinIdealImageSize(pVideoWindow, pWidth, pHeight);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4938,10 +5135,16 @@ static HRESULT WINAPI VideoWindow_GetMaxIdealImageSize(IVideoWindow *iface, LONG
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_GetMaxIdealImageSize(pVideoWindow, pWidth, pHeight);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_GetMaxIdealImageSize(pVideoWindow, pWidth, pHeight);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4962,10 +5165,16 @@ static HRESULT WINAPI VideoWindow_GetRestorePosition(IVideoWindow *iface, LONG *
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_GetRestorePosition(pVideoWindow, pLeft, pTop, pWidth, pHeight);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_GetRestorePosition(pVideoWindow, pLeft, pTop, pWidth, pHeight);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -4985,10 +5194,16 @@ static HRESULT WINAPI VideoWindow_HideCursor(IVideoWindow *iface, LONG HideCurso
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_HideCursor(pVideoWindow, HideCursor);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_HideCursor(pVideoWindow, HideCursor);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 
+@@ -5008,10 +5223,16 @@ static HRESULT WINAPI VideoWindow_IsCursorHidden(IVideoWindow *iface, LONG *Curs
+         hr = GetTargetInterface(This, &IID_IVideoWindow, (LPVOID*)&pVideoWindow);
+ 
+     if (hr == S_OK)
+-        hr = IVideoWindow_IsCursorHidden(pVideoWindow, CursorHidden);
++        IVideoWindow_AddRef(pVideoWindow);
+ 
+     LeaveCriticalSection(&This->cs);
+ 
++    if (hr == S_OK)
++    {
++        hr = IVideoWindow_IsCursorHidden(pVideoWindow, CursorHidden);
++        IVideoWindow_Release(pVideoWindow);
++    }
++
+     return hr;
+ }
+ 

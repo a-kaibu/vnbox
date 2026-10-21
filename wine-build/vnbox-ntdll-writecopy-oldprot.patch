@@ -1,9 +1,12 @@
+diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
+index 9d3a0f2..fe099d1 100644
 --- a/dlls/ntdll/unix/virtual.c
 +++ b/dlls/ntdll/unix/virtual.c
-@@ -1367,6 +1367,30 @@
+@@ -1093,6 +1093,30 @@ static int get_unix_prot( BYTE vprot )
+ }
  
  
- /***********************************************************************
++/***********************************************************************
 + *           is_private_copy
 + *
 + * Check whether a write-copy page has already been written to, i.e. the
@@ -27,11 +30,10 @@
 +}
 +
 +
-+/***********************************************************************
+ /***********************************************************************
   *           dump_view
   */
- static void dump_view( struct file_view *view )
-@@ -5517,6 +5541,11 @@
+@@ -5185,6 +5209,11 @@ NTSTATUS WINAPI NtProtectVirtualMemory( HANDLE process, PVOID *addr_ptr, SIZE_T
          /* Make sure all the pages are committed */
          if (get_committed_size( view, base, size, &vprot, VPROT_COMMITTED ) >= size && (vprot & VPROT_COMMITTED))
          {

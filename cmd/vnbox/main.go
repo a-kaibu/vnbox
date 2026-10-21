@@ -42,7 +42,7 @@ import (
 
 const usage = `vnbox — Windows ノベルゲームを Wine で動かしてブラウザ配信する
 
-  vnbox install-wine                                  自前 Wine (パッチ入り Wine 11.0) のビルド済みを GitHub の Releases から <データ>/wine に入れる (add / play が初回に自動で行う)
+  vnbox install-wine                                  自前 Wine (パッチ入り Wine) のビルド済みを GitHub の Releases から <データ>/wine に入れる (add / play が初回に自動で行う)
   vnbox build-wine [-j N] [-prefix dir] [-tag]        自前 Wine を手元でビルドする (Releases にまだ無いパッチのとき)
   vnbox add <name> <配布物> [-exe 相対パス] [-click x,y;...] [-no-upload]   zip/lzh/7z/rar/SFX/インストーラ/フォルダからパッケージを作る
   vnbox meta <name> [-title T] [-engine E] [-thumb 画像]  ギャラリー表示用のタイトル・エンジン・サムネイルを設定
