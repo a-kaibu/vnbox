@@ -48,6 +48,8 @@ func Apply(ctx context.Context, env wine.Env, verb string) error {
 		err = DotNet(ctx, env, args)
 	case "xamlstub":
 		err = XamlStub(ctx, env)
+	case "sdrt":
+		err = SoftDenchi(ctx, env)
 	default:
 		return fmt.Errorf("unknown verb vnbox-%s", name)
 	}

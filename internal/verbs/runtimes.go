@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/a-kaibu/vnbox/internal/wine"
 )
@@ -262,6 +263,40 @@ func buildXamlStub(ctx context.Context, dll string) error {
 	c.Dir = src
 	if out, err := c.CombinedOutput(); err != nil {
 		return fmt.Errorf("build xamlstub32.dll: %v: %s", err, out)
+	}
+	return nil
+}
+
+// SoftDenchi installs the ソフト電池 runtime (built into vnbox, runtimes/softdenchi) and the
+// Visual C++ 2008 runtime its controls need. Without the latter the installer cannot register
+// SatX4.ocx / UCX.ocx and the game keeps asking for the runtime.
+func SoftDenchi(ctx context.Context, env wine.Env) error {
+	dir, err := wine.Extract("runtimes/softdenchi")
+	if err != nil {
+		return err
+	}
+	win64 := env.Flavor == wine.Vnbox || env.Win64 || wine.IsWin64(env.Prefix)
+	steps := [][]string{{"vcredist_x86.exe", "/q"}}
+	if win64 {
+		steps = append(steps, []string{"vcredist_x64.exe", "/q"}, []string{"sdrt5060_x64.exe", "/s", "/v/qn"})
+	} else {
+		steps = append(steps, []string{"sdrt5060_win32.exe", "/s", "/v/qn"})
+	}
+	for _, s := range steps {
+		args := append([]string{filepath.Join(dir, s[0])}, s[1:]...)
+		c := env.Command(ctx, dir, args...)
+		// the installers start Wine services that keep the output pipe open: stop waiting for
+		// it shortly after the installer itself has exited
+		c.WaitDelay = 5 * time.Second
+		if out, err := c.CombinedOutput(); err != nil && !errors.Is(err, exec.ErrWaitDelay) {
+			return fmt.Errorf("%s: %v: %s", s[0], err, out)
+		}
+		env.Wait()
+	}
+	if _, err := os.Stat(filepath.Join(env.Prefix, "drive_c", "Program Files (x86)", "SoftDenchi", "SdProxy.exe")); err != nil {
+		if _, err := os.Stat(filepath.Join(env.Prefix, "drive_c", "Program Files", "SoftDenchi", "SdProxy.exe")); err != nil {
+			return fmt.Errorf("the runtime did not install")
+		}
 	}
 	return nil
 }

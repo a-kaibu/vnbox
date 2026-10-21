@@ -325,6 +325,11 @@ func addPackage(ctx context.Context, name, src string, o addOptions) (*pkg.Packa
 		if t == "Runtime:MFC42" && !slices.Contains(l.Winetricks, "mfc42") && !hasFile(gdir, "mfc42.dll") {
 			l.Winetricks = append(l.Winetricks, "mfc42")
 		}
+		// ソフト電池: ランタイム (同梱) を入れ、オンライン認証のためネットワークを許す
+		if t == "DRM:SoftDenchi" && !slices.Contains(l.Winetricks, "vnbox-sdrt") {
+			l.Winetricks = append(l.Winetricks, "vnbox-sdrt")
+			l.Network = true
+		}
 		if strings.HasPrefix(t, "DRM:") || strings.HasPrefix(t, "Protect:") {
 			drm = append(drm, t)
 		}

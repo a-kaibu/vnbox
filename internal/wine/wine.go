@@ -439,7 +439,7 @@ func Tool(name string) (string, error) {
 	}
 	os.MkdirAll(filepath.Dir(exe), 0o755)
 	tmp := exe + ".tmp"
-	if out, err := exec.Command("i686-w64-mingw32-gcc", "-O1", "-finput-charset=UTF-8", "-o", tmp, src, "-luser32").CombinedOutput(); err != nil {
+	if out, err := exec.Command("i686-w64-mingw32-gcc", "-O1", "-finput-charset=UTF-8", "-o", tmp, src, "-luser32", "-lshell32").CombinedOutput(); err != nil {
 		return "", fmt.Errorf("build %s: %v: %s", name, err, out)
 	}
 	return exe, os.Rename(tmp, exe) // a running copy (another game's probe) keeps its old file

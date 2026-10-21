@@ -153,6 +153,7 @@ func (s *Session) run(ctx context.Context) {
 		s.finish()
 		return
 	}
+	go s.autoLogin(ctx)
 	// Games that leave fullscreen to the window manager keep a 1x1 X window without one.
 	// Let Wine manage the windows itself (X11 Driver\Managed=N) and start again.
 	if !s.launch.IsHTML() && s.wait1x1(ctx) {

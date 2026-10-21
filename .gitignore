@@ -24,6 +24,7 @@
 !/wine-build/third_party/
 # 秘密情報・生成物
 config/store.conf
+config/accounts.conf
 __pycache__/
 *.pyc
 vnbox-tools.tar.gz

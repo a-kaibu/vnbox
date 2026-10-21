@@ -1,0 +1,418 @@
+
+                                使用許諾契約書
+
+　重要　－　以下の契約書条項を注意してお読み下さい。
+
+　本使用許諾契約書（以下「本契約書」といいます。）は、本契約書が添付された
+パルティオソフト株式会社（以下「弊社」といいます。）のソフトウェア製品（以下
+「本ソフトウェア」といいます）に関して、その使用者であるお客様（個人又は法人の
+いずれであるかを問いません。以下「お客様」といいます。）と弊社又はその関連会社
+（以下総称して「パルティオソフト」といいます。）との間に締結される法的な契約書
+です。
+　本ソフトウェアには、コンピューターソフトウェア及びそれに関連した媒体、印刷物
+（マニュアル等の文書）、オンライン文書又は電子文書、動画や画像、音声や音楽、
+並びに、提供されるデータベースやインターネットベースのサービスが含まれます。
+本ソフトウェアの全部又は一部をインストール、使用する事により、お客様は本契約書
+の条項に拘束されることに同意されたものとします。本契約書の条項に同意されない
+場合、本ソフトウェアをインストール、使用することはできません。
+
+１．定義
+　　本契約書においては、別段の定めのある場合を除いて各用語の定義は次の通りと
+します。
+　①「パルティオソフト」は、日本国法人パルティオソフト株式会社並びにその関連
+会社を指すものとします。
+　②「コンピューター」とは、デジタル又は類似の形式の情報を受け取り、それを一連
+の命令に基づいて処理し、特定の結果を出力する一つの仮想又は物理的な電子計算機器
+を指します。
+　③「本ソフトウェア」とは、本契約書が添付された、ファイル（電子的に又は物理
+メディアで提供されたもの）、ディスク、その他媒体に含まれている内容の全てを意味
+するものとし、以下のものを含みます。
+　　１）パルティオソフトのソフトウェア及びそれに関連した媒体。
+　　２）印刷物（マニュアル等の文書）、オンライン文書又は電子文書。
+　　３）動画や画像、音声や音楽、フォント。
+　　４）提供されるデータベース及びインターネットベースのサービス。
+　　５）アップグレード、アップデート、変更されたバージョン、追加ファイル。
+　④「使用」とは、アクセス、ダウンロード、インストール、コピーなどの操作を
+行い、本ソフトウェアの全部又は一部の機能を利用することを指します。
+
+２．ライセンスの許諾
+　　パルティオソフトは、お客様が本契約書の全ての条項を厳守することを条件
+として、以下の権利を許諾します。
+　２．１　一般的な使用
+　　　お客様は、本ソフトウェアのコピー１部、又は、本ソフトウェアの旧バージョン
+のコピー１部（同じオペレーティングシステム用）を特定の１台のコンピューター上に
+インストールして使用、アクセス、表示することができます。
+　２．２　記憶装置／ネットワークでの使用
+　　　お客様は、ネットワークサーバー等の記憶装置に、本ソフトウェアのコピー１部
+を蓄積又はインストールすることができます。かかる記憶装置は本ソフトウェアを内部
+ネットワークで他のコンピューターにインストール、又は、実行するためだけに使用
+されるものでなければならないものとします。但し、本ソフトウェアがインストール
+されたコンピューター、又は、記憶装置から本ソフトウェアを実行している
+コンピューターの全てに、コンピューター毎の専用のライセンスを取得しなければ
+ならないものとします。また、本ソフトウェアについての１つのライセンスを異なる
+コンピューター間で共有して使用することはできないものとします。
+　２．３　バックアップ
+　　お客様は、バックアップの目的にて、本ソフトウェアの複製物を１部作成又は取得
+することができます。
+
+３．接続及びプライバシー
+　３．１　インターネットベースサービスのための情報収集の承諾
+　　　本ソフトウェアには、インターネットにアクセス中にインターネットを経由して
+パルティオソフトのコンピューターシステムに接続する機能が含まれます。接続が
+行われる際、通知が行われない場合があります。お客様は、これらの機能を解除する
+こと、及び、使用しないことも選択できます。これらの機能がパルティオソフトに送信
+する情報には、お客様のコンピューターのハードウェア情報、ソフトウェア情報、
+及び、インターネット・プロトコル・アドレスを含みますが、パルティオソフトは
+インターネットベースのサービスをお客様に提供するためにのみこれらの情報を利用
+します。本ソフトウェアを使用することで、お客様はパルティオソフトがこれらの情報
+を収集することに同意されたものとします。パルティオソフトが、本機能を通じて
+お客様から個人情報を取得することはありません。
+　３．２　アップデート
+　　　自動ダウンロードが可能なアップデートファイルの存在を確認し、ソフトウェア
+が正常にインストールされたことをパルティオソフトに通知するために、お客様の
+コンピューターをインターネットに自動的に接続する場合があることを認め、お客様は
+これに同意するものとします。
+　３．３　第三者提供物
+　　　本ソフトウェアは、広告主などの第三者のサイト、ソフトウェア、アプリケー
+ション、及び、リッチインターネットアプリケーションを含むデータサービス（以下
+「第三者提供物」といいます。）へのアクセス、リンクを可能にする場合があります。
+お客様の第三者提供物へのアクセス及び使用は、各提供物の条項に準拠します。第三者
+提供物はパルティオソフトの管理の下にはなく、パルティオソフトはいかなる第三者
+提供物のコンテンツ又はそれに含まれるリンクの内容、あるいは、それらの変更
+もしくは更新について責任を負いません。パルティオソフトは、便宜の一つとしてのみ
+第三者のサイトを提供しているのであって、いかなるリンクが含まれたとしても、
+パルティオソフトによる第三者提供物の支持を意味するものではありません。
+
+４．禁止事項
+　４．１　変更及びリバースエンジニアリングの禁止
+　　　お客様は、パルティオソフトの事前の書面による許可無く、本ソフトウェアを
+修正、改変、翻訳したり、本ソフトウェアの二次著作物を作成したりすることはでき
+ません。また、法律上明示的に許容されている場合を除き、本ソフトウェアをリバース
+エンジニアリング、逆コンパイル、逆アセンブルすること、又は、その他の方法で
+本ソフトウェアのソースコードの解読を試みること、あるいは、第三者をしてこれらの
+行為をさせることはできません。
+　４．２　不正使用の禁止
+　　　お客様は、本ソフトウェアの使用目的外でこれを使用することや、本ソフト
+ウェアの技術的な制限を回避する方法で本ソフトウェアを使用することはできません。
+また、本ソフトウェアには表示されない又はグレーで表示されていて使用できない機能
+（以下「無効な機能」）が含まれている場合がありますが、お客様はその無効な機能に
+アクセスしたり、類似の機能を作成したりして、当該機能の起動を制御する技術を回避
+することはできません。
+　４．３　レンタル／商用ホスティング／再許諾／転売の禁止
+　　　お客様は、パルティオソフトの事前の書面による承諾無しに、本ソフトウェアを
+レンタル、リース又は再許諾をすること、及び、本ソフトウェアを使用して、第三者に
+商業的ホスティングサービスを提供することはできません。また、お客様は、
+本ソフトウェアをいかなる第三者にも転売することはできません。
+
+５．義務及び制限
+　５．１　制限事項
+　　　お客様は、本ソフトウェアを、非コンピューター上で、又は、他の組み込み式
+もしくはデバイス用のオペレーティングシステム上で使用することはできません。
+　５．２　バージョンアップ
+　　　お客様は、パルティオソフトから新たに本ソフトウェアと引き換えにバージョン
+アップされたソフトウェアの供給を受けた場合は、バージョンアップ前の本ソフト
+ウェアの使用権については消滅し、新たに供給を受けたソフトウェアに対して使用権が
+発生するものとします。
+　５．３　不可分
+　　　本ソフトウェアは、１つのソフトウェアとして許諾されています。お客様が、
+その構成の一部又は全部、及び、提供されるデータベースを、複数のコンピューターで
+使用するために分離することはできないものとします。
+
+６．権利
+　６．１　著作権、所有権及び知的財産権の帰属
+　　　本ソフトウェアやその複製物に関する著作権、所有権、知的財産権、及び、
+その他一切の権利は、その権利者であるパルティオソフトが有します。本契約書により
+お客様に許諾された場合を除き、明示又は黙示を問わず、いかなる権利もお客様に譲渡
+され、又は、許諾されないものとします。本ソフトウェアは、使用権を許諾される
+もので、販売されるものではありません。
+　６．２　権利の留保
+　　　本契約書で明示的に許諾されていない権利は、全てパルティオソフトによって
+留保されるものとします。本ソフトウェアは、著作権法、その他の無体財産権に関する
+法律、及び、条約によって保護されています。従って、お客様は本ソフトウェアを他の
+著作物と同様に扱わなければならないものとします。
+
+７．保証及び免責
+　７．１　無保証
+　　　本ソフトウェアは、そのままの状態で、且つ、瑕疵を問わない条件で提供されて
+います。パルティオソフト及びその供給者は、本ソフトウェア又は第三者の提供物を
+使用することにより得られる性能及び結果を保証しません。
+　７．２　瑕疵担保責任
+　　　本ソフトウェアに瑕疵があった場合や、付随するマニュアル、データ等に不備、
+不具合があった場合でも、パルティオソフトはその責任を負わず、それを修正する義務
+も負いません。また、パルティオソフトは、本ソフトウェアについて、メンテナンス、
+サポート、又は、アップデートを提供する義務を負いません。パルティオソフトは、
+お客様の事前の許可及び事前の通知無しに、独自の判断で本ソフトウェアの仕様の
+変更、及び、付随する全ての著作物の訂正、更新を行うことができるものとします。 
+　７．３　免責
+　　　法律上の請求原因の種類を問わず、いかなる場合においても、パルティオソフト
+及びその供給者は、本ソフトウェアの使用又は使用不能から生ずるいかなる損害
+（派生的損害、逸失利益、特別損害、間接損害、又は、付随的損害を含む）に関し
+ても、一切責任を負わないものとします。また、その損害が第三者による行為やその他
+の事故、お客様の故意もしくは過失、誤用、その他異常な条件下での使用などの
+パルティオソフトの責に帰さない事由により生じた場合、パルティオソフトはいかなる
+賠償責任も負わないものとします。例えパルティオソフトが、かかる損害の可能性に
+ついて知らされていた場合についても同様です。いかなる場合においても、パルティオ
+ソフトの責任は、製品についてお客様が実際に支払った金額を上限とする直接損害に
+限定されます。
+
+８． 一般条項
+　８．１　期間
+　　　本使用許諾契約は、本ソフトウェアをお客様が使用したときから発効し、お客様
+が本ソフトウェアの使用を終了し、又は、次項の規定により、パルティオソフトが
+本使用許諾契約を解除するまでの期間、有効であるものとします。
+　８．２　解除
+　　　お客様が本契約書の内容に違反した場合、パルティオソフトはお客様に何らの
+催告等をすることなく、直ちに本使用許諾契約を解除することができるものとします。
+そのような場合、お客様は本ソフトウェアのコピー及びその構成部分を速やかに全て
+破棄しなければならないものとします。
+　８．３　不可抗力
+　　　天変地異（自然災害、火災、洪水、地震、嵐を含む）や、人為的であっても
+当事者の制御不可能な出来事（戦争、内戦、テロ、あるいは、類似の事項を含む）の
+事由（不可抗力）による本使用許諾契約上の不履行に対して、パルティオソフトは責任
+を問われないものとします。
+　８．４　譲渡
+　　　本契約書に明示的に許容されている場合を除き、本ソフトウェアに関するお客様
+の権利を貸与、譲渡することや、本ソフトウェアの全部又は一部を他のお客様のコン
+ピューターにコピーすることはできません。
+　８．５　輸出等
+　　　お客様は、本ソフトウェアに適用される全ての日本国内法及び国際法を遵守する
+ことに同意されたものとします。
+　８．６　完全合意
+　　　本契約書 (本ソフトウェアに含まれる本契約書の追加及び修正を含む）は、
+本ソフトウェア及びサポートサービスに関して、お客様とパルティオソフトの間の完全
+な合意を構成し、本ソフトウェア又は本契約書で扱われているその他の主題に関する
+全ての以前及び同時の口頭又は書面による意思表示、提案、及び、表明に優先します。
+また、本契約書の一部条項が無効、法的拘束力が無い、又は、不法であると判決された
+場合でも、残りの条項は効力を保持するものとします。
+　８．７　支配言語
+　　　本契約書は、日本語で作成されたものが優先されることとします。
+　８．８　準拠法
+　　　本契約書は、日本国法に準拠するものとします。
+　８．９　合意管轄
+　　　本契約書に関する一切の紛争の解決に関しては、東京地方裁判所を専属的合意
+管轄裁判所とします。
+                                                                          以上
+
+
+License Agreement
+
+IMPORTANT: Please read the following provisions of the agreement carefully.
+
+This License Agreement (hereinafter referred to as "Agreement") is the legal 
+agreement concerning software products of Paltiosoft Inc. (hereinafter 
+referred to as "Software") which attach this agreement, executed by and 
+between Paltiosoft Inc. (together with its affiliates, hereinafter referred to 
+as "Paltiosoft") and the customer to use such Software including both a person 
+and a corporation (hereinafter referred to as "Customer").
+This Software includes computer software, related media, printed materials 
+such as documents and manuals, online documents or electronic documents, video 
+and images, voice and music, and database and online services provided by 
+Paltiosoft. The installment or use of all or any part of Software shall be 
+deemed that Customer agrees to be bound by the provisions of this Agreement. 
+In the event that Customer does not agree the provisions of this Agreement, 
+Customer may not install and use Software.
+
+1. Definitions
+As used in this Agreement, unless otherwise specified, the following terms 
+shall be defined as set forth hereinbelow.
+i) "Paltiosoft" shall mean Paltiosoft Inc. which is a corporation organized 
+and  existing under the laws of Japan and its affiliates.
+ii) "Computer" shall mean a kind of virtual or physical electronic equipment 
+which receives digital or similar formed information, processes it in 
+accordance with sequence of commands and outputs particular results.
+iii) "Software" shall mean all contents which attach this Agreement, are 
+included in files provided in electronic or physical media, discs and other 
+media and include the followings:
+a) software produced by Paltiosoft and its related media;
+b) printed materials such as manuals, and online documents or electronic 
+documents;
+c) video and images, voice and music, and font;
+d) database and online services provided by Paltiosoft; and
+e) upgraded, updated and modified version, and additional files.
+iv) "Use" shall mean to utilize all or any part of functions of Software by 
+operations such as access, download, installment and copy.
+
+2. Grant of License
+Paltiosoft hereby grants Customer the following right and license, subject to 
+Customer's strict compliance with all provisions of this Agreement.
+
+2.1 General Use
+Customer shall install, use, access and display one copy of Software or one 
+copy of old version of Software for the same operating system in one 
+designated equipment.
+
+2.2 Use in memory storage/networks
+Customer shall store or install one copy of Software in memory storage such as 
+network server.  Such memory storage shall be used only for the purpose of the 
+installment or execution of Software to the other Computer with internal 
+network. Provided, however, that to all Computers which install Software or 
+execute Software through memory storage, Customer shall acquire a license per 
+Computer for exclusive use of Software. Also Customer shall not share one 
+license of Software between different Computers to use Software.
+
+2.3 Back-up
+Customer shall make or obtain one set of duplication of Software for the 
+purpose of back-up.
+
+3. Connection and Privacy
+3.1 Consent for collecting information to provide online based services
+Software includes functions to connect with the computer system of Paltiosoft 
+through internet when Customer accesses internet. This connection includes the 
+case without any notice to Customer. Customer may release or choose not to use 
+such functions. Such functions include sending information about Customer's 
+hardware, software and internet protocol address to Paltiosoft, and Paltiosoft 
+shall use such information only for the purpose of providing online based 
+services to Customer. By using Software Customer shall agree that Paltiosoft 
+collects such information. Paltiosoft shall not acquire Customer's personal 
+information through such functions.
+
+3.2 Update
+Customer shall agree to connect with internet automatically for the purpose 
+that Customer confirms the existence of updated files which is enable to 
+download automatically and notifies Paltiosoft the installment of Software is 
+executed properly.
+
+3.3 Third Party Offerings
+Software allows to access and link to website, software, applications, data 
+services including rich applications provided by a third party such as an 
+advertiser (hereinafter referred to as "Third Party Offerings"). Customer's 
+access and use to the Third Party Offerings shall be governed by the provision 
+of each offering. The Third Party Offerings are not under the management of 
+Paltiosoft and Paltiosoft shall not be liable for contents, contents of link 
+and any change or update of the Third Party Offerings.  Paltiosoft provides 
+the Third Party Offerings as a kind of accommodation only and providing the 
+Third Party Offerings shall not mean the support to the Third Party Offerings 
+even though any link is contained.
+
+4. Prohibitions
+4.1 Prohibitions of modification and reverse engineering
+Customer shall not modify, alter, translate Software and make derivative works 
+of Software without the prior written consent of Paltiosoft. Also Customer 
+shall not reverse-engineer, reverse-compile, reverse-assemble, or try to 
+decipher the source code of Software by other methods or make a third party to 
+do such acts, unless otherwise expressly permitted legally.
+
+4.2 Prohibitions of unpermitted use
+Customer shall not use Software for the purpose other than the use of Software 
+and shall not use Software by means to avoid the technical restrictions in 
+Software. Also Software includes functions which Customer is not able to use 
+and which are not displayed in Software or displayed in gray (hereinafter 
+referred to as "Invalid Functions"), and Customer shall not access Invalid 
+Functions, make similar functions and evade control technologies to start such 
+functions.
+
+4.3 Rental/Hosting for business/Sublicense/Prohibition of Resale
+Without the prior written consent of Paltiosoft, Customer shall not rent, 
+lease or sublicense Software, and provide the business hosting service to the 
+third party by using Software. Also Customer shall not resell Software to any 
+third parties.
+
+5. Obligations and Restrictions
+5.1 Restrictions 
+Customer shall not use Software on non-computer or other composing or for 
+device operating system.
+
+5.2 Version up
+In the event that Customer receives new version-upped Software in exchange for 
+existing Software, the license of Software before version up shall be 
+terminated and Customer shall acquire the license of Software newly provided. 
+
+5.3 Indivisibility
+Software is licensed as one set of Software. Customer shall not divide a part 
+or all part of its composition and database provided to use in two or more 
+computers.
+
+6. Rights
+6.1 Copyright, Ownership, Intellectual Property Rights
+Any and All rights include copyright, ownership, Intellectual Property Rights 
+concerning Software and its duplication shall belong to Paltiosoft which has 
+such rights. Paltiosoft shall not, express or implied, give, assign or grant 
+any rights to Customer, unless otherwise granted to Customer in this Agreement.
+Software is granted the license and is not sold to Customer.
+
+6.2 Reservation of Rights
+The rights which Paltiosoft does not grant expressly in this Agreement shall 
+remain by Paltiosoft entirely. Software shall be protected by Copyright Act 
+and other laws and treaties concerning intangible property rights. Therefore, 
+Customer shall treat Software as well as other works.
+
+7. Warranty and Disclaimer
+7.1 No Warranty
+Software is provided on an "as is" basis and conditions that defects are not 
+asked. Paltiosoft and its supplier shall not warrant the performance and 
+results of using Software and the Third Party Offerings.
+
+7.2 Warranty for defective products
+Even if Software has a defect or accompanying manuals or data has a failure or 
+a defect, Paltiosoft shall not be liable for such failure and defect and not 
+have obligations to amend them. Also Paltiosoft shall not have obligations to 
+provide maintenance, support or updates concerning Software. Paltiosoft may 
+change the specification of Software and alter and renew all works 
+accompanying Software without the prior consent of Customer and the prior 
+notice to Customer at Paltiosoft's sole discretion.
+
+7.3 Disclaimer
+In any event, regardless of the kind of legal statement of the claim, 
+Paltiosoft and its supplier shall not be liable for any damages including, 
+but not limited to, derivative damages, a loss of profits, special damages, 
+consequential damages or incidental damages arising out of using Software or 
+the impossibility of using Software. Also Paltiosoft shall not be liable for 
+any damages arising out of causes without Paltiosoft's willful misconduct or 
+negligence such as acts by the third party, other accidents, Customer's 
+willful misconduct or negligence, false in use, or use under extraordinary 
+circumstances. This disclaimer shall be applied to the case that Paltiosoft is 
+informed of the possibility of such damage. In any event, the responsibility 
+of Paltiosoft shall be limited to direct damage that is at the maximum the 
+amount Customer actually paid to Paltiosoft about products.
+
+8. General Provisions
+8.1 Term
+This Agreement shall take effect on the date that Customer starts to use 
+Software, and remain in full force until Customer terminates the use of 
+Software or Paltiosoft terminates this Agreement pursuant to the provision of 
+the next paragraph 8.2.
+
+8.2 Termination
+In the event that Customer breaches any provision of this Agreement, 
+Paltiosoft may terminate this Agreement immediately without any notice to 
+Customer. In such a case, Customer shall destroy all copy of Software and its 
+component parts as soon as possible.
+
+8.3 Force Majeure
+Paltiosoft shall not be responsible for defaults of this Agreement caused by 
+events such as act of God including natural disaster, fire, deluge, earthquake 
+or storm, uncontrollable incident arising out of human act including war, 
+civil war, terror or similar incident (Force Majeure).
+
+8.4 Assignment
+Customer shall not lend, assign Customer's rights concerning Software and 
+reproduce all or any part of Software to the computer of the other third party,
+unless otherwise expressly permitted in this Agreement.
+
+8.5 Export Regulations
+Customer shall agree to comply with all laws of Japan and International Law 
+applied to Software.
+
+8.6 Entire Agreement
+This Agreement including additions and amendment of this Agreement contained 
+in Software constitutes entire agreement between Customer and Paltiosoft 
+concerning Software and support services and supersedes any prior and 
+simultaneous oral or written manifestation of intention, proposal and 
+representation with respect to Software or other subjects in this Agreement. 
+Also should any provision of this Agreement be judged by a court to be invalid,
+unenforceable or illegal, the validity of the remaining provisions shall not 
+be affected.
+
+8.7 Control Language 
+This Agreement has been executed in a text using the Japanese language, which 
+text, despite any translations into the English language, shall be controlling.
+
+8.8 Governing Law
+This Agreement shall be construed and interpreted in accordance with the laws 
+of Japan.
+
+8.9 Jurisdiction
+All settlement of disputes concerning this Agreement shall be subject to the 
+exclusive jurisdiction of the Tokyo District Court.
+
+End
