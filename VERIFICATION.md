@@ -23,7 +23,7 @@ vnbox で実際に体験版を動かして確かめた結果。「動作」= タ
 - パッチ: 9 本を 11.20 に載せ替え。`quartz-videowindow-unlocked` は 11.20 の IVideoWindow (全画面エミュレーションが入った) に合わせて書き直し。`win32u-mouse-in-pointer` (11.3 で本家に入った) と `win32u-own-frame-visible` (11.20 に同じ処理がある) は外した。化けきつねたいじ (mouse-in-pointer が効いた Unity 6) と RPG ツクール MZ の作品 (own-frame-visible が効いた) はパッチ無しの 11.20 で動作。
 - 11.20 で出た退行と対処:
   - **Electron 製 2 本** (梨乃ねね 子種を乞う村 ほか) が成人確認の後にメモリを 12GB まで使って落ちた。11.20 ではゲーム同梱の `vulkan-1.dll` より Wine 内蔵のものが読まれ、Chromium (ANGLE) が同梱の SwiftShader を使えずにホストの lavapipe で描こうとするため。ベース prefix で `vulkan-1` を `native,builtin` にして解決。
-  - **お嬢様はイイナリみたいです！？** (DirectDraw): メニューをクリックすると画面の大半が黒くなる (11.0 では起きない)。`renderer=gdi` で正常。確認用一覧に `renderer` 列を足して指定。
+  - **AGS エンジン (`ags.exe` + `misc/*.pk`) の 3 本** (お嬢様はイイナリみたいです！？、はじカノ、8人のM娘。どれも DirectDraw): ゲーム画面が黒くなる (お嬢様はイイナリはメニューを押した時点、他の 2 本は本編に入った時点。11.0 では起きない)。一括確認はタイトル画面までしか見ていなかったので、2 本は見落としていた。`renderer=gdi` なら 3 本とも本編の画面と文章が正常に出る。`vnbox add` が exe の中の `type cdaudio alias CDAGS` でこのエンジンを見分けて `renderer=gdi` を自動で付けるようにし、3 本を入れ直して本編まで進めて確認した。
 - その他 (Wine とは無関係): 操作列のタイミング (プリマドール、Wind、生命のスペア)、自動の Enter がタイトルの「終了」を選んでいた (Magus Tale)、ニュートンと林檎の樹の起動メニュー、確認中にディスクが一杯になった数本 (同時に動かす本数を減らしてやり直して OK)。
 
 ## Go 版 (sandbox 込み) で全件確認し直し (2026-10-20〜21)
