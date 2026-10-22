@@ -45,6 +45,16 @@ func TestDetectAndMainExe(t *testing.T) {
 	}
 }
 
+func TestDetectAGS(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "misc"), 0o755)
+	os.WriteFile(filepath.Join(dir, "ags.exe"), []byte("MZ ... open %s: type cdaudio alias CDAGS ..."), 0o644)
+	os.WriteFile(filepath.Join(dir, "misc", "script.pk"), []byte("x"), 0o644)
+	if r := Detect(dir); r.Engine != "AGS" || r.FileEngine != "unknown" {
+		t.Errorf("engine %q file engine %q (scores %v)", r.Engine, r.FileEngine, r.Scores)
+	}
+}
+
 func TestDetectProtection(t *testing.T) {
 	dir := t.TempDir()
 	b := make([]byte, 4096)

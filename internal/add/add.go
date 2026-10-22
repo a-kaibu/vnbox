@@ -223,7 +223,23 @@ func checkTarget(p *pkg.Package) (*pkg.Package, error) {
 	if l.Target == "" {
 		return p, fmt.Errorf("could not determine the executable; edit %s/launch.ini", p.Dir)
 	}
+	if r := Renderer(filepath.Join(p.Dir, "files", filepath.FromSlash(filepath.Dir(l.Target)))); r != "" && l.Renderer == "" {
+		l.Renderer = r
+		if err := pkg.WriteLaunch(p.Dir, l); err != nil {
+			return nil, err
+		}
+	}
 	return p, nil
+}
+
+// Renderer returns the WineD3D renderer the game in dir needs, or "" for the default.
+// AGS draws with DirectDraw, and on Wine 11.20 its game screen turns black on the OpenGL
+// path (fine on 11.0); the GDI renderer draws it correctly.
+func Renderer(dir string) string {
+	if detect.Detect(dir).Engine == "AGS" {
+		return "gdi"
+	}
+	return ""
 }
 
 // htmlEntry returns the index.html of an HTML5 game under dir (at most 2 levels deep), or "".

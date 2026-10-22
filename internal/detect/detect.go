@@ -79,6 +79,8 @@ var binSigs = []binSig{
 	bs("Silky's AI6WIN", "AI6WIN"), bs("Silky's AI5WIN", "AI5WIN"), bs("AliceSoft System4", "System40"),
 	bs("CIRCUS", "CIRCUS"), bs("Kaguya", "KaGuYa"), bs("Lilim", "LILIM"), bs("RPGMaker", "RGSS"),
 	bs("Majiro", "MajiroArcV"), bs("CatSystem2", "CS2CONF"),
+	// ags.exe + misc/*.pk (お嬢様はイイナリ, はじカノ, 8人のM娘); not Adventure Game Studio
+	bs("AGS", "type cdaudio alias CDAGS"),
 	bs("Installer:InnoSetup", "Inno Setup Setup Data"), bs("Installer:NSIS", "Nullsoft Install System"),
 	bs("Installer:NSIS", "NullsoftInst"), bs("Installer:InstallShield", "InstallShield"),
 	bs("Installer:WiseInstaller", "Wise Installation"), bs("SFX:7z", "7z\xbc\xaf\x27\x1c"),
