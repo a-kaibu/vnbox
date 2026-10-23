@@ -10,6 +10,7 @@ import (
 	"hash/crc32"
 	"io"
 	"io/fs"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -305,13 +306,16 @@ func SinkFor(name string) string {
 }
 
 // EnsureX starts a headless X server (no window manager) on display if none is running.
+// With a usable GPU it is a rootful Xwayland on a headless weston that renders with GL, so
+// that Wine's OpenGL / Vulkan run on the GPU (Xvfb has no DRI3: Mesa falls back to llvmpipe
+// and a game's drawing takes the CPU). Otherwise, or with VNBOX_X=xvfb, it is Xvfb.
 func EnsureX(display string) error {
 	if xUp(display) {
 		return nil
 	}
 	n := strings.TrimPrefix(display, ":")
 	lock := "/tmp/.X" + n + "-lock"
-	if b, err := os.ReadFile(lock); err == nil { // stale lock from a crashed Xvfb
+	if b, err := os.ReadFile(lock); err == nil { // stale lock from a crashed X server
 		var pid int
 		fmt.Sscan(strings.TrimSpace(string(b)), &pid)
 		if pid <= 0 || exec.Command("kill", "-0", fmt.Sprint(pid)).Run() != nil {
@@ -322,6 +326,15 @@ func EnsureX(display string) error {
 	size := os.Getenv("XVFB_SIZE")
 	if size == "" {
 		size = "1920x1080"
+	}
+	if gpuX() {
+		err := startXwayland(display, size)
+		if err == nil {
+			startWM(display)
+			return nil
+		}
+		stopWeston(display)
+		log.Printf("xwayland on %s: %v; using Xvfb", display, err)
 	}
 	c := exec.Command("Xvfb", display, "-screen", "0", size+"x24", "-nolisten", "tcp")
 	if err := c.Start(); err != nil {
@@ -336,6 +349,100 @@ func EnsureX(display string) error {
 		time.Sleep(100 * time.Millisecond)
 	}
 	return errors.New("Xvfb did not start on " + display)
+}
+
+// gpuX reports whether games get a GPU-backed X server: the render node opens (the user is in
+// the render group) and weston and Xwayland are installed.
+func gpuX() bool {
+	if os.Getenv("VNBOX_X") == "xvfb" {
+		return false
+	}
+	f, err := os.OpenFile(renderNode, os.O_RDWR, 0)
+	if err != nil {
+		return false
+	}
+	f.Close()
+	for _, bin := range []string{"weston", "Xwayland"} {
+		if _, err := exec.LookPath(bin); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+const renderNode = "/dev/dri/renderD128"
+
+// westonSocket is the Wayland socket (in XDG_RUNTIME_DIR) of the weston behind display; its
+// pid is kept next to it so that StopX in another process (vnbox stop-all) finds it.
+func westonSocket(display string) (dir, name string) {
+	dir = os.Getenv("XDG_RUNTIME_DIR")
+	if dir == "" {
+		dir = fmt.Sprintf("/run/user/%d", os.Getuid())
+	}
+	return dir, "vnbox-x" + strings.TrimPrefix(display, ":")
+}
+
+func startXwayland(display, size string) error {
+	w, h, ok := strings.Cut(size, "x")
+	if !ok {
+		return fmt.Errorf("bad size %q", size)
+	}
+	dir, sock := westonSocket(display)
+	env := append(os.Environ(), "XDG_RUNTIME_DIR="+dir)
+	weston := exec.Command("weston", "--backend=headless", "--renderer=gl", "--width="+w, "--height="+h,
+		"--socket="+sock, "--idle-time=0")
+	weston.Env = env
+	if err := weston.Start(); err != nil {
+		return err
+	}
+	exited := make(chan struct{})
+	go func() { weston.Wait(); close(exited) }()
+	os.WriteFile(filepath.Join(dir, sock+".pid"), []byte(fmt.Sprint(weston.Process.Pid)), 0o644)
+	for i := 0; ; i++ {
+		if _, err := os.Stat(filepath.Join(dir, sock)); err == nil {
+			break
+		}
+		select {
+		case <-exited: // no GL on this GPU, for one
+			return errors.New("weston exited")
+		default:
+		}
+		if i == 50 {
+			return errors.New("weston did not start")
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	xw := exec.Command("Xwayland", display, "-geometry", size, "-noreset", "-nolisten", "tcp")
+	xw.Env = append(env, "WAYLAND_DISPLAY="+sock)
+	if err := xw.Start(); err != nil {
+		return err
+	}
+	go xw.Wait()
+	for i := 0; i < 50; i++ {
+		if xUp(display) {
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	xw.Process.Kill()
+	return errors.New("Xwayland did not start")
+}
+
+func stopWeston(display string) {
+	dir, sock := westonSocket(display)
+	pidFile := filepath.Join(dir, sock+".pid")
+	b, err := os.ReadFile(pidFile)
+	if err != nil {
+		return
+	}
+	os.Remove(pidFile)
+	var pid int
+	fmt.Sscan(strings.TrimSpace(string(b)), &pid)
+	if comm, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid)); pid > 0 && err == nil && strings.TrimSpace(string(comm)) == "weston" {
+		if p, err := os.FindProcess(pid); err == nil {
+			p.Signal(os.Interrupt)
+		}
+	}
 }
 
 // startWM runs a minimal window manager (openbox without decorations) on the display.
@@ -368,6 +475,7 @@ func StopX(display string) {
 	displayMu.Lock()
 	delete(reserved, display)
 	displayMu.Unlock()
+	defer stopWeston(display)
 	b, err := os.ReadFile("/tmp/.X" + strings.TrimPrefix(display, ":") + "-lock")
 	if err != nil {
 		return
@@ -375,7 +483,8 @@ func StopX(display string) {
 	var pid int
 	fmt.Sscan(strings.TrimSpace(string(b)), &pid)
 	// a stale lock may name a pid that now belongs to another program
-	if comm, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid)); pid <= 0 || err != nil || strings.TrimSpace(string(comm)) != "Xvfb" {
+	comm, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid))
+	if c := strings.TrimSpace(string(comm)); pid <= 0 || err != nil || c != "Xvfb" && c != "Xwayland" {
 		return
 	}
 	if p, err := os.FindProcess(pid); err == nil {

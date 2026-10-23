@@ -414,7 +414,8 @@ func readTSV(path string) ([][]string, error) {
 	return rows, sc.Err()
 }
 
-// cmdStopAll stops every game (the wineserver of each prefix) and every headless X server.
+// cmdStopAll stops every game (the wineserver of each prefix) and every headless X server
+// (Xvfb, or Xwayland and its weston).
 func cmdStopAll() error {
 	prefixes, _ := filepath.Glob(filepath.Join(wine.Root(), "prefixes", "*"))
 	for _, p := range prefixes {
@@ -423,6 +424,8 @@ func cmdStopAll() error {
 		}
 	}
 	exec.Command("pkill", "-x", "Xvfb").Run()
+	exec.Command("pkill", "-x", "Xwayland").Run()
+	exec.Command("pkill", "-f", "^weston .*--socket=vnbox-x").Run()
 	fmt.Println("stopped")
 	return nil
 }
