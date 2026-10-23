@@ -286,6 +286,8 @@ func (h *hub) encode(ctx context.Context, win x11.Window) error {
 	}
 	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	cmd.Env = append(os.Environ(), "DISPLAY="+h.g.Display)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -293,11 +295,17 @@ func (h *hub) encode(ctx context.Context, win x11.Window) error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	defer cmd.Wait()
 	if h.codec == "vp8" {
-		return h.pumpIVF(out, fps)
+		err = h.pumpIVF(out, fps)
+	} else {
+		err = h.pumpH264(out, fps)
 	}
-	return h.pumpH264(out, fps)
+	// an ffmpeg without x11grab (a static build earlier in PATH) ends at once: say so
+	// instead of restarting it silently
+	if werr := cmd.Wait(); err == nil && werr != nil && ctx.Err() == nil {
+		err = fmt.Errorf("ffmpeg: %v: %s", werr, strings.TrimSpace(stderr.String()))
+	}
+	return err
 }
 
 // pumpH264 cuts the Annex-B stream into access units at the access unit delimiters (aud=1)
@@ -320,7 +328,7 @@ func (h *hub) pumpH264(r io.Reader, fps int) error {
 	for {
 		n, err := br.Read(buf)
 		au = append(au, buf[:n]...)
-		for {
+		for len(au) > 0 {
 			i := bytes.Index(au[1:], aud) // the next delimiter ends the current unit
 			if i < 0 {
 				break
@@ -370,6 +378,8 @@ func (h *hub) runAudio(ctx context.Context) {
 		cmd := exec.CommandContext(ctx, "ffmpeg", "-v", "error", "-f", "pulse", "-fragment_size", "960",
 			"-i", h.g.Sink+".monitor", "-ac", "2", "-ar", "48000", "-c:a", "libopus", "-b:a", "96k",
 			"-application", "audio", "-frame_duration", "20", "-page_duration", "20000", "-f", "ogg", "-")
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
 		out, err := cmd.StdoutPipe()
 		if err == nil {
 			err = cmd.Start()
@@ -401,6 +411,10 @@ func (h *hub) runAudio(ctx context.Context) {
 		}
 		cmd.Process.Kill()
 		cmd.Wait()
+		if msg := strings.TrimSpace(stderr.String()); msg != "" && ctx.Err() == nil {
+			log.Printf("rtc audio: ffmpeg: %s", msg)
+			sleep(ctx, 4*time.Second)
+		}
 		sleep(ctx, time.Second)
 	}
 }
