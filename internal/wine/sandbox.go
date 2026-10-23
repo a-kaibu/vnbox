@@ -90,6 +90,13 @@ func (e Env) sandboxArgs(dir string, vars []string) ([]string, []string) {
 		}
 		args = append(args, flag, src, dst)
 	}
+	// name resolution: /etc/resolv.conf is often a link into /run (systemd-resolved's
+	// stub-resolv.conf), which the tmpfs above hides (WinINet then fails with 12007)
+	if e.Network {
+		if real, err := filepath.EvalSymlinks("/etc/resolv.conf"); err == nil && real != "/etc/resolv.conf" {
+			bind(false, real, real)
+		}
+	}
 	bind(true, e.Prefix, e.Prefix)
 	// the Wine build itself, when it lives under a hidden folder (vnbox build-wine puts it in
 	// the data directory, usually below /home)

@@ -62,4 +62,10 @@ func TestSandbox(t *testing.T) {
 	if got := run("cat /proc/net/dev | tail -n +3 | wc -l"); got == "1" {
 		t.Errorf("Network: only loopback")
 	}
+	// /etc/resolv.conf often points into /run (systemd-resolved), which the sandbox empties
+	if _, err := os.ReadFile("/etc/resolv.conf"); err == nil {
+		if got := run("cat /etc/resolv.conf >/dev/null && echo ok"); got != "ok" {
+			t.Errorf("Network: /etc/resolv.conf unreadable (no name resolution): %q", got)
+		}
+	}
 }
