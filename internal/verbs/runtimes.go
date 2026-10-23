@@ -267,33 +267,26 @@ func buildXamlStub(ctx context.Context, dll string) error {
 	return nil
 }
 
-// SoftDenchi installs the ソフト電池 runtime (built into vnbox, runtimes/softdenchi) and the
-// Visual C++ 2008 runtime its controls need. Without the latter the installer cannot register
-// SatX4.ocx / UCX.ocx and the game keeps asking for the runtime.
+// SoftDenchi installs the ソフト電池 runtime (built into vnbox, runtimes/softdenchi). Its
+// installer brings the Visual C++ 2015-2019 runtime its controls need. The DMM login needs
+// 5.0.9.0: 5.0.6.0 (the one for XP / Vista) asks www.dmm.co.jp/license/-/softdenchi/, which
+// now answers 502 ("応答電文に形式上の誤りがあります").
 func SoftDenchi(ctx context.Context, env wine.Env) error {
 	dir, err := wine.Extract("runtimes/softdenchi")
 	if err != nil {
 		return err
 	}
 	win64 := env.Flavor == wine.Vnbox || env.Win64 || wine.IsWin64(env.Prefix)
-	steps := [][]string{{"vcredist_x86.exe", "/q"}}
+	installer := "sdrt5090_win32.exe"
 	if win64 {
-		steps = append(steps, []string{"vcredist_x64.exe", "/q"}, []string{"sdrt5060_x64.exe", "/s", "/v/qn"})
-	} else {
-		steps = append(steps, []string{"sdrt5060_win32.exe", "/s", "/v/qn"})
+		installer = "sdrt5090_x64.exe"
 	}
-	for _, s := range steps {
-		args := append([]string{filepath.Join(dir, s[0])}, s[1:]...)
-		c := env.Command(ctx, dir, args...)
-		// the installers start Wine services that keep the output pipe open: stop waiting for
-		// it shortly after the installer itself has exited
-		c.WaitDelay = 5 * time.Second
-		if out, err := c.CombinedOutput(); err != nil && !errors.Is(err, exec.ErrWaitDelay) {
-			return fmt.Errorf("%s: %v: %s", s[0], err, out)
-		}
-		if strings.HasPrefix(s[0], "vcredist") {
-			env.Wait()
-		}
+	c := env.Command(ctx, dir, filepath.Join(dir, installer), "/s", "/v/qn")
+	// the installer starts Wine services that keep the output pipe open: stop waiting for it
+	// shortly after the installer itself has exited
+	c.WaitDelay = 5 * time.Second
+	if out, err := c.CombinedOutput(); err != nil && !errors.Is(err, exec.ErrWaitDelay) {
+		return fmt.Errorf("%s: %v: %s", installer, err, out)
 	}
 	// the runtime starts its services (UCManSvc, SdProxy), which never end on their own: stop
 	// the prefix's Wine instead of waiting for it (the game starts them again)
