@@ -13,7 +13,8 @@ import (
 
 var nextDisplay = 90 + os.Getpid()%400
 
-// xvfb starts a throwaway X server, or skips the test where there is none.
+// xvfb starts a throwaway X server, or skips the test where there is none. -noreset: without it
+// the server resets when its last client leaves, and the next connection may hit the reset.
 func xvfb(t *testing.T) Display {
 	t.Helper()
 	if _, err := exec.LookPath("Xvfb"); err != nil {
@@ -21,7 +22,7 @@ func xvfb(t *testing.T) Display {
 	}
 	nextDisplay++
 	d := Display(fmt.Sprintf(":%d", nextDisplay))
-	cmd := exec.Command("Xvfb", string(d), "-screen", "0", "640x480x24", "-nolisten", "tcp")
+	cmd := exec.Command("Xvfb", string(d), "-screen", "0", "640x480x24", "-nolisten", "tcp", "-noreset")
 	if err := cmd.Start(); err != nil {
 		t.Skip(err)
 	}
