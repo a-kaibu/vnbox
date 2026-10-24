@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -23,11 +24,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pion/interceptor"
 	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v4"
 	"github.com/pion/webrtc/v4/pkg/media"
 	"github.com/pion/webrtc/v4/pkg/media/ivfreader"
 	"github.com/pion/webrtc/v4/pkg/media/oggreader"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/a-kaibu/vnbox/internal/x11"
 )
@@ -75,7 +79,16 @@ func ConfigureRTC(c RTCConfig) error {
 	if err := m.RegisterDefaultCodecs(); err != nil {
 		return err
 	}
-	rtcAPI = webrtc.NewAPI(webrtc.WithMediaEngine(m), webrtc.WithSettingEngine(se))
+	// resend packets the viewer reports lost (NACK) instead of waiting for its keyframe request,
+	// and send sender reports. No transport-cc: the browser keeps sending REMB, which abr.go reads.
+	ir := &interceptor.Registry{}
+	if err := webrtc.ConfigureNack(m, ir); err != nil {
+		return err
+	}
+	if err := webrtc.ConfigureRTCPReports(ir); err != nil {
+		return err
+	}
+	rtcAPI = webrtc.NewAPI(webrtc.WithMediaEngine(m), webrtc.WithSettingEngine(se), webrtc.WithInterceptorRegistry(ir))
 	rtcCfg = c
 	return nil
 }
@@ -124,21 +137,32 @@ type hub struct {
 	peers    int
 	cancel   context.CancelFunc
 	idle     *time.Timer
-	kick     chan struct{} // restart the encoder now so the next frame is a keyframe
+	kick     chan struct{} // start a new encoder so the next frame is a keyframe
 	lastKick time.Time
-	ctl      *rateCtl // the video rate the viewer's connection allows (abr.go)
-	rate     int      // the rate the encoder runs at (kbit/s)
+	ctl      *rateCtl  // the video rate the viewer's connection allows (abr.go)
+	rate     int       // the rate the encoder runs at (kbit/s)
+	rateAt   time.Time // when rate last changed
+	noGrab   bool      // the change-driven capture is not available on this display (logged once)
+
+	out     sync.Mutex // the video track: which encoder feeds it, and when its last frame went out
+	active  *encoder
+	lastOut time.Time
 }
 
-// retarget restarts the encoder when the rate changed (h.mu held): x264's rate cannot be
-// changed while it runs.
+// rateHold is the least time between two steps up: a browser estimate wavering around a ladder
+// step must not swap encoders every second. Steps down apply at once.
+const rateHold = 5 * time.Second
+
+// retarget starts an encoder at the new rate when the rate changed (h.mu held): ffmpeg cannot
+// change the rate of a running encoder, so a new one takes over (see encodeDamage).
 func (h *hub) retarget() {
 	r := h.ctl.kbps()
-	if r == h.rate {
+	if r == h.rate || r > h.rate && time.Since(h.rateAt) < rateHold {
 		return
 	}
 	log.Printf("rtc %s: video %d → %d kbit/s", h.g.Display, h.rate, r)
 	h.rate = r
+	h.rateAt = time.Now()
 	h.lastKick = time.Now()
 	select {
 	case h.kick <- struct{}{}:
@@ -154,7 +178,7 @@ func (h *hub) currentRate() int {
 }
 
 // keyframe asks for an IDR frame (new viewer, or a viewer reported loss with PLI/FIR).
-// ffmpeg cannot be told to emit one, so the encoder is restarted; at most every 3 s.
+// ffmpeg cannot be told to emit one, so a new encoder takes over; at most every 3 s.
 func (h *hub) keyframe() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -181,8 +205,10 @@ func (g *Game) hub(codec string) *hub {
 	if codec == "vp8" {
 		mime = webrtc.MimeTypeVP8
 	}
-	v, _ := webrtc.NewTrackLocalStaticSample(webrtc.RTPCodecCapability{MimeType: mime}, "video", "vnbox")
-	a, _ := webrtc.NewTrackLocalStaticSample(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus}, "audio", "vnbox")
+	// separate stream ids: the browser then does not hold the picture back to line it up
+	// with the audio (lip sync matters little here, a late picture does)
+	v, _ := webrtc.NewTrackLocalStaticSample(webrtc.RTPCodecCapability{MimeType: mime}, "video", "vnbox-video")
+	a, _ := webrtc.NewTrackLocalStaticSample(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus}, "audio", "vnbox-audio")
 	_, cfg := api()
 	h := &hub{g: g, codec: codec, video: v, audio: a, kick: make(chan struct{}, 1), ctl: newRateCtl(cfg.Bitrate, time.Now())}
 	g.hubs[codec] = h
@@ -232,33 +258,52 @@ func (h *hub) leave() {
 	})
 }
 
-// runVideo encodes the game window; when the window moves or changes size it restarts ffmpeg
+// runVideo encodes the game window; when the window moves or changes size it starts over
 // (the next keyframe carries the new resolution).
 func (h *hub) runVideo(ctx context.Context) {
 	for ctx.Err() == nil {
-		win, ok := x11.Display(h.g.Display).Largest()
+		win, ok := h.g.dev().Largest()
 		if !ok || win.Area() <= 1 {
 			sleep(ctx, time.Second)
 			continue
 		}
 		wctx, cancel := context.WithCancel(ctx)
-		go func() { // restart on a keyframe request or when the window moves / changes size
+		gr, err := x11.NewGrabber(x11.Display(h.g.Display), win)
+		if err != nil {
+			h.mu.Lock()
+			if !h.noGrab {
+				log.Printf("rtc %s: no change-driven capture (%v), capturing every frame with x11grab", h.g.Display, err)
+				h.noGrab = true
+			}
+			h.mu.Unlock()
+		}
+		go func() { // start over when the window moves / changes size (x11grab: also on a keyframe request)
+			var kick chan struct{}
+			if gr == nil {
+				kick = h.kick
+			}
 			for wctx.Err() == nil {
 				select {
-				case <-h.kick:
+				case <-kick:
 					cancel()
 					return
 				case <-wctx.Done():
 					return
-				case <-time.After(2 * time.Second):
+				case <-time.After(time.Second):
 				}
-				if w, ok := x11.Display(h.g.Display).Largest(); ok && (w.W != win.W || w.H != win.H || w.X != win.X || w.Y != win.Y) {
+				if w, ok := h.g.dev().Largest(); ok && (w.W != win.W || w.H != win.H || w.X != win.X || w.Y != win.Y) {
 					cancel()
 					return
 				}
 			}
 		}()
-		if err := h.encode(wctx, win); err != nil && wctx.Err() == nil {
+		if gr != nil {
+			err = h.encodeDamage(wctx, gr)
+			gr.Close()
+		} else {
+			err = h.encodeGrab(wctx, win)
+		}
+		if err != nil && wctx.Err() == nil {
 			log.Printf("rtc video %s: %v", h.g.Display, err)
 			sleep(ctx, 2*time.Second)
 		}
@@ -266,65 +311,228 @@ func (h *hub) runVideo(ctx context.Context) {
 	}
 }
 
-func (h *hub) encode(ctx context.Context, win x11.Window) error {
-	_, cfg := api()
-	fps := h.g.FPS
-	if fps < 24 {
-		fps = 30 // WebRTC only sends what changed, so a higher rate costs little on still screens
+// encoder is one ffmpeg process making the video stream.
+type encoder struct {
+	cmd     *exec.Cmd
+	in      io.WriteCloser // raw frames (nil for x11grab)
+	pending bool           // not on the track yet: takes over with its first frame (h.out held)
+	live    chan struct{}  // closed when it took over the track
+	done    chan struct{}  // closed when ffmpeg ended; err says why
+	err     error
+}
+
+func (e *encoder) write(frame []byte) error {
+	if e == nil {
+		return nil
 	}
+	_, err := e.in.Write(frame)
+	return err
+}
+
+// startEncoder runs ffmpeg with the input options in front of the codec's.
+func (h *hub) startEncoder(ctx context.Context, input []string, fps int, stdin bool) (*encoder, error) {
+	_, cfg := api()
 	kbps := h.currentRate()
 	rate := strconv.Itoa(kbps) + "k"
-	args := []string{"-v", "error", "-f", "x11grab", "-draw_mouse", "0", "-framerate", strconv.Itoa(fps),
-		"-video_size", fmt.Sprintf("%dx%d", win.W, win.H), "-i", fmt.Sprintf("%s+%d,%d", h.g.Display, win.X, win.Y)}
+	args := append([]string{"-v", "error"}, input...)
 	if h.codec == "vp8" {
 		args = append(args, "-vf", "crop=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p",
 			"-c:v", "libvpx", "-deadline", "realtime", "-cpu-used", "8", "-lag-in-frames", "0",
-			"-b:v", rate, "-maxrate", rate, "-crf", "10", "-g", strconv.Itoa(fps*10), "-error-resilient", "1", "-f", "ivf", "-")
+			"-b:v", rate, "-maxrate", rate, "-crf", "10", "-g", strconv.Itoa(fps*10), "-error-resilient", "1", "-f", "ivf")
 	} else {
 		args = append(args, h264Args(h264Encoder(cfg.Encoder), kbps, fps)...)
-		args = append(args, "-f", "h264", "-")
+		args = append(args, "-f", "h264")
 	}
+	args = append(args, "-flush_packets", "1", "-") // each frame out at once, not when a buffer fills
 	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	cmd.Env = append(os.Environ(), "DISPLAY="+h.g.Display)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
+	e := &encoder{cmd: cmd, pending: true, live: make(chan struct{}), done: make(chan struct{})}
+	var err error
+	if stdin {
+		if e.in, err = cmd.StdinPipe(); err != nil {
+			return nil, err
+		}
+		if f, ok := e.in.(*os.File); ok { // a frame is megabytes: fewer, larger pipe writes
+			unix.FcntlInt(f.Fd(), unix.F_SETPIPE_SZ, 1<<20)
+		}
+	}
 	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	go func() {
+		send := func(frame []byte) error { return h.send(e, frame, fps) }
+		var err error
+		if h.codec == "vp8" {
+			err = pumpIVF(out, send)
+		} else {
+			err = pumpH264(out, send)
+		}
+		// an ffmpeg without x11grab (a static build earlier in PATH) ends at once: say so
+		// instead of restarting it silently
+		if werr := cmd.Wait(); err == nil && werr != nil && ctx.Err() == nil {
+			err = fmt.Errorf("ffmpeg: %v: %s", werr, strings.TrimSpace(stderr.String()))
+		}
+		if err == nil && ctx.Err() == nil {
+			err = errors.New("ffmpeg ended")
+		}
+		e.err = err
+		close(e.done)
+	}()
+	return e, nil
+}
+
+// retire stops an encoder that no longer feeds (or never fed) the track.
+func (h *hub) retire(e *encoder) {
+	if e == nil {
+		return
+	}
+	h.out.Lock()
+	e.pending = false
+	if h.active == e {
+		h.active = nil
+	}
+	h.out.Unlock()
+	e.cmd.Process.Kill()
+}
+
+// send puts one encoded frame on the video track if e feeds it. A new encoder takes over with
+// its first frame (a keyframe); from then on the one it replaces is muted.
+func (h *hub) send(e *encoder, frame []byte, fps int) error {
+	h.out.Lock()
+	defer h.out.Unlock()
+	if h.active != e {
+		if !e.pending {
+			return nil
+		}
+		h.active, e.pending = e, false
+		close(e.live)
+	}
+	now := time.Now()
+	d := now.Sub(h.lastOut)
+	if d <= 0 || d > time.Second {
+		d = time.Second / time.Duration(fps)
+	}
+	h.lastOut = now
+	return h.video.WriteSample(media.Sample{Data: frame, Duration: d})
+}
+
+func (h *hub) fps() int {
+	if h.g.FPS < 24 {
+		return 30
+	}
+	return h.g.FPS
+}
+
+// encodeDamage feeds ffmpeg only the frames in which something was drawn, at most fps a second:
+// a still screen (most of a visual novel) costs neither capture nor encoding. A keyframe request
+// or a new rate starts a second encoder on the current picture, and it takes over the track
+// with its first frame: no gap while ffmpeg starts.
+func (h *hub) encodeDamage(ctx context.Context, gr *x11.Grabber) error {
+	fps := h.fps()
+	interval := time.Second / time.Duration(fps)
+	input := []string{"-f", "rawvideo", "-pixel_format", x11.PixFmt, "-video_size", fmt.Sprintf("%dx%d", gr.W, gr.H),
+		"-framerate", strconv.Itoa(fps), "-i", "pipe:0"}
+	cur, err := h.startEncoder(ctx, input, fps, true)
 	if err != nil {
 		return err
 	}
-	if err := cmd.Start(); err != nil {
+	var next *encoder
+	defer func() { h.retire(cur); h.retire(next) }()
+	var frame []byte
+	var grabbed time.Time
+	// after a change, the last picture goes in twice more: an encoder that holds a frame back
+	// (VAAPI's async queue) then still shows it while the screen stays still
+	trail := 0
+	tail := time.NewTimer(time.Hour)
+	defer tail.Stop()
+	put := func() error {
+		if err := cur.write(frame); err != nil {
+			return err
+		}
+		next.write(frame)
+		return nil
+	}
+	var nextLive, nextDone chan struct{}
+	for {
+		if next != nil {
+			nextLive, nextDone = next.live, next.done
+		} else {
+			nextLive, nextDone = nil, nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-cur.done:
+			return cur.err
+		case <-nextDone:
+			return next.err
+		case <-nextLive:
+			h.retire(cur)
+			cur, next = next, nil
+		case <-h.kick:
+			h.retire(next)
+			if next, err = h.startEncoder(ctx, input, fps, true); err != nil {
+				return err
+			}
+			if frame != nil {
+				next.write(frame)
+			}
+		case _, ok := <-gr.Changed():
+			if !ok {
+				return errors.New("X display closed")
+			}
+			sleep(ctx, interval-time.Since(grabbed))
+			if frame, err = gr.Grab(); err != nil {
+				return err
+			}
+			grabbed = time.Now()
+			if err := put(); err != nil {
+				return err
+			}
+			trail = 2
+			tail.Reset(interval)
+		case <-tail.C:
+			if trail > 0 && frame != nil {
+				trail--
+				if err := put(); err != nil {
+					return err
+				}
+				tail.Reset(interval)
+			}
+		}
+	}
+}
+
+// encodeGrab is the fallback without XDAMAGE / MIT-SHM: ffmpeg's x11grab captures every frame.
+func (h *hub) encodeGrab(ctx context.Context, win x11.Window) error {
+	fps := h.fps()
+	e, err := h.startEncoder(ctx, []string{"-f", "x11grab", "-draw_mouse", "0", "-framerate", strconv.Itoa(fps),
+		"-video_size", fmt.Sprintf("%dx%d", win.W, win.H), "-i", fmt.Sprintf("%s+%d,%d", h.g.Display, win.X, win.Y)}, fps, false)
+	if err != nil {
 		return err
 	}
-	if h.codec == "vp8" {
-		err = h.pumpIVF(out, fps)
-	} else {
-		err = h.pumpH264(out, fps)
+	defer h.retire(e)
+	select {
+	case <-ctx.Done():
+		return nil
+	case <-e.done:
+		return e.err
 	}
-	// an ffmpeg without x11grab (a static build earlier in PATH) ends at once: say so
-	// instead of restarting it silently
-	if werr := cmd.Wait(); err == nil && werr != nil && ctx.Err() == nil {
-		err = fmt.Errorf("ffmpeg: %v: %s", werr, strings.TrimSpace(stderr.String()))
-	}
-	return err
 }
 
 // pumpH264 cuts the Annex-B stream into access units at the access unit delimiters (aud=1)
 // and sends each as one sample.
-func (h *hub) pumpH264(r io.Reader, fps int) error {
+func pumpH264(r io.Reader, send func([]byte) error) error {
 	br := bufio.NewReaderSize(r, 1<<20)
 	aud := []byte{0, 0, 0, 1, 9}
 	var au []byte
-	last := time.Now()
 	buf := make([]byte, 64<<10)
-	flush := func(frame []byte) error {
-		now := time.Now()
-		d := now.Sub(last)
-		if d <= 0 || d > time.Second {
-			d = time.Second / time.Duration(fps)
-		}
-		last = now
-		return h.video.WriteSample(media.Sample{Data: frame, Duration: d})
-	}
 	for {
 		n, err := br.Read(buf)
 		au = append(au, buf[:n]...)
@@ -333,7 +541,7 @@ func (h *hub) pumpH264(r io.Reader, fps int) error {
 			if i < 0 {
 				break
 			}
-			if err := flush(append([]byte(nil), au[:i+1]...)); err != nil {
+			if err := send(append([]byte(nil), au[:i+1]...)); err != nil {
 				return err
 			}
 			au = au[i+1:]
@@ -347,12 +555,11 @@ func (h *hub) pumpH264(r io.Reader, fps int) error {
 	}
 }
 
-func (h *hub) pumpIVF(r io.Reader, fps int) error {
+func pumpIVF(r io.Reader, send func([]byte) error) error {
 	ivf, _, err := ivfreader.NewWith(r)
 	if err != nil {
 		return err
 	}
-	last := time.Now()
 	for {
 		frame, _, err := ivf.ParseNextFrame()
 		if err != nil {
@@ -361,13 +568,7 @@ func (h *hub) pumpIVF(r io.Reader, fps int) error {
 			}
 			return err
 		}
-		now := time.Now()
-		d := now.Sub(last)
-		if d <= 0 || d > time.Second {
-			d = time.Second / time.Duration(fps)
-		}
-		last = now
-		if err := h.video.WriteSample(media.Sample{Data: frame, Duration: d}); err != nil {
+		if err := send(frame); err != nil {
 			return err
 		}
 	}
@@ -468,16 +669,14 @@ func (g *Game) rtcOffer(w http.ResponseWriter, r *http.Request) {
 					case *rtcp.ReceiverReport:
 						for _, rr := range p.Reports {
 							h.mu.Lock()
-							if h.ctl.loss(float64(rr.FractionLost)/256, time.Now()) {
-								h.retarget()
-							}
+							h.ctl.loss(float64(rr.FractionLost)/256, time.Now())
+							h.retarget() // also applies a step up that rateHold put off
 							h.mu.Unlock()
 						}
 					case *rtcp.ReceiverEstimatedMaximumBitrate:
 						h.mu.Lock()
-						if h.ctl.estimate(p.Bitrate, time.Now()) {
-							h.retarget()
-						}
+						h.ctl.estimate(p.Bitrate, time.Now())
+						h.retarget()
 						h.mu.Unlock()
 					}
 				}

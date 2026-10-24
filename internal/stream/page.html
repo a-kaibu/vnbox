@@ -74,7 +74,10 @@ async function startRTC(){
  const vt=pc.addTransceiver('video',{direction:'recvonly'});pc.addTransceiver('audio',{direction:'recvonly'});
  if(h264.length&&vt.setCodecPreferences)try{vt.setCodecPreferences([...h264,...caps.filter(c=>!/h264/i.test(c.mimeType))]);}catch(e){}
  dc=pc.createDataChannel('input');
- const ms=new MediaStream();vv.srcObject=ms;pc.ontrack=e=>ms.addTrack(e.track);
+ const ms=new MediaStream();vv.srcObject=ms;
+ // 映像は受信バッファを最小にして届いたらすぐ出す (音声は途切れないよう既定のまま)
+ pc.ontrack=e=>{ms.addTrack(e.track);if(e.track.kind==='video'){const r=e.receiver;
+  try{r.jitterBufferTarget=0}catch(_){}try{r.playoutDelayHint=0}catch(_){}}};
  await pc.setLocalDescription(await pc.createOffer());
  await new Promise(r=>{if(pc.iceGatheringState==='complete')return r();pc.addEventListener('icegatheringstatechange',()=>pc.iceGatheringState==='complete'&&r());setTimeout(r,2500);});
  const codec=h264.length?'h264':'vp8';
@@ -105,6 +108,10 @@ document.addEventListener('pointerdown',startAudio,{capture:true});
 // ---- マウス ----
 pad.addEventListener('pointerup',e=>{if(e.pointerType!=='touch')click(e.clientX,e.clientY,e.button==2?3:1);});
 pad.addEventListener('contextmenu',e=>e.preventDefault());
+// カーソル位置も送る (ゲームのホバー表示。クリック時にカーソル移動を待たずに済む)。30 回/秒まで、データチャネルが開いている時だけ
+let moveT=0,moveAt=null;
+pad.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse'||!dc||dc.readyState!=='open')return;moveAt=[e.clientX,e.clientY];
+ if(!moveT)moveT=setTimeout(()=>{moveT=0;const p=rel(moveAt[0],moveAt[1]);if(p&&dc&&dc.readyState==='open')dc.send(JSON.stringify({t:'move',x:p[0],y:p[1]}));},33);});
 pad.addEventListener('wheel',e=>{wheel(e.clientX,e.clientY,e.deltaY<0?4:5);},{passive:true});
 document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
  if(e.key==='Control'){if(!e.repeat)send({t:'keydown',k:'ctrl'});}else send({t:'key',k:e.key});e.preventDefault();});
