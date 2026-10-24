@@ -177,6 +177,16 @@ SAVE_INTERVAL=300                                        # プレイ中にセー
 - **履歴**: `saves/<user>/<name>/<UTC時刻>.tar.zst` を消さずに積むので、任意の時点に戻せる (`vnbox store history <name>`、`save-pull <name> <時刻>`)。古いものは S3 のライフサイクルルールで期限切れにするとよい。
 - サーバを捨てても `packages/` と `saves/` が S3 にあれば、新しいサーバでベース prefix を作って `vnbox serve` するだけで続きから遊べる。
 
+## ブラウザで動かす (vnrun)
+
+Wine で動かして配信する代わりに、エンジンを WebAssembly にしたプレイヤー [vnrun](https://github.com/a-kaibu/vnrun) でブラウザの中で動かせる。ホストはゲームのファイルとセーブを配るだけなので、非力なホストでも重くならず、映像の遅延もない。
+
+- 対象: vnrun が対応するエンジン (今は SiglusEngine / RealLive) で、DRM が無いもの。DRM 付きの作品は今まで通り Wine で正規の認証を通して遊ぶ。
+- `vnbox add` が対象のエンジンを見つけると `launch.ini` に `runner=vnrun` と `root=` (エンジンのファイルがあるフォルダ) を書く。追加済みのパッケージは `vnbox browser -all` で付く。Wine でも今まで通り起動できる。
+- vnrun をビルドした `dist/` を `vnbox serve -player <dist>` (または `VNBOX_PLAYER`、既定は `<データ>/player`) で渡すと、ギャラリーに「ブラウザで遊ぶ」が出る。
+- セーブは `<データ>/websaves/<name>/` に置き、`VNBOX_S3` があれば書き込みが止まって 30 秒後に `websaves/<user>/<name>/` へ上げる。ホストに無ければ開いたときに S3 から戻す。Wine で遊んだときのセーブとは別。
+- RealLive の文字にはホストの日本語フォント (IPA / Noto CJK) を配る。
+
 ## Go のパッケージ構成
 
 | パッケージ | 役割 |
@@ -198,6 +208,7 @@ SAVE_INTERVAL=300                                        # プレイ中にセー
 | `internal/probe` | 動作確認 (`vnbox probe` / `verify`): play と同じセッションで起動 → 操作列 → スクショ → 判定 |
 | `internal/session` | 1 本のゲームの起動〜終了 (1x1 ウィンドウ時の Managed=N 再起動、定期・終了時のセーブ) |
 | `internal/meta` | 批評空間 (SQL フォーム) / VNDB (Kana API) からのメタデータ取得、タイトルの照合 (「体験版」等を除いて正規化)、カバー画像の保存 |
+| `internal/webplay` | ブラウザ実行: `runner=vnrun` のパッケージのファイルとセーブを [vnrun](https://github.com/a-kaibu/vnrun) のプレイヤーに配る (`/player/`、`/p/<name>/`)、セーブの S3 同期 |
 | `internal/portal` | ギャラリー・詳細画面、サムネイル (プレイ中はライブ)、トークン認証、複数セッションの管理 |
 | `internal/x11` | X ウィンドウの列挙・入力 (xdotool)、インストーラのダイアログ自動操作 |
 

@@ -11,12 +11,14 @@ import (
 	"time"
 
 	"github.com/a-kaibu/vnbox/internal/session"
+	"github.com/a-kaibu/vnbox/internal/webplay"
 )
 
 // Server holds the running sessions.
 type Server struct {
 	Token string // empty disables authentication (only for trusted networks)
 	Opt   session.Options
+	Web   *webplay.Server // browser play of runner=vnrun packages; nil disables it
 
 	mu       sync.Mutex
 	sessions map[string]*session.Session
@@ -41,6 +43,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /start/{name}", s.start)
 	mux.HandleFunc("POST /stop/{name}", s.stop)
 	mux.HandleFunc("/g/{name}/", s.game)
+	if s.Web != nil {
+		s.Web.Register(mux)
+	}
 	return s.auth(mux)
 }
 
@@ -130,6 +135,9 @@ func (s *Server) Shutdown() {
 		go func(ss *session.Session) { defer wg.Done(); ss.Stop() }(ss)
 	}
 	wg.Wait()
+	if s.Web != nil {
+		s.Web.Shutdown()
+	}
 }
 
 // Adopt registers an already started session (used by `vnbox play`).

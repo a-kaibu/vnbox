@@ -95,7 +95,8 @@ select.sort{font:inherit;font-size:13px;padding:6px 10px;border-radius:999px;bor
       <a class="btn" href="g/{{.Name}}/">続ける</a>
       <form method="post" action="stop/{{.Name}}"><button class="btn stop" title="終了してセーブを保存">終了</button></form>
     {{else}}
-      <form method="post" action="start/{{.Name}}" class="start"><button class="btn">{{if .Save}}続きから遊ぶ{{else}}遊ぶ{{end}}</button></form>
+      {{if .Play}}<a class="btn" href="{{.Play}}" title="ブラウザの中で動かす (ホストの負荷なし)">ブラウザで遊ぶ</a>{{end}}
+      <form method="post" action="start/{{.Name}}" class="start"><button class="btn{{if .Play}} sub{{end}}">{{if .Play}}Wine で遊ぶ{{else if .Save}}続きから遊ぶ{{else}}遊ぶ{{end}}</button></form>
     {{end}}
     </div>
   </div>

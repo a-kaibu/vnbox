@@ -36,6 +36,7 @@ import (
 	"github.com/a-kaibu/vnbox/internal/session"
 	"github.com/a-kaibu/vnbox/internal/store"
 	"github.com/a-kaibu/vnbox/internal/stream"
+	"github.com/a-kaibu/vnbox/internal/webplay"
 	"github.com/a-kaibu/vnbox/internal/wine"
 	"github.com/a-kaibu/vnbox/internal/winebuild"
 )
@@ -48,8 +49,9 @@ const usage = `vnbox — Windows ノベルゲームを Wine で動かしてブ�
   vnbox meta <name> [-title T] [-engine E] [-thumb 画像]  ギャラリー表示用のタイトル・エンジン・サムネイルを設定
   vnbox meta <name> -fetch [-id egs:N|vndb:vN] | meta -all   批評空間 (届かなければ VNDB) からブランド・発売日・点数・タグ・あらすじ・カバーを取得
   vnbox meta-search <キーワード>                        批評空間/VNDB の候補 ID を一覧
-  vnbox serve [-addr :8080] [-token T]                ポータル: ギャラリーから選んで起動・配信 (複数同時)
+  vnbox serve [-addr :8080] [-token T] [-player dir]  ポータル: ギャラリーから選んで起動・配信 (複数同時)。-player は vnrun の dist/
   vnbox play <name> [-addr :8080] [-token T]          1 本だけ起動して配信
+  vnbox browser [-all | <name>...]                    vnrun が動かせる作品をブラウザでも遊べるようにする (launch.ini に runner=vnrun)
   vnbox mkbase [-win64] [dir]                         ベース prefix を作る (最初に一度。-wine classic なら 32bit / -win64 で 64bit)
   vnbox prepare <name> [-prefix dir]                  実行用 prefix を準備してパスを表示
   vnbox probe <name> [-input 操作列] [-wait 30s]      play と同じ起動で動かし、操作列を流してスクショと判定 (results/<name>/)
@@ -91,6 +93,8 @@ func main() {
 		err = cmdServe(ctx, args)
 	case "play":
 		err = cmdPlay(ctx, args)
+	case "browser":
+		err = cmdBrowser(args)
 	case "prepare":
 		err = cmdPrepare(ctx, args)
 	case "build-wine":
@@ -338,6 +342,13 @@ func addPackage(ctx context.Context, name, src string, o addOptions) (*pkg.Packa
 		l.DRM = strings.Join(drm, ",")
 		fmt.Fprintf(o.Log, "warning: DRM / protection found: %s (purchased copies may need online activation)\n", l.DRM)
 	}
+	// vnrun が動かせるエンジンで DRM が無ければ、ブラウザでも遊べるようにする (Wine でも今まで通り動く)。
+	// DRM 付きの作品は Wine で正規の認証を通して遊ぶ
+	if l.DRM == "" && webplay.Playable(l.Engine, gdir) {
+		l.Runner = pkg.RunnerVnrun
+		l.Root = path.Dir(l.Target)
+		fmt.Fprintf(o.Log, "[%s] %s: can also run in the browser (vnrun)\n", name, l.Engine)
+	}
 	if err := pkg.WriteLaunch(p.Dir, l); err != nil {
 		return nil, pkg.Launch{}, err
 	}
@@ -415,11 +426,58 @@ func rtcFlags(c common) func() error {
 	}
 }
 
+// playerFlag adds -player, the built vnrun player that runs runner=vnrun packages in the browser.
+func playerFlag(c common) *string {
+	return c.fs.String("player", envOr("VNBOX_PLAYER", filepath.Join(wine.Root(), "player")),
+		"vnrun のプレイヤー (vnrun の dist/)。runner=vnrun のパッケージをブラウザで動かす (環境変数 VNBOX_PLAYER)")
+}
+
+// cmdBrowser marks already added packages that vnrun can run (engine supported, no DRM) as
+// playable in the browser. New packages get this from add.
+func cmdBrowser(args []string) error {
+	c := newFlags("browser")
+	all := c.fs.Bool("all", false, "every package")
+	names := c.parse(args)
+	if *all {
+		ents, err := os.ReadDir(filepath.Join(wine.Root(), "packages"))
+		if err != nil {
+			return err
+		}
+		names = nil
+		for _, e := range ents {
+			names = append(names, e.Name())
+		}
+	}
+	if len(names) == 0 {
+		return errors.New("usage: vnbox browser [-all | <name>...]")
+	}
+	for _, n := range names {
+		p, err := pkg.Open(pkg.Dir(n))
+		if err != nil {
+			continue
+		}
+		l, err := p.Launch()
+		if err != nil || l.InBrowser() || l.DRM != "" || l.Target == "" {
+			continue
+		}
+		if !webplay.Playable(l.Engine, filepath.Join(p.Dir, "files", filepath.Dir(filepath.FromSlash(l.Target)))) {
+			continue
+		}
+		l.Runner, l.Root = pkg.RunnerVnrun, path.Dir(l.Target)
+		if err := pkg.WriteLaunch(p.Dir, l); err != nil {
+			return err
+		}
+		fmt.Printf("%s: %s, playable in the browser\n", n, l.Engine)
+	}
+	return nil
+}
+
 func cmdServe(ctx context.Context, args []string) error {
 	c := newFlags("serve")
 	addr := c.fs.String("addr", ":8080", "listen address")
 	tok := c.fs.String("token", "", "access token (or VNBOX_TOKEN)")
 	fps := c.fs.Int("fps", 30, "video frame rate (below 24 means 30)")
+	player := playerFlag(c)
 	rtc := rtcFlags(c)
 	c.parse(args)
 	if err := rtc(); err != nil {
@@ -437,6 +495,10 @@ func cmdServe(ctx context.Context, args []string) error {
 		log.Print("warning: no token; anyone who can reach this port can play and control games")
 	}
 	p := portal.New(t, opt)
+	p.Web = webplay.New(webplay.Options{PlayerDir: *player, Store: opt.Store})
+	if !p.Web.Ready() {
+		log.Printf("browser play (vnrun) is off: no player in %s", *player)
+	}
 	log.Printf("portal on http://%s/%s", hostAddr(*addr), tokenQuery(t))
 	return listen(ctx, *addr, p.Handler(), p.Shutdown)
 }

@@ -3,6 +3,7 @@
 //
 //	packages/<name>/
 //	  launch.ini        [launch] target=<path under C:\> args= renderer= winetricks= title= engine= network=on managed=n
+//	                    runner=vnrun root=<game folder under C:\>
 //	  thumb.jpg         optional gallery thumbnail (taken while the game runs)
 //	  files/            copied into drive_c
 //	  system.reg.frag   HKLM changes
@@ -44,7 +45,15 @@ type Launch struct {
 	DRM        string // DRM / protector found in the files (DRM:*, Protect:* tags of detect), comma separated
 	Network    bool   // network=on: the game may use the network (it runs without one otherwise)
 	Unmanaged  bool   // managed=n: Wine manages the game's windows itself (X11 Driver\Managed=N)
+	Runner     string // runner=vnrun: the game can also run in the browser with vnrun (see internal/webplay)
+	Root       string // root=: the folder vnrun runs, relative to drive_c with forward slashes
 }
+
+// RunnerVnrun is the runner= value of games that vnrun can play in the browser.
+const RunnerVnrun = "vnrun"
+
+// InBrowser reports whether the game can run in the browser with vnrun.
+func (l Launch) InBrowser() bool { return l.Runner == RunnerVnrun }
 
 // IsHTML reports whether the target is a web page (an HTML5 game): it runs in a native
 // browser on the game's X display instead of in Wine.
@@ -121,6 +130,10 @@ func ParseLaunch(r io.Reader) (Launch, error) {
 			l.Network = v == "on" || v == "1" || v == "yes"
 		case "managed":
 			l.Unmanaged = strings.EqualFold(v, "n") || v == "off" || v == "no"
+		case "runner":
+			l.Runner = v
+		case "root":
+			l.Root = filepath.ToSlash(v)
 		}
 	}
 	return l, sc.Err()
@@ -149,6 +162,9 @@ func WriteLaunch(dir string, l Launch) error {
 	}
 	if l.Unmanaged {
 		s += "managed=n\n"
+	}
+	if l.Runner != "" {
+		s += "runner=" + l.Runner + "\nroot=" + l.Root + "\n"
 	}
 	return os.WriteFile(filepath.Join(dir, "launch.ini"), []byte(s), 0o644)
 }

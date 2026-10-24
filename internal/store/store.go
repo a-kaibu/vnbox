@@ -595,3 +595,50 @@ func readTar(r io.Reader, dst string) error {
 		}
 	}
 }
+
+// WebSavePush uploads the save files a game wrote while running in the browser (dir, see
+// internal/webplay) as websaves/<user>/<name>/<time>.tar.zst and latest.tar.zst.
+func (s *Store) WebSavePush(ctx context.Context, name, dir string) error {
+	var raw bytes.Buffer
+	if err := writeTar(&raw, filepath.Dir(dir), filepath.Base(dir)); err != nil {
+		return err
+	}
+	var z bytes.Buffer
+	zw, _ := zstd.NewWriter(&z, zstd.WithEncoderLevel(zstd.SpeedBestCompression))
+	zw.Write(raw.Bytes())
+	zw.Close()
+	ts := time.Now().UTC().Format("20060102T150405Z")
+	for _, k := range []string{ts, "latest"} {
+		if err := s.put(ctx, s.key("websaves", s.cfg.User, name, k+".tar.zst"), bytes.NewReader(z.Bytes())); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// WebSavePull restores the latest browser save of name into dir (which must not exist yet).
+// It returns found=false when there is none.
+func (s *Store) WebSavePull(ctx context.Context, name, dir string) (found bool, err error) {
+	body, err := s.get(ctx, s.key("websaves", s.cfg.User, name, "latest.tar.zst"))
+	if err != nil {
+		if IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	defer body.Close()
+	zr, err := zstd.NewReader(body)
+	if err != nil {
+		return false, err
+	}
+	defer zr.Close()
+	tmp, err := os.MkdirTemp(filepath.Dir(dir), ".pull-")
+	if err != nil {
+		return false, err
+	}
+	defer os.RemoveAll(tmp)
+	if err := readTar(zr, tmp); err != nil {
+		return false, err
+	}
+	return true, os.Rename(filepath.Join(tmp, filepath.Base(dir)), dir)
+}

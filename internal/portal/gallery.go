@@ -18,6 +18,7 @@ import (
 	"github.com/a-kaibu/vnbox/internal/meta"
 	"github.com/a-kaibu/vnbox/internal/pkg"
 	"github.com/a-kaibu/vnbox/internal/stream"
+	"github.com/a-kaibu/vnbox/internal/webplay"
 	"github.com/a-kaibu/vnbox/internal/wine"
 )
 
@@ -42,7 +43,8 @@ type Game struct {
 	Remote  bool   `json:"remote"`
 	Save    string `json:"save,omitempty"` // time of the latest save in the store
 	Running bool   `json:"running"`
-	Thumb   string `json:"thumb"` // URL relative to the portal root
+	Play    string `json:"play,omitempty"` // page that plays the game in the browser (vnrun), relative to the portal root
+	Thumb   string `json:"thumb"`          // URL relative to the portal root
 	Cover   string `json:"cover,omitempty"`
 	Art     bool   `json:"-"` // Thumb is the (portrait) cover, not a game screen
 
@@ -86,6 +88,9 @@ func (s *Server) games(ctx context.Context) []Game {
 			g.Local = true
 			if l, err := p.Launch(); err == nil {
 				g.Title, g.Engine, g.DRM = l.Title, l.Engine, l.DRM
+				if s.Web != nil && s.Web.Ready() && l.InBrowser() {
+					g.Play = webplay.PlayURL(g.Name)
+				}
 			}
 			if st, err := os.Stat(p.Thumb()); err == nil {
 				g.Thumb = "thumb/" + g.Name + "?v=" + strconv.FormatInt(st.ModTime().Unix(), 36)
@@ -178,6 +183,9 @@ func (s *Server) remoteMeta(ctx context.Context, games []*Game) {
 			defer wg.Done()
 			if l, err := pkg.ParseLaunch(bytes.NewReader(side(g.Name, "ini"))); err == nil {
 				g.Title, g.Engine, g.DRM = l.Title, l.Engine, l.DRM
+				if s.Web != nil && s.Web.Ready() && l.InBrowser() {
+					g.Play = webplay.PlayURL(g.Name)
+				}
 			}
 			if b := side(g.Name, "json"); b != nil {
 				var in meta.Info
