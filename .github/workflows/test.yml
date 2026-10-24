@@ -13,11 +13,12 @@ jobs:
         with:
           go-version-file: go.mod
       # IPA fonts: the ＭＳ ゴシック alias font test, 7-Zip: archive tests, bubblewrap: the sandbox test,
+      # Xvfb: the X input / change-driven capture tests (internal/x11),
       # moto: the S3 tests run against a local S3-compatible server
       - name: tools
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q fonts-ipafont-gothic fonts-ipafont-mincho p7zip-full bubblewrap
+          sudo apt-get install -y -q fonts-ipafont-gothic fonts-ipafont-mincho p7zip-full bubblewrap xvfb
           # a venv of its own: the runner's system boto3 / pyOpenSSL clash with moto's
           python3 -m venv "$RUNNER_TEMP/moto"
           "$RUNNER_TEMP/moto/bin/pip" install -q "moto[server]"

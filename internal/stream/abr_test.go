@@ -44,11 +44,15 @@ func TestRateCtl(t *testing.T) {
 	}
 	// the browser's estimate caps the rate
 	d := newRateCtl(3000, now)
-	if !d.estimate(1_000_000, now) || d.kbps() != 850 {
+	if !d.estimate(1_000_000, now) || d.kbps() != 690 {
 		t.Fatalf("remb cap %d", d.kbps())
 	}
 	if d.estimate(1_000_000, now) {
 		t.Fatal("same estimate reported as a change")
+	}
+	// an estimate wobbling between two ladder steps is no change
+	if d.estimate(1_100_000, now) || d.estimate(950_000, now) {
+		t.Fatal("small estimate change moved the rate")
 	}
 	d.estimate(100_000, now)
 	if d.kbps() != 390 {

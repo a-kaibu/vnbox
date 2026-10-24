@@ -61,12 +61,15 @@ func (c *rateCtl) estimate(bps float32, now time.Time) bool {
 	return c.kbps() != before
 }
 
-// kbps is the rate: the ladder step, never above the browser's estimate
-// (with some headroom for audio and packet overhead), never below the lowest step.
+// kbps is the rate: the ladder step, or the highest step below the browser's estimate (with
+// some headroom for audio and packet overhead), never below the lowest step. Only ladder rates
+// come out, so an estimate that moves a little every second does not start a new encoder.
 func (c *rateCtl) kbps() int {
-	r := int(float64(c.ceiling) * ladder[c.step])
-	if c.remb > 0 && c.remb*85/100 < r {
-		r = c.remb * 85 / 100
+	for i := c.step; i < len(ladder); i++ {
+		r := int(float64(c.ceiling) * ladder[i])
+		if c.remb == 0 || r <= c.remb*85/100 {
+			return r
+		}
 	}
-	return max(r, int(float64(c.ceiling)*ladder[len(ladder)-1]))
+	return int(float64(c.ceiling) * ladder[len(ladder)-1])
 }
